@@ -191,3 +191,19 @@ details.formulaire[open] > summary { margin-bottom: 12px; }
 .legal p, .legal li { line-height: 1.6; color: #d5dde2; }
 .scanner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .scanner .bouton { border-color: var(--turquoise); }
+
+/* Accueil */
+.accueil-bas { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.accueil-bas > .carte, .pile > .carte { margin-bottom: 0; }
+.pile { display: grid; gap: 16px; }
+a.jour { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.etiquette { flex: none; width: 64px; text-align: center; font-size: 12px; font-weight: 700; padding: 4px 0; border-radius: 6px; }
+.etiquette.depart { background: rgba(34, 197, 94, .15); color: var(--vert); }
+.etiquette.retour { background: rgba(96, 165, 250, .15); color: var(--bleu); }
+.etiquette.retard { background: rgba(239, 68, 68, .15); color: var(--rouge); }
+a.carte.mois { display: block; }
+a.carte.mois:hover { border-color: var(--turquoise); }
+.trois { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.trois span { display: block; color: var(--gris); font-size: 12.5px; }
+.trois b { font-size: 18px; }
+@media (max-width: 860px) { .accueil-bas { grid-template-columns: 1fr; } }

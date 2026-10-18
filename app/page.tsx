@@ -2,7 +2,6 @@ import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR } from '@/lib/format';
 import Cadre from './_c/Cadre';
 import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
-import Graphique from './_c/Graphique';
 import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
 import { lienWhatsApp, messageDepart, messageRetour, messageRetard } from '@/lib/whatsapp';
@@ -66,8 +65,30 @@ export default async function Accueil() {
   const nom = (c: any) => [c?.prenom, c?.nom].filter(Boolean).join(' ');
   const voiture = (v: any) => [v?.marque, v?.modele].filter(Boolean).join(' ');
 
+  // Une seule liste « Aujourd'hui », dans l'ordre de l'heure : retards d'abord, puis départs et retours
+  type Ligne = { id: string; genre: 'retard' | 'depart' | 'retour'; quand: string; v: any; c: any; voyants?: { ok: boolean; titre: string }[]; wa?: string };
+  const lignes: Ligne[] = [
+    ...(retards ?? []).map((l: any) => ({ id: l.id, genre: 'retard' as const, quand: l.fin_prevue, v: l.vehicules, c: l.clients,
+      wa: l.clients?.telephone ? lienWhatsApp(l.clients.telephone, messageRetard(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.fin_prevue)) : undefined })),
+    ...[
+      ...(departs ?? []).map((l: any) => ({ id: l.id, genre: 'depart' as const, quand: l.debut, v: l.vehicules, c: l.clients,
+        voyants: [
+          { ok: !!(l.clients?.permis_path && l.clients?.piece_identite_path) && !l.clients?.liste_noire, titre: 'Client vérifié' },
+          { ok: l.caution_statut === 'prise' || !l.caution_montant, titre: 'Caution prise' },
+          { ok: l.vehicules?.statut === 'disponible', titre: 'Voiture prête' },
+          { ok: (l.etats_des_lieux ?? []).some((e: any) => e.type === 'depart'), titre: 'État des lieux commencé' },
+        ],
+        wa: l.clients?.telephone ? lienWhatsApp(l.clients.telephone, messageDepart(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.debut, profil.agences?.nom ?? '')) : undefined })),
+      ...(retours ?? []).map((l: any) => ({ id: l.id, genre: 'retour' as const, quand: l.fin_prevue, v: l.vehicules, c: l.clients,
+        wa: l.clients?.telephone ? lienWhatsApp(l.clients.telephone, messageRetour(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.fin_prevue)) : undefined })),
+    ].sort((a, b) => a.quand.localeCompare(b.quand)),
+  ];
+  const etiquette = { retard: 'Retard', depart: 'Départ', retour: 'Retour' };
+  const jourTexte = new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' });
+
   return (
-    <Cadre titre={`Bonjour ${profil.nom.split(' ')[0]}`} tables={['locations', 'vehicules', 'amendes', 'entretiens', 'etats_des_lieux']}
+    <Cadre titre={<>Bonjour {profil.nom.split(' ')[0]} <span className="gris" style={{ fontWeight: 400, fontSize: 16 }}>· {jourTexte}</span></>}
+      tables={['locations', 'vehicules', 'amendes', 'entretiens', 'etats_des_lieux']}
       actions={<a className="bouton principal" href="/locations/nouvelle">+ Nouvelle location</a>}>
       <section className="compteurs">
         {tuiles.map((t) => (
@@ -77,97 +98,77 @@ export default async function Accueil() {
         ))}
       </section>
 
-      {profil.role === 'gerant' && <section className="carte">
-        <div className="titre" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Pilotage business · {mois.debut.toLocaleDateString('fr-FR', { month: 'long', timeZone: 'Europe/Paris' })}</h2>
-          <a className="bouton petit" href="/pilotage">Jour, semaine, mois et par véhicule</a>
-        </div>
-        <div className="chiffres">
-          <div><span>Recettes</span><b>{euros(mois.recettes)}</b></div>
-          <div><span>Coûts</span><b>{euros(mois.couts)}</b></div>
-          <div><span>Résultat</span><b style={{ color: mois.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{mois.resultat >= 0 ? '+' : ''}{euros(mois.resultat)}</b></div>
-          <div><span>Mois dernier</span><b style={{ color: moisPrec.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{moisPrec.resultat >= 0 ? '+' : ''}{euros(moisPrec.resultat)}</b></div>
-        </div>
-        <Graphique periodes={pilotage.periodes.slice(-6)} selection={5} hauteur={170} />
-      </section>}
-
       <section className="carte">
         <div className="titre" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Ma flotte</h2>
-          <span className="gris">{totalFlotte} véhicule{totalFlotte > 1 ? 's' : ''} · taux d&apos;utilisation <b style={{ color: 'var(--texte)' }}>{totalFlotte ? Math.round(((flotte[0].n) / totalFlotte) * 100) : 0} %</b> </span>
-        </div>
-        <div className="barre-flotte">
-          {flotte.filter((f) => f.n > 0).map((f) => (
-            <a key={f.k} href={`/vehicules?statut=${f.k}`} style={{ flex: f.n, background: couleur[f.k] }} title={`${libFlotte[f.k]} : ${f.n}`} />
-          ))}
-          {!totalFlotte && <span style={{ flex: 1, background: 'var(--bord)' }} />}
-        </div>
-        <div className="legende">
-          {flotte.map((f) => (
-            <a key={f.k} href={`/vehicules?statut=${f.k}`}><i style={{ background: couleur[f.k] }} />{libFlotte[f.k]} <b>{f.n}</b></a>
-          ))}
-        </div>
-      </section>
-
-      <section className="carte">
-        <div className="titre" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Les 7 prochains jours</h2>
-          <a className="bouton petit" href="/planning">Planning complet</a>
+          <h2 style={{ margin: 0 }}>Planning de la semaine</h2>
+          <a className="bouton petit" href="/planning">Ouvrir le planning</a>
         </div>
         <GrillePlanning p={planning} compact />
       </section>
 
-      <div className="colonnes">
+      <div className="accueil-bas">
         <section className="carte">
-          <h2>Départs du jour</h2>
-          {!departs?.length && <p className="gris">Aucun départ prévu aujourd&apos;hui.</p>}
-          {departs?.map((l: any) => {
-            const c = l.clients; const v = l.vehicules;
-            const voyants = [
-              { ok: !!(c?.permis_path && c?.piece_identite_path) && !c?.liste_noire, titre: 'Client vérifié (permis et pièce scannés)' },
-              { ok: l.caution_statut === 'prise' || !l.caution_montant, titre: 'Caution prise' },
-              { ok: v?.statut === 'disponible', titre: 'Voiture prête' },
-              { ok: (l.etats_des_lieux ?? []).some((e: any) => e.type === 'depart'), titre: 'État des lieux commencé' },
-            ];
-            return (
-              <div key={l.id} className="fichier">
-                <a href={`/locations/${l.id}`}><b>{heure(l.debut)}</b> · {v?.immatriculation} {voiture(v)}<br /><span className="gris">{nom(c)}{c?.liste_noire ? ' · liste noire' : ''}</span></a>
-                <span className="ligne">
-                  <span className="voyants" title={voyants.map((x) => `${x.ok ? '✔' : '✘'} ${x.titre}`).join('\n')}>
-                    {voyants.map((x, i) => <i key={i} className={`voyant ${x.ok ? 'on' : ''}`} />)}
-                  </span>
-                  {c?.telephone && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(c.telephone, messageDepart(c.prenom, voiture(v) || v?.immatriculation, l.debut, profil.agences?.nom ?? ''))}>WhatsApp</a>}
-                </span>
+          <h2>Aujourd&apos;hui</h2>
+          {!lignes.length && <p className="gris" style={{ marginBottom: 0 }}>Aucun départ ni retour prévu. Journée calme.</p>}
+          {lignes.map((x) => (
+            <div key={x.genre + x.id} className="fichier">
+              <a href={`/locations/${x.id}`} className="jour">
+                <span className={`etiquette ${x.genre}`}>{etiquette[x.genre]}</span>
+                <span><b>{x.genre === 'retard' ? date(x.quand) + ' ' : ''}{heure(x.quand)}</b> · {x.v?.immatriculation} {voiture(x.v)}<br />
+                  <span className="gris">{nom(x.c)}{x.c?.liste_noire ? ' · liste noire' : ''}</span></span>
+              </a>
+              <span className="ligne">
+                {x.voyants && <span className="voyants" title={x.voyants.map((y) => `${y.ok ? '✔' : '✘'} ${y.titre}`).join('\n')}>
+                  {x.voyants.map((y, i) => <i key={i} className={`voyant ${y.ok ? 'on' : ''}`} />)}</span>}
+                {x.wa && <a className="bouton petit" target="_blank" rel="noreferrer" href={x.wa}>WhatsApp</a>}
+              </span>
+            </div>
+          ))}
+          {lignes.some((x) => x.voyants) && <p className="gris" style={{ fontSize: 12.5, marginBottom: 0 }}>Voyants d&apos;un départ : client vérifié · caution · voiture prête · état des lieux</p>}
+        </section>
+
+        <div className="pile">
+          <section className="carte">
+            <div className="titre" style={{ marginBottom: 10 }}>
+              <h2 style={{ margin: 0 }}>Ma flotte</h2>
+              <span className="gris">{totalFlotte} véhicule{totalFlotte > 1 ? 's' : ''} · {totalFlotte ? Math.round((flotte[0].n / totalFlotte) * 100) : 0} % loués</span>
+            </div>
+            <div className="barre-flotte">
+              {flotte.filter((f) => f.n > 0).map((f) => (
+                <a key={f.k} href={`/vehicules?statut=${f.k}`} style={{ flex: f.n, background: couleur[f.k] }} title={`${libFlotte[f.k]} : ${f.n}`} />
+              ))}
+              {!totalFlotte && <span style={{ flex: 1, background: 'var(--bord)' }} />}
+            </div>
+            <div className="legende">
+              {flotte.filter((f) => f.n > 0 || f.k !== 'hors_service').map((f) => (
+                <a key={f.k} href={`/vehicules?statut=${f.k}`}><i style={{ background: couleur[f.k] }} />{libFlotte[f.k]} <b>{f.n}</b></a>
+              ))}
+            </div>
+          </section>
+
+          {profil.role === 'gerant' && (
+            <a href="/pilotage" className="carte mois">
+              <div className="titre" style={{ marginBottom: 10 }}>
+                <h2 style={{ margin: 0 }}>{mois.debut.toLocaleDateString('fr-FR', { month: 'long', timeZone: 'Europe/Paris' }).replace(/^./, (c) => c.toUpperCase())}</h2>
+                <span className="lien" style={{ fontSize: 13.5 }}>Pilotage →</span>
               </div>
-            );
-          })}
-          {!!departs?.length && <p className="gris" style={{ fontSize: 12.5, marginBottom: 0 }}>Voyants : client vérifié · caution · voiture prête · état des lieux</p>}
-        </section>
+              <div className="trois">
+                <div><span>Recettes</span><b>{euros(mois.recettes)}</b></div>
+                <div><span>Coûts</span><b>{euros(mois.couts)}</b></div>
+                <div><span>Résultat</span><b style={{ color: mois.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{mois.resultat >= 0 ? '+' : ''}{euros(mois.resultat)}</b></div>
+              </div>
+              <p className="gris" style={{ fontSize: 12.5, margin: '8px 0 0' }}>Mois dernier : {moisPrec.resultat >= 0 ? '+' : ''}{euros(moisPrec.resultat)}</p>
+            </a>
+          )}
 
-        <section className="carte">
-          <h2>Retours du jour</h2>
-          {!retours?.length && !retards?.length && <p className="gris">Aucun retour prévu aujourd&apos;hui.</p>}
-          {retards?.map((l: any) => (
-            <div key={l.id} className="fichier">
-              <a href={`/locations/${l.id}`}><b className="retard">En retard</b> · {l.vehicules?.immatriculation}<br /><span className="gris">{nom(l.clients)} · prévu le {date(l.fin_prevue)} à {heure(l.fin_prevue)}</span></a>
-              {l.clients?.telephone && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(l.clients.telephone, messageRetard(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.fin_prevue))}>WhatsApp</a>}
-            </div>
-          ))}
-          {retours?.map((l: any) => (
-            <div key={l.id} className="fichier">
-              <a href={`/locations/${l.id}`}><b>{heure(l.fin_prevue)}</b> · {l.vehicules?.immatriculation} {voiture(l.vehicules)}<br /><span className="gris">{nom(l.clients)}</span></a>
-              {l.clients?.telephone && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(l.clients.telephone, messageRetour(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.fin_prevue))}>WhatsApp</a>}
-            </div>
-          ))}
-        </section>
-
-        <section className="carte" id="alertes">
-          <h2>Alertes</h2>
-          {!alertes.length && <p className="gris">Rien à signaler.</p>}
-          {alertes.map((a, i) => (
-            <a key={i} href={a.lien} className="fichier"><span className={`pastille ${a.niveau}`}>{a.texte}</span></a>
-          ))}
-        </section>
+          <section className="carte" id="alertes">
+            <h2>Alertes {alertes.length > 0 && <span className="badge rouge">{alertes.length}</span>}</h2>
+            {!alertes.length && <p className="gris" style={{ marginBottom: 0 }}>Rien à signaler.</p>}
+            {alertes.map((a, i) => (
+              <a key={i} href={a.lien} className="fichier"><span className={`pastille ${a.niveau}`}>{a.texte}</span></a>
+            ))}
+          </section>
+        </div>
       </div>
     </Cadre>
   );
