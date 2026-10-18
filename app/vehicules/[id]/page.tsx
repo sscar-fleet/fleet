@@ -96,7 +96,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           <section className="carte photo-vehicule">
             {liens[v.photo_path]
               ? <img src={liens[v.photo_path]} alt={`${v.marque ?? ''} ${v.modele ?? ''}`} />
-              : <div className="logo-fiche"><LogoMarque marque={v.marque} className="logo-marque grand" /></div>}
+              : <div className="logo-fiche"><LogoMarque marque={v.marque} modele={v.modele} className="logo-marque grand" /></div>}
             <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : 'Logo de la marque · ajoutez votre propre photo dans Papiers si vous le souhaitez'}</span>
           </section>
       <section className="chiffres">

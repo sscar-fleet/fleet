@@ -33,7 +33,29 @@ export function slugMarque(marque?: string | null) {
   return score <= (n.length <= 4 ? 1 : 2) ? meilleur : null;
 }
 
-export function logoMarque(marque?: string | null) {
-  const s = slugMarque(marque);
+// Marque retrouvée à partir du modèle quand la marque n'est pas saisie (« Twingo 2 » → Renault)
+const MODELES: Record<string, string> = {
+  clio: 'renault', twingo: 'renault', megane: 'renault', captur: 'renault', kadjar: 'renault', zoe: 'renault', austral: 'renault', arkana: 'renault', scenic: 'renault', kangoo: 'renault', trafic: 'renault', master: 'renault',
+  sandero: 'dacia', logan: 'dacia', duster: 'dacia', spring: 'dacia', jogger: 'dacia',
+  '108': 'peugeot', '208': 'peugeot', '2008': 'peugeot', '308': 'peugeot', '3008': 'peugeot', '508': 'peugeot', '5008': 'peugeot', partner: 'peugeot', rifter: 'peugeot', expert: 'peugeot',
+  c1: 'citroen', c3: 'citroen', c4: 'citroen', c5: 'citroen', berlingo: 'citroen', jumpy: 'citroen', jumper: 'citroen', ami: 'citroen',
+  golf: 'volkswagen', polo: 'volkswagen', tiguan: 'volkswagen', 't-roc': 'volkswagen', passat: 'volkswagen', touran: 'volkswagen', id3: 'volkswagen', 'id-3': 'volkswagen',
+  yaris: 'toyota', corolla: 'toyota', 'c-hr': 'toyota', chr: 'toyota', rav4: 'toyota', aygo: 'toyota', prius: 'toyota',
+  '500': 'fiat', panda: 'fiat', tipo: 'fiat', ducato: 'fiat', corsa: 'opel', astra: 'opel', mokka: 'opel', vivaro: 'opel',
+  fiesta: 'ford', focus: 'ford', puma: 'ford', kuga: 'ford', transit: 'ford', 'model-3': 'tesla', 'model-y': 'tesla',
+  ibiza: 'seat', leon: 'seat', arona: 'seat', ateca: 'seat', fabia: 'skoda', octavia: 'skoda', kamiq: 'skoda', superb: 'skoda',
+  picanto: 'kia', rio: 'kia', ceed: 'kia', niro: 'kia', sportage: 'kia', i10: 'hyundai', i20: 'hyundai', i30: 'hyundai', tucson: 'hyundai', kona: 'hyundai',
+  qashqai: 'nissan', juke: 'nissan', micra: 'nissan', leaf: 'nissan', a1: 'audi', a3: 'audi', a4: 'audi', q3: 'audi', q5: 'audi',
+  'classe-a': 'mercedes-benz', 'classe-c': 'mercedes-benz', 'classe-e': 'mercedes-benz', gla: 'mercedes-benz', glc: 'mercedes-benz', vito: 'mercedes-benz', sprinter: 'mercedes-benz',
+  'serie-1': 'bmw', 'serie-3': 'bmw', x1: 'bmw', x3: 'bmw', cooper: 'mini', countryman: 'mini', mg4: 'mg', zs: 'mg', ds3: 'ds', ds4: 'ds', ds7: 'ds',
+};
+export function marqueDuModele(modele?: string | null) {
+  if (!modele) return null;
+  const n = normal(modele);
+  return MODELES[n] ?? MODELES[n.split('-').slice(0, 2).join('-')] ?? MODELES[n.split('-')[0]] ?? null;
+}
+
+export function logoMarque(marque?: string | null, modele?: string | null) {
+  const s = slugMarque(marque) ?? (marque ? null : marqueDuModele(modele));
   return s ? `https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/optimized/${s}.png` : null;
 }

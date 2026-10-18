@@ -71,7 +71,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
               const pire = a === 'depasse' || c === 'depasse' ? 'depasse' : a || c;
               return (
                 <tr key={v.id}>
-                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} />}<b>{v.immatriculation}</b></a></td>
+                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{v.immatriculation}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span></td>
                   <td className="masque-mobile">{km(v.km)}</td>
