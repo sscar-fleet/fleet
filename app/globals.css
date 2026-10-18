@@ -34,9 +34,9 @@
 :root[data-theme="clair"] { color-scheme: light; }
 :root:not([data-theme="clair"]) { color-scheme: dark; }
 .logo-double { display: inline-block; line-height: 0; }
-.logo-clair { display: none; }
-:root[data-theme="clair"] .logo-sombre { display: none; }
-:root[data-theme="clair"] .logo-clair { display: inline; }
+.logo-double img.logo-clair { display: none !important; }
+:root[data-theme="clair"] .logo-double img.logo-sombre { display: none !important; }
+:root[data-theme="clair"] .logo-double img.logo-clair { display: block !important; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
