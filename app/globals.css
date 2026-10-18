@@ -171,3 +171,12 @@ details.formulaire[open] > summary { margin-bottom: 12px; }
   .colonnes { grid-template-columns: 1fr; }
   .comparaison { grid-template-columns: 1fr 1fr; gap: 6px; }
 }
+
+/* Accueil : état de la flotte */
+.barre-flotte { display: flex; height: 26px; border-radius: 8px; overflow: hidden; gap: 3px; margin-bottom: 12px; }
+.barre-flotte a, .barre-flotte span { display: block; min-width: 8px; }
+.legende { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--gris); }
+.legende a { display: inline-flex; align-items: center; gap: 7px; }
+.legende i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+.legende b { color: var(--texte); }
+.compteur b { font-size: 36px; }

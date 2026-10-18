@@ -1,6 +1,8 @@
 import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR } from '@/lib/format';
 import Cadre from './_c/Cadre';
+import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
+import { versJour, euros } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +26,15 @@ export default async function Accueil() {
     supabase.from('vehicules').select('id, immatriculation, assurance_echeance, ct_echeance, statut'),
     supabase.from('entretiens').select('id, retour_prevu, vehicules(immatriculation)').eq('statut', 'en_cours').lt('retour_prevu', maintenant),
   ]);
+
+  const planning = await chargerPlanning(supabase, versJour(new Date()), 7);
+  const debutMois = versJour(new Date()).slice(0, 8) + '01';
+  const { data: duMois } = await supabase.from('locations').select('prix_total').in('statut', ['en_cours', 'terminee']).gte('debut', debutMois);
+  const caMois = (duMois ?? []).reduce((s: number, l: any) => s + Number(l.prix_total ?? 0), 0);
+  const flotte = ['loue', 'disponible', 'maintenance', 'hors_service'].map((k) => ({ k, n: (vehicules ?? []).filter((v: any) => v.statut === k).length }));
+  const totalFlotte = (vehicules ?? []).length;
+  const libFlotte: Record<string, string> = { loue: 'Loués', disponible: 'Disponibles', maintenance: 'En maintenance', hors_service: 'Hors service' };
+  const couleur: Record<string, string> = { loue: 'var(--turquoise)', disponible: 'var(--vert)', maintenance: 'var(--orange)', hors_service: 'var(--rouge)' };
 
   // Alertes : papiers qui expirent, entretiens qui traînent, départs pas faits
   const alertes: { texte: string; lien: string; niveau: string }[] = [];
@@ -60,6 +71,32 @@ export default async function Accueil() {
             <span>{t.titre}</span><b>{t.valeur}</b>
           </a>
         ))}
+      </section>
+
+      <section className="carte">
+        <div className="titre" style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>Ma flotte</h2>
+          <span className="gris">{totalFlotte} véhicule{totalFlotte > 1 ? 's' : ''} · taux d&apos;utilisation <b style={{ color: 'var(--texte)' }}>{totalFlotte ? Math.round(((flotte[0].n) / totalFlotte) * 100) : 0} %</b> · ce mois-ci <b style={{ color: 'var(--texte)' }}>{euros(caMois)}</b></span>
+        </div>
+        <div className="barre-flotte">
+          {flotte.filter((f) => f.n > 0).map((f) => (
+            <a key={f.k} href={`/vehicules?statut=${f.k}`} style={{ flex: f.n, background: couleur[f.k] }} title={`${libFlotte[f.k]} : ${f.n}`} />
+          ))}
+          {!totalFlotte && <span style={{ flex: 1, background: 'var(--bord)' }} />}
+        </div>
+        <div className="legende">
+          {flotte.map((f) => (
+            <a key={f.k} href={`/vehicules?statut=${f.k}`}><i style={{ background: couleur[f.k] }} />{libFlotte[f.k]} <b>{f.n}</b></a>
+          ))}
+        </div>
+      </section>
+
+      <section className="carte">
+        <div className="titre" style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>Les 7 prochains jours</h2>
+          <a className="bouton petit" href="/planning">Planning complet</a>
+        </div>
+        <GrillePlanning p={planning} compact />
       </section>
 
       <div className="colonnes">
