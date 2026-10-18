@@ -5,6 +5,7 @@ import CarteLocation from '@/composants/CarteLocation';
 import { chargerAujourdhui, voyantsDepart } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useSession } from '@/lib/session';
+import Logo from '@/composants/Logo';
 
 export default function Aujourdhui() {
   const { profil } = useSession();
@@ -18,7 +19,7 @@ export default function Aujourdhui() {
     .sort((a, b) => a.quand.localeCompare(b.quand))[0];
 
   return (
-    <Ecran titre={`Bonjour${profil?.nom ? ' ' + profil.nom.split(' ')[0] : ''}`} sousTitre={`${date} · ${profil?.agence ?? ''}`} rafraichir={recharger} enChargement={enChargement && !!donnees}
+    <Ecran titre={`Bonjour${profil?.nom ? ' ' + profil.nom.split(' ')[0] : ''}`} sousTitre={`${date} · ${profil?.agence ?? ''}`} rafraichir={recharger} enChargement={enChargement && !!donnees} haut={<Logo largeur={110} />}
       bas={prochain ? <GrosBouton titre={prochain.genre === 'depart' ? `Faire partir ${prochain.l.vehicules?.immatriculation ?? ''}` : `Récupérer ${prochain.l.vehicules?.immatriculation ?? ''}`}
         onPress={() => router.push({ pathname: '/location/[id]', params: { id: prochain.l.id } })} /> : undefined}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}

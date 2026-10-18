@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReactNode } from 'react';
 import { useCouleurs, T } from '@/lib/theme';
 
-export function Ecran({ titre, sousTitre, children, rafraichir, enChargement = false, bas }: {
-  titre: string; sousTitre?: string; children: ReactNode; rafraichir?: () => void; enChargement?: boolean; bas?: ReactNode;
+export function Ecran({ titre, sousTitre, children, rafraichir, enChargement = false, bas, haut }: {
+  titre: string; sousTitre?: string; children: ReactNode; rafraichir?: () => void; enChargement?: boolean; bas?: ReactNode; haut?: ReactNode;
 }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
@@ -15,6 +15,7 @@ export function Ecran({ titre, sousTitre, children, rafraichir, enChargement = f
       <ScrollView
         contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 12, paddingBottom: (bas ? 110 : 32), gap: 12 }}
         refreshControl={rafraichir ? <RefreshControl refreshing={enChargement} onRefresh={rafraichir} tintColor={c.accent} /> : undefined}>
+        {haut}
         <View style={{ marginBottom: 6 }}>
           <Text style={{ color: c.texte, fontSize: T.titre, fontWeight: '800' }}>{titre}</Text>
           {sousTitre ? <Text style={{ color: c.gris, fontSize: T.petit, marginTop: 2 }}>{sousTitre}</Text> : null}
@@ -38,7 +39,7 @@ export function GrosBouton({ titre, onPress, secondaire = false, desactive = fal
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onPress(); }}
       style={({ pressed }) => [{
         minHeight: secondaire ? T.cible + 4 : T.bouton, borderRadius: T.rayon, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18,
-        backgroundColor: secondaire ? c.panneau2 : c.accent, opacity: desactive ? 0.4 : pressed ? 0.85 : 1,
+        backgroundColor: secondaire ? c.panneau2 : c.accent, opacity: desactive ? 0.6 : pressed ? 0.85 : 1,
         borderWidth: secondaire ? 1 : 0, borderColor: c.bord,
       }, style]}>
       <Text style={{ color: secondaire ? c.texte : c.surAccent, fontSize: secondaire ? 16 : 18, fontWeight: '800' }}>{titre}</Text>
