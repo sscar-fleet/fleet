@@ -516,6 +516,19 @@ async function _ajouterDepense(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// Pièces jointes (factures de réparation, justificatifs)
+// ---------------------------------------------------------------------------
+async function _ajouterPiece(cible: { entretien_id?: string; depense_id?: string; vehicule_id?: string }, chemin: string, nom: string) {
+  const { supabase, profil } = await utilisateurCourant();
+  if (!chemin.startsWith(profil.agence_id + '/')) throw new Error('Fichier non autorisé');
+  verifier((await supabase.from('pieces_jointes').insert({
+    agence_id: profil.agence_id, entretien_id: cible.entretien_id ?? null, depense_id: cible.depense_id ?? null,
+    vehicule_id: cible.vehicule_id ?? null, nom: nom.slice(0, 120), path: chemin,
+  })).error, 'Ajout du fichier');
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
 // Devis
 // ---------------------------------------------------------------------------
 async function _creerDevis(formData: FormData) {
@@ -673,6 +686,7 @@ export const avisAmende = proteger(_avisAmende);
 export const clientAmende = proteger(_clientAmende);
 export const majAgence = proteger(_majAgence);
 export const ajouterDepense = proteger(_ajouterDepense);
+export const ajouterPiece = proteger(_ajouterPiece);
 export const creerDevis = proteger(_creerDevis);
 export const statutDevis = proteger(_statutDevis);
 export const transformerDevis = proteger(_transformerDevis);

@@ -207,3 +207,12 @@ a.carte.mois:hover { border-color: var(--turquoise); }
 .trois span { display: block; color: var(--gris); font-size: 12.5px; }
 .trois b { font-size: 18px; }
 @media (max-width: 860px) { .accueil-bas { grid-template-columns: 1fr; } }
+/* Dépôt de pièces jointes */
+.depot-bloc { display: grid; gap: 8px; width: 100%; margin-top: 8px; }
+.depot { border: 1.5px dashed var(--bord); border-radius: 10px; padding: 12px; text-align: center; font-size: 13.5px; cursor: pointer; }
+.depot:hover, .depot.survol { border-color: var(--turquoise); background: rgba(25, 247, 214, .06); }
+.pieces { display: flex; flex-wrap: wrap; gap: 6px; }
+.piece { background: var(--panneau2); border: 1px solid var(--bord); border-radius: 8px; padding: 5px 10px; font-size: 13px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.piece:hover { border-color: var(--turquoise); }
+.entretien { display: grid; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--bord); }
+.entretien:last-child { border-bottom: 0; }

@@ -9,6 +9,7 @@ import Cadre from '../../_c/Cadre';
 import Formulaire from '../../_c/Formulaire';
 import Envoyer from '../../_c/Envoyer';
 import Fichier from '../../_c/Fichier';
+import Depot from '../../_c/Depot';
 import BoutonPdf from '../../_c/BoutonPdf';
 import { donneesAgence } from '@/lib/donnees';
 
@@ -28,7 +29,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
     supabase.from('historique').select('action, detail, created_at').eq('vehicule_id', v.id).order('created_at', { ascending: false }).limit(15),
   ]);
 
-  const liens = await liensFichiers(supabase, [v.carte_grise_path, v.assurance_path, v.ct_path, v.photo_path,
+  const { data: pieces } = await supabase.from('pieces_jointes').select('id, nom, path, entretien_id, depense_id').eq('vehicule_id', v.id).order('created_at');
+  const liens = await liensFichiers(supabase, [v.carte_grise_path, v.assurance_path, v.ct_path, v.photo_path, ...(pieces ?? []).map((x: any) => x.path),
     ...(dommages ?? []).flatMap((d: any) => [d.photo_zone_path, d.photo_gros_plan_path]),
     ...(entretiens ?? []).map((e: any) => e.devis_path)]);
 
@@ -209,15 +211,18 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         </details>
         {!entretiens?.length && <p className="gris">Aucun entretien enregistré.</p>}
         {entretiens?.map((e: any) => (
-          <div key={e.id} className="fichier">
-            <span><span className={`pastille ${e.statut}`}>{typesMaintenance[e.type] ?? 'Entretien'} · {e.raison}</span>
-              <br /><span className="gris">{statutEntretien[e.statut]}{e.garage ? ' · ' + e.garage : ''}{e.retour_prevu ? ' · retour ' + dateHeure(e.retour_prevu) : ''}{e.cout ? ' · coût ' + euros(e.cout) : ''}{e.montant_recu ? ' · reçu ' + euros(e.montant_recu) : ''}</span></span>
-            <span className="ligne">
-              <Fichier compact agenceId={profil.agence_id} dossier={`entretiens/${e.id}`} nom="devis" libelle="Devis"
-                lien={liens[e.devis_path]} action={A.devisEntretien.bind(null, e.id)} />
-              {e.statut === 'prevu' && <Formulaire action={A.demarrerEntretien.bind(null, e.id)}><Envoyer className="bouton petit">Démarrer</Envoyer></Formulaire>}
-              {e.statut === 'en_cours' && <Formulaire action={A.terminerEntretien.bind(null, e.id)}><Envoyer className="bouton petit">Terminer</Envoyer></Formulaire>}
-            </span>
+          <div key={e.id} className="entretien">
+            <div className="ligne" style={{ justifyContent: 'space-between' }}>
+              <span><span className={`pastille ${e.statut}`}>{typesMaintenance[e.type] ?? 'Entretien'} · {e.raison}</span>
+                <br /><span className="gris">{statutEntretien[e.statut]}{e.garage ? ' · ' + e.garage : ''}{e.retour_prevu ? ' · retour ' + dateHeure(e.retour_prevu) : ''}{e.cout ? ' · coût ' + euros(e.cout) : ''}{e.montant_recu ? ' · reçu ' + euros(e.montant_recu) : ''}</span></span>
+              <span className="ligne">
+                {e.statut === 'prevu' && <Formulaire action={A.demarrerEntretien.bind(null, e.id)}><Envoyer className="bouton petit">Démarrer</Envoyer></Formulaire>}
+                {e.statut === 'en_cours' && <Formulaire action={A.terminerEntretien.bind(null, e.id)}><Envoyer className="bouton petit">Terminer</Envoyer></Formulaire>}
+              </span>
+            </div>
+            <Depot agenceId={profil.agence_id} dossier={`entretiens/${e.id}`} action={A.ajouterPiece.bind(null, { entretien_id: e.id, vehicule_id: v.id })}
+              pieces={[...(e.devis_path ? [{ id: 'devis', nom: 'Devis', lien: liens[e.devis_path] }] : []),
+                ...(pieces ?? []).filter((x: any) => x.entretien_id === e.id).map((x: any) => ({ id: x.id, nom: x.nom, lien: liens[x.path] }))]} />
           </div>
         ))}
       </section>
@@ -237,7 +242,11 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         </details>
         {!depensesV?.length && <p className="gris">Aucune dépense.</p>}
         {depensesV?.map((d: any) => (
-          <div key={d.id} className="fichier"><span>{categoriesDepense[d.categorie] ?? d.categorie} · <b>{euros(d.montant)}</b>{d.libelle ? <span className="gris"> · {d.libelle}</span> : null}</span><span className="gris">{date(d.date)}</span></div>
+          <div key={d.id} className="entretien">
+            <div className="ligne" style={{ justifyContent: 'space-between' }}><span>{categoriesDepense[d.categorie] ?? d.categorie} · <b>{euros(d.montant)}</b>{d.libelle ? <span className="gris"> · {d.libelle}</span> : null}</span><span className="gris">{date(d.date)}</span></div>
+            <Depot agenceId={profil.agence_id} dossier={`depenses/${d.id}`} libelle="Justificatifs" action={A.ajouterPiece.bind(null, { depense_id: d.id, vehicule_id: v.id })}
+              pieces={(pieces ?? []).filter((x: any) => x.depense_id === d.id).map((x: any) => ({ id: x.id, nom: x.nom, lien: liens[x.path] }))} />
+          </div>
         ))}
       </section>
 
