@@ -4,8 +4,8 @@ import { supabaseNavigateur } from '@/lib/supabase-navigateur';
 import { compresser } from '@/lib/image';
 
 // Photo d'un papier : la photo est rangée dans le stockage (champ caché) et les champs du formulaire se remplissent seuls
-export default function Scanner({ genre, agenceId, champChemin, libelle }: {
-  genre: 'carte_grise' | 'permis' | 'identite'; agenceId: string; champChemin: string; libelle: string;
+export default function Scanner({ genre, agenceId, champChemin, libelle, lire: lecture = true }: {
+  genre: 'carte_grise' | 'permis' | 'identite' | 'domicile'; agenceId: string; champChemin: string; libelle: string; lire?: boolean;
 }) {
   const bouton = useRef<HTMLButtonElement>(null);
   const champ = useRef<HTMLInputElement>(null);
@@ -15,11 +15,19 @@ export default function Scanner({ genre, agenceId, champChemin, libelle }: {
     const f = e.target.files?.[0];
     if (!f) return;
     const formulaire = bouton.current?.closest('form');
-    setEtat('Lecture du document…');
+    setEtat(lecture ? 'Lecture du document…' : 'Envoi de la photo…');
     try {
       const blob = await compresser(f, 1800);
       const chemin = `${agenceId}/scans/${genre}-${Date.now()}.jpg`;
       const envoi = supabaseNavigateur().storage.from('documents').upload(chemin, blob, { contentType: 'image/jpeg' });
+      if (!lecture) {
+        const { error } = await envoi;
+        if (error) throw error;
+        const cache = formulaire?.querySelector<HTMLInputElement>(`input[name="${champChemin}"]`);
+        if (cache) cache.value = chemin;
+        setEtat('Photo enregistrée ✓');
+        return;
+      }
       const image: string = await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(blob); });
       const [rep, { error }] = await Promise.all([fetch('/api/lire', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image, genre }) }), envoi]);
       if (!error && formulaire) {

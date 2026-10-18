@@ -12,4 +12,8 @@ alter table agences add column if not exists couleur text not null default '#19F
 alter table agences add column if not exists envoi_contrat boolean not null default true; -- proposer l'envoi du contrat au départ
 alter table agences add column if not exists facture_auto boolean not null default true;  -- facture proposée au retour
 
+-- Papiers du client : permis et pièce d'identité recto verso, justificatif de domicile
+alter table clients add column if not exists permis_verso_path text;
+alter table clients add column if not exists piece_identite_verso_path text;
+alter table clients add column if not exists justificatif_domicile_path text;
 notify pgrst, 'reload schema';

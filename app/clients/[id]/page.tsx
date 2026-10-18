@@ -1,3 +1,4 @@
+import PapiersClient, { cheminsPapiers } from '@/app/_c/PapiersClient';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import { statutLocation, statutAmende, date, dateHeure, euros } from '@/lib/format';
@@ -20,7 +21,7 @@ export default async function FicheClient({ params }: { params: { id: string } }
       .eq('client_id', c.id).order('debut', { ascending: false }),
     supabase.from('amendes').select('id, date_infraction, type, montant, statut, vehicules(immatriculation)').eq('client_id', c.id).order('date_infraction', { ascending: false }),
   ]);
-  const liens = await liensFichiers(supabase, [c.permis_path, c.piece_identite_path]);
+  const liens = await liensFichiers(supabase, cheminsPapiers(c));
   const utiles = (locations ?? []).filter((l: any) => l.statut !== 'annulee');
   const total = utiles.reduce((s: number, l: any) => s + Number(l.prix_total ?? 0), 0);
   const ancienPermis = c.date_permis ? (Date.now() - new Date(c.date_permis).getTime()) / (365.25 * 24 * 3600 * 1000) : null;
@@ -58,10 +59,7 @@ export default async function FicheClient({ params }: { params: { id: string } }
         { cle: 'papiers', titre: 'Papiers', contenu: <>
         <section className="carte">
           <h2>Papiers</h2>
-          <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="permis" libelle="Permis de conduire" camera
-            lien={liens[c.permis_path]} action={A.documentClient.bind(null, c.id, 'permis_path')} />
-          <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="identite" libelle="Pièce d'identité" camera
-            lien={liens[c.piece_identite_path]} action={A.documentClient.bind(null, c.id, 'piece_identite_path')} />
+          <PapiersClient c={c} agenceId={profil.agence_id} liens={liens} />
           <p className="gris" style={{ fontSize: 13 }}>Sur le téléphone, « Photo » ouvre directement l&apos;appareil photo.</p>
           <Formulaire action={A.listeNoire.bind(null, c.id, !c.liste_noire)} style={{ marginTop: 10 }} succes={c.liste_noire ? 'Retiré de la liste noire' : 'Ajouté à la liste noire'} confirmer={c.liste_noire ? undefined : 'Mettre ce client en liste noire ?'}>
             <Envoyer className={`bouton petit ${c.liste_noire ? '' : 'danger'}`}>{c.liste_noire ? 'Retirer de la liste noire' : 'Mettre en liste noire'}</Envoyer>

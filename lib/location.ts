@@ -10,7 +10,7 @@ export async function chargerLocation(supabase: any, agenceId: string, id: strin
   const { data: dommages } = await supabase.from('dommages').select('*').eq('location_id', id).order('created_at');
   const edls: any[] = l.etats_des_lieux ?? [];
   const liens = await liensFichiers(supabase, [
-    l.signature_contrat_path, l.clients?.permis_path, l.clients?.piece_identite_path,
+    l.signature_contrat_path, l.clients?.permis_path, l.clients?.permis_verso_path, l.clients?.piece_identite_path, l.clients?.piece_identite_verso_path, l.clients?.justificatif_domicile_path,
     l.vehicules?.carte_grise_path, l.vehicules?.assurance_path,
     ...edls.flatMap((e) => [e.signature_path, ...(e.photos_edl ?? []).map((p: any) => p.path)]),
     ...(dommages ?? []).flatMap((d: any) => [d.photo_zone_path, d.photo_gros_plan_path]),

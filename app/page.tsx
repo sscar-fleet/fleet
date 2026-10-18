@@ -1,3 +1,4 @@
+import { papiersComplets } from '@/app/_c/PapiersClient';
 import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR } from '@/lib/format';
 import Cadre from './_c/Cadre';
@@ -16,7 +17,7 @@ export default async function Accueil() {
 
   const [{ data: departs }, { data: retours }, { data: retards }, { data: amendes }, { data: vehicules }, { data: entretiens }] = await Promise.all([
     supabase.from('locations')
-      .select('id, numero, debut, caution_statut, caution_montant, vehicules(immatriculation, marque, modele, statut), clients(nom, prenom, telephone, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut)')
+      .select('id, numero, debut, caution_statut, caution_montant, vehicules(immatriculation, marque, modele, statut), clients(nom, prenom, telephone, permis_path, permis_verso_path, piece_identite_path, piece_identite_verso_path, justificatif_domicile_path, liste_noire), etats_des_lieux(type, statut)')
       .eq('statut', 'reservee').lt('debut', demain).order('debut'),
     supabase.from('locations')
       .select('id, numero, fin_prevue, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)')
@@ -86,7 +87,7 @@ export default async function Accueil() {
     ...[
       ...(departs ?? []).map((l: any) => ({ id: l.id, genre: 'depart' as const, quand: l.debut, v: l.vehicules, c: l.clients,
         voyants: [
-          { ok: !!(l.clients?.permis_path && l.clients?.piece_identite_path) && !l.clients?.liste_noire, titre: 'Client vérifié' },
+          { ok: papiersComplets(l.clients) && !l.clients?.liste_noire, titre: 'Client vérifié' },
           { ok: l.caution_statut === 'prise' || !l.caution_montant, titre: 'Caution prise' },
           { ok: l.vehicules?.statut === 'disponible', titre: 'Voiture prête' },
           { ok: (l.etats_des_lieux ?? []).some((e: any) => e.type === 'depart'), titre: 'État des lieux commencé' },

@@ -34,6 +34,11 @@ function cheminScan(formData: FormData, nom: string, agenceId: string) {
   return v && v.startsWith(agenceId + '/') ? v : null;
 }
 
+const PAPIERS_CLIENT = ['permis_path', 'permis_verso_path', 'piece_identite_path', 'piece_identite_verso_path', 'justificatif_domicile_path'];
+function papiersClient(formData: FormData, agenceId: string) {
+  return Object.fromEntries(PAPIERS_CLIENT.map((c) => [c, cheminScan(formData, c, agenceId)]));
+}
+
 function champAutorise(champ: string, liste: string[]) {
   if (!liste.includes(champ)) throw new Error('Champ non autorisé');
 }
@@ -254,7 +259,7 @@ async function _ajouterClient(formData: FormData) {
   const champs = champsClient(formData);
   if (!champs.nom) throw new Error('Le nom du client est obligatoire.');
   const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs,
-    permis_path: cheminScan(formData, 'permis_path', profil.agence_id), piece_identite_path: cheminScan(formData, 'piece_identite_path', profil.agence_id) }).select('id').single();
+    ...papiersClient(formData, profil.agence_id) }).select('id').single();
   verifier(error, 'Ajout du client');
   rafraichir();
   redirect(`/clients/${data!.id}`);
@@ -269,7 +274,7 @@ async function _majClient(id: string, formData: FormData) {
 }
 
 async function _documentClient(id: string, champ: string, chemin: string) {
-  champAutorise(champ, ['permis_path', 'piece_identite_path']);
+  champAutorise(champ, PAPIERS_CLIENT);
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('clients').update({ [champ]: chemin }).eq('id', id)).error);
   rafraichir();
@@ -308,7 +313,7 @@ async function _creerLocation(formData: FormData) {
     const champs = champsClient(formData);
     if (!champs.nom) throw new Error('Choisissez un client ou saisissez le nom d’un nouveau client.');
     const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs,
-      permis_path: cheminScan(formData, 'permis_path', profil.agence_id), piece_identite_path: cheminScan(formData, 'piece_identite_path', profil.agence_id) }).select('id').single();
+      ...papiersClient(formData, profil.agence_id) }).select('id').single();
     verifier(error, 'Création du client');
     client_id = data!.id;
   }

@@ -1,3 +1,4 @@
+import { papiersComplets } from '@/app/_c/PapiersClient';
 import { utilisateurCourant } from '@/lib/agence';
 import { ajouterClient } from '../actions';
 import Cadre from '../_c/Cadre';
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function Clients({ searchParams }: { searchParams: { q?: string; filtre?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('clients')
-    .select('id, nom, prenom, telephone, email, liste_noire, permis_path, piece_identite_path, locations(id, statut)').order('nom');
+    .select('id, nom, prenom, telephone, email, liste_noire, permis_path, permis_verso_path, piece_identite_path, piece_identite_verso_path, justificatif_domicile_path, locations(id, statut)').order('nom');
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const clients = (tous ?? []).filter((c: any) =>
     (searchParams.filtre !== 'liste_noire' || c.liste_noire) &&
@@ -38,7 +39,7 @@ export default async function Clients({ searchParams }: { searchParams: { q?: st
             {clients.map((c: any) => {
               const nb = (c.locations ?? []).filter((l: any) => l.statut !== 'annulee').length;
               const enCours = (c.locations ?? []).some((l: any) => l.statut === 'en_cours');
-              const papiers = c.permis_path && c.piece_identite_path;
+              const papiers = papiersComplets(c);
               return (
                 <tr key={c.id}>
                   <td><a className="bloc" href={`/clients/${c.id}`}><b>{c.nom}</b> {c.prenom}</a></td>

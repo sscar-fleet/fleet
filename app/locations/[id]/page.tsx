@@ -1,3 +1,4 @@
+import PapiersClient, { cheminsPapiers } from '@/app/_c/PapiersClient';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant } from '@/lib/agence';
 import { chargerLocation } from '@/lib/location';
@@ -112,10 +113,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
         <div><span>Né(e) le</span><b>{date(c.date_naissance)}</b></div>
       </div>
       {wa && <a className="bouton" style={{ marginBottom: 10 }} target="_blank" rel="noreferrer" href={wa}>WhatsApp : {l.statut === 'reservee' ? 'confirmer le départ' : retard ? 'relancer le retard' : 'rappel du retour'}</a>}
-      <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="permis" libelle="Permis de conduire" camera
-        lien={d.liens[c.permis_path]} action={A.documentClient.bind(null, c.id, 'permis_path')} />
-      <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="identite" libelle="Pièce d'identité" camera
-        lien={d.liens[c.piece_identite_path]} action={A.documentClient.bind(null, c.id, 'piece_identite_path')} />
+      <PapiersClient c={c} agenceId={profil.agence_id} liens={d.liens} />
     </section>
   );
 
