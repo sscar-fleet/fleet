@@ -32,10 +32,15 @@ export default function Formulaire({ action, children, className, style, vider =
     }}>
       {children}
       {attente && (
-        <div className="confirmation pleine">
-          <span>{question}</span>
-          <button type="button" className="bouton petit danger" onClick={async () => { const fd = attente; setAttente(null); await executer(fd); }}>Oui, confirmer</button>
-          <button type="button" className="bouton petit" onClick={() => setAttente(null)}>Non</button>
+        <div className="fenetre-fond" onClick={() => setAttente(null)}>
+          <div className="fenetre" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="fenetre-icone">!</div>
+            <p>{question}</p>
+            <div className="fenetre-boutons">
+              <button type="button" className="bouton" autoFocus onClick={() => setAttente(null)}>Non, revenir</button>
+              <button type="button" className="bouton principal" onClick={async () => { const fd = attente; setAttente(null); await executer(fd); }}>Oui, continuer</button>
+            </div>
+          </div>
         </div>
       )}
       {erreur && <p className="erreur pleine" style={{ margin: 0 }}>{erreur}</p>}

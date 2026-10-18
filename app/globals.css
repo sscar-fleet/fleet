@@ -385,3 +385,12 @@ input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 1; }
 .apercu-modele { display: flex; align-items: center; gap: 14px; }
 .apercu-modele img, .apercu-modele .apercu-vide { width: 160px; height: 100px; object-fit: cover; border-radius: 10px; border: 1px solid var(--trait, #e2e8f0); flex: none; }
 .apercu-modele .apercu-vide { display: grid; place-items: center; font-size: 34px; opacity: .35; background: var(--fond-doux, rgba(127,127,127,.08)); }
+
+/* Fenêtre de confirmation au centre de l'écran */
+.fenetre-fond { position: fixed; inset: 0; z-index: 1000; background: rgba(8, 12, 20, .55); display: grid; place-items: center; padding: 16px; animation: apparait .15s ease-out; }
+.fenetre { background: var(--panneau); color: inherit; border-radius: 16px; padding: 24px 22px 20px; width: min(420px, 100%); text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+.fenetre-icone { width: 46px; height: 46px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 24px; background: rgba(245,158,11,.15); color: #d97706; }
+.fenetre p { font-size: 17px; line-height: 1.45; margin: 0 0 18px; }
+.fenetre-boutons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.fenetre-boutons .bouton { flex: 1 1 140px; justify-content: center; padding: 12px 16px; }
+@keyframes apparait { from { opacity: 0; } to { opacity: 1; } }
