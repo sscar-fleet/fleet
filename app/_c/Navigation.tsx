@@ -9,12 +9,6 @@ const autres: [string, string][] = [
   ['/devis', 'Devis'], ['/amendes', 'Amendes'], ['/entretiens', 'Maintenance'], ['/pilotage', 'Pilotage (argent)'], ['/parametres', 'Réglages'],
 ];
 
-function changerTheme() {
-  const clair = document.documentElement.dataset.theme !== 'clair';
-  document.documentElement.dataset.theme = clair ? 'clair' : 'sombre';
-  document.cookie = `theme=${clair ? 'clair' : 'sombre'}; path=/; max-age=31536000; samesite=lax`;
-}
-
 export default function Navigation({ gerant = true }: { gerant?: boolean }) {
   const chemin = usePathname();
   const actif = (href: string) => (href === '/' ? chemin === '/' : chemin.startsWith(href));
@@ -30,7 +24,6 @@ export default function Navigation({ gerant = true }: { gerant?: boolean }) {
   const menu = (
     <div className="menu-plus">
       {liste.map(([h, t]) => <a key={h} href={h} className={actif(h) ? 'actif' : ''}>{t}</a>)}
-      <button type="button" onClick={changerTheme}>◐ Thème clair / sombre</button>
     </div>
   );
   return (
@@ -49,7 +42,6 @@ export default function Navigation({ gerant = true }: { gerant?: boolean }) {
           <div className="menu-plus">
             <a href="/clients" className={actif('/clients') ? 'actif' : ''}>Clients</a>
             {liste.map(([h, t]) => <a key={h} href={h} className={actif(h) ? 'actif' : ''}>{t}</a>)}
-            <button type="button" onClick={changerTheme}>◐ Thème clair / sombre</button>
           </div>
         </details>
       </nav>

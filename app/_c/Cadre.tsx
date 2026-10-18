@@ -2,6 +2,7 @@ import Logo from './Logo';
 import { utilisateurCourant } from '@/lib/agence';
 import Navigation from './Navigation';
 import Direct from './Direct';
+import BoutonTheme from './BoutonTheme';
 
 // Cadre commun : logo, recherche, menu, synchronisation en direct
 export default async function Cadre({ titre, actions, tables = [], children, retour }: {
@@ -15,7 +16,10 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
         <form action="/recherche" className="recherche" role="search">
           <input name="q" type="search" placeholder="Rechercher : 208, Martin, AB-123…" aria-label="Rechercher" />
         </form>
-        <span className="agence">{profil.agences?.nom}</span>
+        <span className="droite">
+          <span className="agence">{profil.nom}<br /><span className="gris">{profil.agences?.nom}</span></span>
+          <BoutonTheme />
+        </span>
       </header>
       <Navigation gerant={profil.role === 'gerant'} />
       {retour && <a className="retour" href={retour.lien}>← {retour.texte}</a>}
