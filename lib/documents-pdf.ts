@@ -158,6 +158,33 @@ export async function dommagesPdf(a: AgenceDoc, v: VehiculeDoc, dommages: Dommag
 }
 
 // ---------------------------------------------------------------------------
+// Bilan complet d'un véhicule (archive au moment de la sortie de flotte)
+export type BilanDoc = {
+  vehicule: { immatriculation: string; marque?: string | null; modele?: string | null; financement?: string | null; cout_mensuel?: number | null;
+    date_entree?: string | null; date_sortie?: string | null; motif_sortie?: string | null; prix_sortie?: number | null; km?: number | null };
+  chiffres: [string, string][];
+  locations: string[][]; maintenances: string[][]; depenses: string[][]; dommages: string[][]; amendes: string[][];
+};
+export async function bilanPdf(a: AgenceDoc, b: BilanDoc) {
+  const v = b.vehicule;
+  const d = await Doc.creer('Bilan ' + v.immatriculation, a.logo);
+  d.entete(`Bilan du véhicule ${v.immatriculation}`, a, `${[v.marque, v.modele].filter(Boolean).join(' ')} · édité le ${date(new Date().toISOString())}`);
+  d.section('Résumé');
+  d.infos(b.chiffres, 3);
+  const bloc = (titre: string, entetes: string[], lignes: string[][], largeurs: number[]) => {
+    d.section(`${titre} (${lignes.length})`);
+    if (lignes.length) d.tableau(entetes, lignes, largeurs); else d.texte('Aucun.', { taille: 9.5 });
+  };
+  bloc('Locations', ['N°', 'Client', 'Du', 'Au', 'Prix'], b.locations, [0.1, 0.36, 0.17, 0.17, 0.2]);
+  bloc('Maintenance et transferts', ['Type', 'Détail', 'Date', 'Coût / reçu'], b.maintenances, [0.25, 0.4, 0.15, 0.2]);
+  bloc('Dépenses', ['Type', 'Détail', 'Date', 'Montant'], b.depenses, [0.2, 0.45, 0.15, 0.2]);
+  bloc('Dommages', ['Type', 'Gravité', 'Date', 'Coût'], b.dommages, [0.3, 0.25, 0.2, 0.25]);
+  bloc('Amendes', ['Infraction', 'Statut', 'Date', 'Montant'], b.amendes, [0.4, 0.2, 0.2, 0.2]);
+  d.pied(`Bilan ${v.immatriculation} · ${PIED}`);
+  return d.octets();
+}
+
+// ---------------------------------------------------------------------------
 export async function attestationPdf(a: AgenceDoc, v: VehiculeDoc, personne: string, fourriere: string) {
   const d = await Doc.creer('Bon de pouvoir ' + v.immatriculation, a.logo);
   d.entete('Bon de pouvoir', a, 'Récupération d’un véhicule en fourrière');

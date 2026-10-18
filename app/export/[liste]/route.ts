@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import { utilisateurCourant } from '@/lib/agence';
-import { statutVehicule, statutLocation, statutCaution, statutAmende, statutEntretien, date, dateHeure } from '@/lib/format';
+import { motifsSortie, statutVehicule, statutLocation, statutCaution, statutAmende, statutEntretien, date, dateHeure } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
 // Export CSV (ouvrable dans Excel) de chaque liste
-const listes: Record<string, { select: string; ordre: string; colonnes: [string, (r: any) => unknown][] }> = {
+const listes: Record<string, { table?: string; filtre?: [string, string]; select: string; ordre: string; colonnes: [string, (r: any) => unknown][] }> = {
   vehicules: { select: '*', ordre: 'immatriculation', colonnes: [
     ['Immatriculation', (r) => r.immatriculation], ['Marque', (r) => r.marque], ['Modèle', (r) => r.modele], ['Statut', (r) => statutVehicule[r.statut]],
-    ['Km', (r) => r.km], ['Prix/jour', (r) => r.prix_jour], ['Fin assurance', (r) => date(r.assurance_echeance)], ['Prochain CT', (r) => date(r.ct_echeance)]] },
+    ['Km', (r) => r.km], ['Prix/jour', (r) => r.prix_jour], ['Fin assurance', (r) => date(r.assurance_echeance)], ['Prochain CT', (r) => date(r.ct_echeance)],
+    ['Coût mensuel', (r) => r.cout_mensuel], ['Entrée', (r) => date(r.date_entree)], ['Sortie', (r) => date(r.date_sortie)], ['Motif de sortie', (r) => motifsSortie[r.motif_sortie] ?? r.motif_sortie], ['Prix de vente', (r) => r.prix_sortie]] },
+  sortis: { table: 'vehicules', filtre: ['statut', 'sorti'], select: '*', ordre: 'date_sortie', colonnes: [
+    ['Immatriculation', (r) => r.immatriculation], ['Marque', (r) => r.marque], ['Modèle', (r) => r.modele], ['Km', (r) => r.km],
+    ['Entrée', (r) => date(r.date_entree)], ['Sortie', (r) => date(r.date_sortie)], ['Motif', (r) => motifsSortie[r.motif_sortie] ?? r.motif_sortie], ['Prix de vente', (r) => r.prix_sortie], ['Coût mensuel', (r) => r.cout_mensuel]] },
   clients: { select: '*, locations(id)', ordre: 'nom', colonnes: [
     ['Nom', (r) => r.nom], ['Prénom', (r) => r.prenom], ['Téléphone', (r) => r.telephone], ['E-mail', (r) => r.email], ['Adresse', (r) => r.adresse],
     ['Date de naissance', (r) => date(r.date_naissance)], ['N° permis', (r) => r.numero_permis], ['Permis du', (r) => date(r.date_permis)],
@@ -36,7 +40,9 @@ export async function GET(_: Request, { params }: { params: { liste: string } })
   const def = listes[params.liste];
   if (!def) return new NextResponse('Liste inconnue', { status: 404 });
   const { supabase } = await utilisateurCourant();
-  const { data } = await supabase.from(params.liste).select(def.select).order(def.ordre);
+  let q = supabase.from(def.table ?? params.liste).select(def.select);
+  if (def.filtre) q = q.eq(def.filtre[0], def.filtre[1]);
+  const { data } = await q.order(def.ordre);
   const lignes = [def.colonnes.map(([t]) => t).join(';'), ...(data ?? []).map((r: any) => def.colonnes.map(([, f]) => cellule(f(r))).join(';'))];
   return new NextResponse('﻿' + lignes.join('\r\n'), {
     headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${params.liste}-${new Date().toISOString().slice(0, 10)}.csv"` },

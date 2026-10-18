@@ -47,7 +47,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
   const { data: depensesV } = await supabase.from('depenses').select('id, categorie, montant, date, libelle').eq('vehicule_id', v.id).order('date', { ascending: false });
   const totalDepenses = (depensesV ?? []).reduce((s: number, d: any) => s + Number(d.montant), 0);
   const coutDegats = (dommages ?? []).filter((d: any) => d.statut !== 'annule').reduce((s: number, d: any) => s + Number(d.cout ?? 0), 0);
-  const moisDansFlotte = v.date_entree ? Math.max(0, (Date.now() - new Date(v.date_entree).getTime()) / (30.44 * JOUR)) : 0;
+  const finFlotte = v.date_sortie ? new Date(v.date_sortie).getTime() : Date.now();
+  const moisDansFlotte = v.date_entree ? Math.max(0, (finFlotte - new Date(v.date_entree).getTime()) / (30.44 * JOUR)) : 0;
   const coutVehicule = Number(v.cout_mensuel ?? 0) * moisDansFlotte;
   const resultat = ca - coutEntretien - totalDepenses - coutDegats - coutVehicule;
 
@@ -66,7 +67,22 @@ export default async function FicheVehicule({ params }: { params: { id: string }
       titre={<>{v.immatriculation} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span></>}
       actions={<>
         <span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>
-        <a className="bouton principal" href={`/locations/nouvelle?vehicule=${v.id}`}>+ Louer</a>
+        {v.statut !== 'sorti' && <a className="bouton principal" href={`/locations/nouvelle?vehicule=${v.id}`}>+ Louer</a>}
+        <BoutonPdf genre="bilan" nom={`bilan-${v.immatriculation}.pdf`} libelle="Bilan PDF" donnees={{ agence, bilan: {
+          vehicule: { immatriculation: v.immatriculation, marque: v.marque, modele: v.modele, financement: v.financement, cout_mensuel: v.cout_mensuel,
+            date_entree: v.date_entree, date_sortie: v.date_sortie, motif_sortie: v.motif_sortie, prix_sortie: v.prix_sortie, km: v.km },
+          chiffres: [
+            ['Entré dans la flotte', date(v.date_entree)], ['Sorti', v.date_sortie ? `${date(v.date_sortie)} · ${motifsSortie[v.motif_sortie] ?? v.motif_sortie ?? ''}` : 'Toujours dans la flotte'],
+            ['Prix de vente', euros(v.prix_sortie)], ['Financement', v.financement ? financements[v.financement] : '—'], ['Coût mensuel', euros(v.cout_mensuel)], ['Kilométrage', km(v.km)],
+            ['Recettes', euros(ca)], ['Coûts', euros(coutVehicule + coutEntretien + coutDegats + totalDepenses)], ['Résultat', euros(resultat)],
+            ['Jours loués', String(joursLoues)], ['Locations', String(utiles.length)], ['Revenu par jour loué', joursLoues ? euros(ca / joursLoues) : '—'],
+          ],
+          locations: utiles.map((l: any) => [String(l.numero), [l.clients?.prenom, l.clients?.nom].filter(Boolean).join(' '), date(l.debut), date(l.fin_reelle ?? l.fin_prevue), euros(l.prix_total)]),
+          maintenances: (entretiens ?? []).map((e: any) => [typesMaintenance[e.type] ?? 'Entretien', [e.raison, e.garage].filter(Boolean).join(' · '), date(e.fin ?? e.debut ?? e.created_at), [e.cout ? 'coût ' + euros(e.cout) : '', e.montant_recu ? 'reçu ' + euros(e.montant_recu) : ''].filter(Boolean).join(' / ') || '—']),
+          depenses: (depensesV ?? []).map((x: any) => [categoriesDepense[x.categorie] ?? x.categorie, x.libelle ?? '', date(x.date), euros(x.montant)]),
+          dommages: (dommages ?? []).map((x: any) => [typeDommage[x.type], graviteDommage[x.gravite], date(x.created_at), euros(x.cout)]),
+          amendes: (amendes ?? []).map((x: any) => [x.type ?? 'Amende', statutAmende[x.statut], date(x.date_infraction), euros(x.montant)]),
+        } }} />
         <a className="bouton" href={`/vehicules/${v.id}/fourriere`}>Attestation fourrière</a>
       </>}>
 

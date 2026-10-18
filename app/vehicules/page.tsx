@@ -19,7 +19,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
 
   return (
     <Cadre titre={`Véhicules (${(tous ?? []).filter((v: any) => v.statut !== 'sorti').length})`} tables={['vehicules']}
-      actions={<a className="bouton" href="/export/vehicules">Exporter</a>}>
+      actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a></>}>
       <details className="formulaire carte" open={!tous?.length}>
         <summary className="bouton principal">+ Ajouter un véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille">
@@ -43,7 +43,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
 
       <div className="filtres">
         <a href="/vehicules" className={!searchParams.statut ? 'actif' : ''}>Tous</a>
-        {Object.entries(statutVehicule).filter(([k]) => k !== 'sorti' || compte('sorti') > 0).map(([k, v]) => (
+        {Object.entries(statutVehicule).filter(([k]) => k !== 'sorti').map(([k, v]) => (
           <a key={k} href={`/vehicules?statut=${k}`} className={searchParams.statut === k ? 'actif' : ''}>{v} ({compte(k)})</a>
         ))}
         <form style={{ flex: '1 1 180px' }}><input name="q" defaultValue={searchParams.q} placeholder="Rechercher une immatriculation…" /></form>
