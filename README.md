@@ -16,6 +16,8 @@ Site web privé (PC) + appli téléphone, synchronisés en direct sur une seule 
 - `supabase/migrations/0001_socle.sql` : le modèle de données (agences, utilisateurs, véhicules,
   clients, locations, états des lieux, photos, dommages, amendes, entretiens, traceurs,
   attestations fourrière) et les règles d'accès (chaque loueur ne voit que ses données).
+- `supabase/migrations/0002_inscription_agence.sql` : création de l agence à la première connexion.
+- `app/` : le site (connexion, accueil avec compteurs, véhicules).
 - `docs/modele-de-donnees.md` : le même modèle expliqué simplement.
 
 ## Principes
