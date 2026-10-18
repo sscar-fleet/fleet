@@ -52,7 +52,7 @@ a { color: inherit; text-decoration: none; }
 .entete { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .entete .logo img { height: 40px; display: block; }
 .entete .agence { color: var(--gris); font-size: 14px; text-align: right; }
-.nav { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 20px; scrollbar-width: none; }
+.nav { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 6px; margin-bottom: 20px; position: relative; z-index: 20; }
 .nav::-webkit-scrollbar { display: none; }
 .nav a { border: 1px solid var(--bord); background: var(--panneau); padding: 9px 13px; border-radius: 10px; font-size: 14px; white-space: nowrap; }
 .nav a.actif { border-color: var(--turquoise); color: var(--turquoise); }
