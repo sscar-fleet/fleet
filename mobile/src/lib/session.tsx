@@ -1,0 +1,30 @@
+// Session de l'utilisateur et de son agence, partagée par tous les écrans
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+import { DEMO } from './demo';
+
+type Profil = { id: string; nom: string; role: string; agence_id: string; agence: string };
+type Etat = { session: Session | null; profil: Profil | null; pret: boolean };
+
+const Contexte = createContext<Etat>({ session: null, profil: null, pret: false });
+export const useSession = () => useContext(Contexte);
+
+export function FournisseurSession({ children }: { children: ReactNode }) {
+  const [etat, setEtat] = useState<Etat>({ session: null, profil: null, pret: false });
+
+  useEffect(() => {
+    if (DEMO) { setEtat({ session: { user: { email: 'demo@fleet' } } as unknown as Session, profil: { id: 'demo', nom: 'Singh Abelli', role: 'gerant', agence_id: 'demo', agence: 'SS CAR SYSTEM RENT' }, pret: true }); return; }
+    const charger = async (session: Session | null) => {
+      if (!session) { setEtat({ session: null, profil: null, pret: true }); return; }
+      const { data } = await supabase.from('utilisateurs').select('id, nom, role, agence_id, agences(nom)').eq('id', session.user.id).maybeSingle();
+      const profil = data ? { id: data.id, nom: data.nom, role: data.role, agence_id: data.agence_id, agence: (data as any).agences?.nom ?? '' } : null;
+      setEtat({ session, profil, pret: true });
+    };
+    supabase.auth.getSession().then(({ data }) => charger(data.session));
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => { charger(s); });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  return <Contexte.Provider value={etat}>{children}</Contexte.Provider>;
+}
