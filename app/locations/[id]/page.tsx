@@ -19,7 +19,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
   if (!d) notFound();
   const l = d.brut; const v = l.vehicules; const c = l.clients;
   const [{ data: autres }, { data: historique }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele').neq('statut', 'hors_service').neq('id', v.id).order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele').not('statut', 'in', '(hors_service,sorti)').neq('id', v.id).order('immatriculation'),
     supabase.from('historique').select('action, detail, created_at').eq('location_id', l.id).order('created_at', { ascending: false }),
   ]);
   const retard = l.statut === 'en_cours' && new Date(l.fin_prevue) < new Date();

@@ -21,14 +21,14 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
   const occupation = r.nbVehicules ? Math.min(100, Math.round((p.joursLoues / (r.nbVehicules * joursPeriode)) * 100)) : 0;
   const marge = p.recettes ? Math.round((p.resultat / p.recettes) * 100) : 0;
   const evolution = precedente && precedente.resultat !== 0 ? Math.round(((p.resultat - precedente.resultat) / Math.abs(precedente.resultat)) * 100) : null;
-  const sansCout = r.vehicules.filter((v: any) => !v.cout_mensuel && v.statut !== 'hors_service');
+  const sansCout = r.vehicules.filter((v: any) => !v.cout_mensuel && !['hors_service', 'sorti'].includes(v.statut));
 
   const [{ data: vehicules }, { data: dernieres }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele').order('immatriculation'),
     supabase.from('depenses').select('id, categorie, montant, date, libelle, vehicules(immatriculation)').order('date', { ascending: false }).limit(10),
   ]);
 
-  const recettes: [string, number][] = [['Locations', p.locations], ['Kilomètres en trop', p.kmSup], ['Retenues sur caution', p.cautions]];
+  const recettes: [string, number][] = [['Locations', p.locations], ['Kilomètres en trop', p.kmSup], ['Retenues sur caution', p.cautions], ['Transferts à d\u2019autres loueurs', p.transferts]];
   const couts: [string, number][] = [['Véhicules (leasing, crédit, achat)', p.vehicules], ['Entretien', p.entretien], ['Dégâts', p.degats],
     ['Fourrière et autres dépenses', p.depenses], ['Amendes payées par l’agence', p.amendes]];
   const libelleG = { jour: 'jour', semaine: 'semaine', mois: 'mois' }[g];

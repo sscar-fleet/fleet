@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
-  statutVehicule, statutLocation, statutEntretien, statutAmende, typeDommage, graviteDommage, carburants, financements, photosGuidees,
+  statutVehicule, statutLocation, statutEntretien, typesMaintenance, motifsSortie, statutAmende, typeDommage, graviteDommage, carburants, financements, photosGuidees,
   km, date, dateHeure, euros, echeance, joursEntre, JOUR, versJour, categoriesDepense,
 } from '@/lib/format';
 import * as A from '../../actions';
@@ -34,7 +34,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
 
   // Rentabilité
   const utiles = (locations ?? []).filter((l: any) => l.statut === 'terminee' || l.statut === 'en_cours');
-  const ca = utiles.reduce((s: number, l: any) => s + Number(l.prix_total ?? 0), 0);
+  const ca = utiles.reduce((s: number, l: any) => s + Number(l.prix_total ?? 0), 0)
+    + (entretiens ?? []).reduce((s: number, e: any) => s + Number(e.montant_recu ?? 0), 0);
   const joursLoues = utiles.reduce((s: number, l: any) => s + joursEntre(l.debut, l.fin_reelle ?? (l.statut === 'en_cours' ? new Date() : l.fin_prevue)), 0);
   const depuis = Date.now() - 90 * JOUR;
   const jours90 = utiles.reduce((s: number, l: any) => {
@@ -69,6 +70,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         <a className="bouton" href={`/vehicules/${v.id}/fourriere`}>Attestation fourrière</a>
       </>}>
 
+      {v.statut === 'sorti' && <div className="alerte-bandeau">Sorti de la flotte le {date(v.date_sortie)} · {motifsSortie[v.motif_sortie] ?? v.motif_sortie}{v.prix_sortie ? ` · vendu ${euros(v.prix_sortie)}` : ''}</div>}
       <section className="chiffres">
         <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>
         <div><span>Jours loués</span><b>{joursLoues}</b></div>
@@ -109,14 +111,30 @@ export default async function FicheVehicule({ params }: { params: { id: string }
             <label>Entré dans la flotte le<input name="date_entree" type="date" defaultValue={v.date_entree ?? ''} /></label>
             <Envoyer className="bouton">Enregistrer</Envoyer>
           </Formulaire>
-          <div className="ligne" style={{ marginTop: 14 }}>
+          {v.statut !== 'sorti' && <div className="ligne" style={{ marginTop: 14 }}>
             <span className="gris">Statut :</span>
             {['disponible', 'maintenance', 'hors_service'].map((s) => (
               <Formulaire key={s} action={A.statutVehicule.bind(null, v.id, s)}>
                 <Envoyer className={`bouton petit ${v.statut === s ? 'actif' : ''}`}>{statutVehicule[s]}</Envoyer>
               </Formulaire>
             ))}
-          </div>
+          </div>}
+          {v.statut !== 'sorti' ? (
+            <details className="formulaire" style={{ marginTop: 14 }}>
+              <summary className="bouton petit danger">Sortir de la flotte</summary>
+              <Formulaire action={A.sortirVehicule.bind(null, v.id)} className="grille">
+                <label>Motif<select name="motif_sortie">{Object.entries(motifsSortie).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
+                <label>Date de sortie<input name="date_sortie" type="date" defaultValue={versJour(new Date())} /></label>
+                <label>Prix de vente (€)<input name="prix_sortie" type="number" step="0.01" min={0} /></label>
+                <Envoyer className="bouton danger">Confirmer la sortie</Envoyer>
+              </Formulaire>
+              <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Le véhicule disparaît du planning et des listes, son coût mensuel s&apos;arrête à cette date. Son historique est gardé.</p>
+            </details>
+          ) : (
+            <Formulaire action={A.remettreVehicule.bind(null, v.id)} style={{ marginTop: 14 }}>
+              <Envoyer className="bouton petit">Remettre dans la flotte</Envoyer>
+            </Formulaire>
+          )}
         </section>
       </div>
 
@@ -156,16 +174,18 @@ export default async function FicheVehicule({ params }: { params: { id: string }
       </section>
 
       <section className="carte">
-        <h2>Entretien</h2>
+        <h2>Maintenance et transferts</h2>
         <details className="formulaire">
-          <summary className="bouton petit">+ Mettre en maintenance / prévoir un entretien</summary>
+          <summary className="bouton petit">+ Maintenance, réparation ou transfert</summary>
           <Formulaire vider action={A.ajouterEntretien} className="grille">
             <input type="hidden" name="vehicule_id" value={v.id} />
-            <label>Raison<input name="raison" placeholder="Vidange, pneus, carrosserie…" required /></label>
-            <label>Garage<input name="garage" /></label>
+            <label>Type<select name="type">{Object.entries(typesMaintenance).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
+            <label>Raison / détail<input name="raison" placeholder="Vidange, pneus, prêt à Loc Express…" required /></label>
+            <label>Garage ou loueur<input name="garage" /></label>
             <label>Retour prévu<input name="retour_prevu" type="datetime-local" /></label>
             <label>Km<input name="km" type="number" defaultValue={v.km ?? ''} /></label>
-            <label>Coût (€)<input name="cout" type="number" step="0.01" /></label>
+            <label>Coût pour moi (€)<input name="cout" type="number" step="0.01" /></label>
+            <label>Montant reçu (€)<input name="montant_recu" type="number" step="0.01" placeholder="Transfert payé par l'autre loueur" /></label>
             <label className="pleine">Commentaire<input name="commentaire" /></label>
             <Envoyer name="demarrer" value="oui">Démarrer maintenant</Envoyer>
             <Envoyer className="bouton" name="demarrer" value="non">Prévoir pour plus tard</Envoyer>
@@ -174,8 +194,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         {!entretiens?.length && <p className="gris">Aucun entretien enregistré.</p>}
         {entretiens?.map((e: any) => (
           <div key={e.id} className="fichier">
-            <span><span className={`pastille ${e.statut}`}>{e.raison}</span>
-              <br /><span className="gris">{statutEntretien[e.statut]}{e.garage ? ' · ' + e.garage : ''}{e.retour_prevu ? ' · retour ' + dateHeure(e.retour_prevu) : ''}{e.cout ? ' · ' + euros(e.cout) : ''}</span></span>
+            <span><span className={`pastille ${e.statut}`}>{typesMaintenance[e.type] ?? 'Entretien'} · {e.raison}</span>
+              <br /><span className="gris">{statutEntretien[e.statut]}{e.garage ? ' · ' + e.garage : ''}{e.retour_prevu ? ' · retour ' + dateHeure(e.retour_prevu) : ''}{e.cout ? ' · coût ' + euros(e.cout) : ''}{e.montant_recu ? ' · reçu ' + euros(e.montant_recu) : ''}</span></span>
             <span className="ligne">
               <Fichier compact agenceId={profil.agence_id} dossier={`entretiens/${e.id}`} nom="devis" libelle="Devis"
                 lien={liens[e.devis_path]} action={A.devisEntretien.bind(null, e.id)} />

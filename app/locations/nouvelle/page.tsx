@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function NouvelleLocation({ searchParams }: { searchParams: { vehicule?: string; client?: string } }) {
   const { supabase } = await utilisateurCourant();
   const [{ data: vehicules }, { data: clients }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour').neq('statut', 'hors_service').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('clients').select('id, nom, prenom, telephone, liste_noire').order('nom'),
   ]);
   const depart = new Date(); depart.setMinutes(0, 0, 0); depart.setHours(depart.getHours() + 1);

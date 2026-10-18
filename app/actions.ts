@@ -90,6 +90,26 @@ async function _documentVehicule(id: string, champ: string, chemin: string) {
   rafraichir();
 }
 
+async function _sortirVehicule(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const { data: enCours } = await supabase.from('locations').select('numero').eq('vehicule_id', id).in('statut', ['reservee', 'en_cours']).limit(1);
+  if (enCours?.length) throw new Error(`Ce véhicule a encore une location en cours ou à venir (contrat n° ${enCours[0].numero}). Terminez-la ou changez de voiture d\u2019abord.`);
+  const motif = texte(formData.get('motif_sortie')) ?? 'autre';
+  const quand = texte(formData.get('date_sortie')) ?? new Date().toISOString().slice(0, 10);
+  verifier((await supabase.from('vehicules').update({
+    statut: 'sorti', date_sortie: quand, motif_sortie: motif, prix_sortie: nombre(formData.get('prix_sortie')),
+  }).eq('id', id)).error, 'Sortie du véhicule');
+  await journal(null, id, 'Sorti de la flotte', motif);
+  rafraichir();
+}
+
+async function _remettreVehicule(id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ statut: 'disponible', date_sortie: null, motif_sortie: null, prix_sortie: null }).eq('id', id)).error);
+  await journal(null, id, 'Remis dans la flotte');
+  rafraichir();
+}
+
 async function _enregistrerAttestation(vehicule_id: string, personne: string, fourriere: string, frais?: number | null) {
   const { supabase, profil } = await utilisateurCourant();
   if (frais && frais > 0) {
@@ -111,7 +131,9 @@ async function _ajouterEntretien(formData: FormData) {
   const demarrer = formData.get('demarrer') === 'oui';
   verifier((await supabase.from('entretiens').insert({
     agence_id: profil.agence_id, vehicule_id,
+    type: texte(formData.get('type')) ?? 'entretien',
     raison: texte(formData.get('raison')) ?? 'Entretien',
+    montant_recu: nombre(formData.get('montant_recu')),
     commentaire: texte(formData.get('commentaire')),
     garage: texte(formData.get('garage')),
     retour_prevu: depuisParis(texte(formData.get('retour_prevu'))),
@@ -136,8 +158,10 @@ async function _demarrerEntretien(id: string) {
 async function _terminerEntretien(id: string, formData?: FormData) {
   const { supabase } = await utilisateurCourant();
   const cout = formData ? nombre(formData.get('cout')) : null;
+  const recu = formData ? nombre(formData.get('montant_recu')) : null;
   const maj: any = { statut: 'termine', fin: new Date().toISOString() };
   if (cout !== null) maj.cout = cout;
+  if (recu !== null) maj.montant_recu = recu;
   const { data, error } = await supabase.from('entretiens').update(maj).eq('id', id).select('vehicule_id').single();
   verifier(error);
   const { data: v } = await supabase.from('vehicules').select('statut').eq('id', data!.vehicule_id).single();
@@ -546,4 +570,6 @@ export const avisAmende = proteger(_avisAmende);
 export const clientAmende = proteger(_clientAmende);
 export const majAgence = proteger(_majAgence);
 export const ajouterDepense = proteger(_ajouterDepense);
+export const sortirVehicule = proteger(_sortirVehicule);
+export const remettreVehicule = proteger(_remettreVehicule);
 export const documentAgence = proteger(_documentAgence);

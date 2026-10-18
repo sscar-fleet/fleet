@@ -13,12 +13,12 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
     .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance').order('immatriculation');
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const vehicules = (tous ?? []).filter((v: any) =>
-    (!searchParams.statut || v.statut === searchParams.statut) &&
+    (searchParams.statut ? v.statut === searchParams.statut : v.statut !== 'sorti') &&
     (!q || `${v.immatriculation} ${v.marque ?? ''} ${v.modele ?? ''}`.toLowerCase().includes(q)));
   const compte = (s: string) => (tous ?? []).filter((v: any) => v.statut === s).length;
 
   return (
-    <Cadre titre={`Véhicules (${tous?.length ?? 0})`} tables={['vehicules']}
+    <Cadre titre={`Véhicules (${(tous ?? []).filter((v: any) => v.statut !== 'sorti').length})`} tables={['vehicules']}
       actions={<a className="bouton" href="/export/vehicules">Exporter</a>}>
       <details className="formulaire carte" open={!tous?.length}>
         <summary className="bouton principal">+ Ajouter un véhicule</summary>
@@ -43,7 +43,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
 
       <div className="filtres">
         <a href="/vehicules" className={!searchParams.statut ? 'actif' : ''}>Tous</a>
-        {Object.entries(statutVehicule).map(([k, v]) => (
+        {Object.entries(statutVehicule).filter(([k]) => k !== 'sorti' || compte('sorti') > 0).map(([k, v]) => (
           <a key={k} href={`/vehicules?statut=${k}`} className={searchParams.statut === k ? 'actif' : ''}>{v} ({compte(k)})</a>
         ))}
         <form style={{ flex: '1 1 180px' }}><input name="q" defaultValue={searchParams.q} placeholder="Rechercher une immatriculation…" /></form>

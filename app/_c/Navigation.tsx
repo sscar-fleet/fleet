@@ -3,7 +3,7 @@ import { usePathname } from 'next/navigation';
 
 const liens = [
   ['/', 'Accueil'], ['/pilotage', 'Pilotage'], ['/planning', 'Planning'], ['/locations', 'Locations'], ['/vehicules', 'Véhicules'],
-  ['/clients', 'Clients'], ['/amendes', 'Amendes'], ['/entretiens', 'Entretien'], ['/parametres', 'Réglages'],
+  ['/clients', 'Clients'], ['/amendes', 'Amendes'], ['/entretiens', 'Maintenance'], ['/parametres', 'Réglages'],
 ];
 
 export default function Navigation() {

@@ -35,14 +35,14 @@ export default async function Accueil() {
   const moisPrec = pilotage.periodes[pilotage.periodes.length - 2];
   const caMois = mois.recettes;
   const flotte = ['loue', 'disponible', 'maintenance', 'hors_service'].map((k) => ({ k, n: (vehicules ?? []).filter((v: any) => v.statut === k).length }));
-  const totalFlotte = (vehicules ?? []).length;
+  const totalFlotte = (vehicules ?? []).filter((v: any) => v.statut !== 'sorti').length;
   const libFlotte: Record<string, string> = { loue: 'Loués', disponible: 'Disponibles', maintenance: 'En maintenance', hors_service: 'Hors service' };
   const couleur: Record<string, string> = { loue: 'var(--turquoise)', disponible: 'var(--vert)', maintenance: 'var(--orange)', hors_service: 'var(--rouge)' };
 
   // Alertes : papiers qui expirent, entretiens qui traînent, départs pas faits
   const alertes: { texte: string; lien: string; niveau: string }[] = [];
   (vehicules ?? []).forEach((v: any) => {
-    if (v.statut === 'hors_service') return;
+    if (v.statut === 'hors_service' || v.statut === 'sorti') return;
     const a = echeance(v.assurance_echeance); const c = echeance(v.ct_echeance);
     if (a) alertes.push({ texte: `${v.immatriculation} : assurance ${a === 'depasse' ? 'expirée' : 'expire'} le ${date(v.assurance_echeance)}`, lien: `/vehicules/${v.id}`, niveau: a });
     if (c) alertes.push({ texte: `${v.immatriculation} : contrôle technique ${c === 'depasse' ? 'dépassé' : 'à faire'} le ${date(v.ct_echeance)}`, lien: `/vehicules/${v.id}`, niveau: c });

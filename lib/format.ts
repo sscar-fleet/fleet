@@ -1,7 +1,14 @@
 // Libellés et mises en forme communs à tous les écrans
 
 export const statutVehicule: Record<string, string> = {
-  disponible: 'Disponible', loue: 'Loué', maintenance: 'Maintenance', hors_service: 'Hors service',
+  disponible: 'Disponible', loue: 'Loué', maintenance: 'Maintenance', hors_service: 'Hors service', sorti: 'Sorti de la flotte',
+};
+export const motifsSortie: Record<string, string> = {
+  vendu: 'Vendu', restitue: 'Restitué (fin de leasing / LLD)', epave: 'Épave / accident', vole: 'Volé', autre: 'Autre',
+};
+export const typesMaintenance: Record<string, string> = {
+  entretien: 'Entretien / vidange', reparation: 'Réparation', carrosserie: 'Carrosserie', controle: 'Contrôle technique',
+  nettoyage: 'Nettoyage', transfert: 'Transfert à un autre loueur', autre: 'Autre',
 };
 export const statutLocation: Record<string, string> = {
   reservee: 'Réservée', en_cours: 'En cours', terminee: 'Terminée', annulee: 'Annulée',

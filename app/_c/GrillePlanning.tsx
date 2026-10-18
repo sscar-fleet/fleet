@@ -6,17 +6,17 @@ export async function chargerPlanning(supabase: any, jour0: string, nb: number) 
   const jours = Array.from({ length: nb }, (_, i) => new Date(depuisParis(versJour(new Date(debut.getTime() + i * JOUR + 12 * 3600 * 1000)) + 'T00:00')!));
   const fin = new Date(jours[nb - 1].getTime() + JOUR);
   const [{ data: vehicules }, { data: locations }, { data: entretiens }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut').neq('statut', 'hors_service').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, clients(nom)')
       .in('statut', ['reservee', 'en_cours', 'terminee']).lt('debut', fin.toISOString()).gt('fin_prevue', debut.toISOString()),
-    supabase.from('entretiens').select('vehicule_id, debut, retour_prevu, statut').eq('statut', 'en_cours'),
+    supabase.from('entretiens').select('vehicule_id, type, garage, debut, retour_prevu, statut').eq('statut', 'en_cours'),
   ]);
   const occupation = (vid: string, j: Date): any => {
     const a = j.getTime(); const b = a + JOUR;
     const loc = (locations ?? []).find((l: any) => l.vehicule_id === vid && new Date(l.debut).getTime() < b && new Date(l.fin_reelle ?? l.fin_prevue).getTime() > a);
     if (loc) return { type: 'loc', l: loc };
     const ent = (entretiens ?? []).find((e: any) => e.vehicule_id === vid && (!e.retour_prevu || new Date(e.retour_prevu).getTime() > a));
-    if (ent && b > Date.now()) return { type: 'ent' };
+    if (ent && b > Date.now()) return { type: 'ent', e: ent };
     return null;
   };
   const nbV = vehicules?.length ?? 0;
@@ -50,7 +50,9 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                   <td key={i} className={`occupe ${o.l.statut}`} title={`N° ${o.l.numero} · ${o.l.clients?.nom ?? ''}`}>
                     <a href={`/locations/${o.l.id}`} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.l.clients?.nom ?? ''}</a>
                   </td>);
-                if (o?.type === 'ent') return <td key={i} className="occupe maintenance" title="Maintenance">🔧</td>;
+                if (o?.type === 'ent') return o.e?.type === 'transfert'
+                  ? <td key={i} className="occupe maintenance" title={`Transféré${o.e.garage ? ' à ' + o.e.garage : ''}`}>⇄ {o.e.garage ?? ''}</td>
+                  : <td key={i} className="occupe maintenance" title="Maintenance">🔧</td>;
                 return <td key={i} className={we ? 'weekend' : ''}><a href={`/locations/nouvelle?vehicule=${v.id}`} style={{ display: 'block', color: 'transparent' }}>+</a></td>;
               })}
             </tr>

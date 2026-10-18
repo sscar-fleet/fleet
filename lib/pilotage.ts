@@ -4,13 +4,13 @@ import { depuisParis, versJour, JOUR } from './format';
 export type Granularite = 'jour' | 'semaine' | 'mois';
 
 export type Poste = {
-  locations: number; kmSup: number; cautions: number;           // recettes
+  locations: number; kmSup: number; cautions: number; transferts: number; // recettes
   vehicules: number; entretien: number; degats: number; depenses: number; amendes: number; // coûts
   departs: number; retours: number; joursLoues: number;
 };
 export type Periode = Poste & { debut: Date; fin: Date; libelle: string; recettes: number; couts: number; resultat: number };
 
-const vide = (): Poste => ({ locations: 0, kmSup: 0, cautions: 0, vehicules: 0, entretien: 0, degats: 0, depenses: 0, amendes: 0, departs: 0, retours: 0, joursLoues: 0 });
+const vide = (): Poste => ({ locations: 0, kmSup: 0, cautions: 0, transferts: 0, vehicules: 0, entretien: 0, degats: 0, depenses: 0, amendes: 0, departs: 0, retours: 0, joursLoues: 0 });
 const minuit = (jour: string) => new Date(depuisParis(jour + 'T00:00')!);
 const plusJours = (d: Date, n: number) => minuit(versJour(new Date(d.getTime() + n * JOUR + 12 * 3600 * 1000)));
 
@@ -53,10 +53,10 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
   const dJour = versJour(debut); const fJour = versJour(fin);
 
   const [{ data: vehicules }, { data: locations }, { data: entretiens }, { data: dommages }, { data: depenses }, { data: amendes }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, cout_mensuel, financement, date_entree, created_at, statut').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, cout_mensuel, financement, date_entree, date_sortie, created_at, statut').order('immatriculation'),
     supabase.from('locations').select('id, vehicule_id, debut, fin_prevue, fin_reelle, statut, prix_total, km_depart, km_retour, km_inclus, prix_km_sup, caution_retenue, caution_statut')
       .in('statut', ['en_cours', 'terminee']).lt('debut', fIso).gte('fin_prevue', new Date(debut.getTime() - 60 * JOUR).toISOString()),
-    supabase.from('entretiens').select('vehicule_id, cout, debut, fin, created_at').not('cout', 'is', null),
+    supabase.from('entretiens').select('vehicule_id, type, cout, montant_recu, debut, fin, created_at'),
     supabase.from('dommages').select('vehicule_id, cout, created_at, statut').neq('statut', 'annule').not('cout', 'is', null).gte('created_at', dIso).lt('created_at', fIso),
     supabase.from('depenses').select('vehicule_id, categorie, montant, date').gte('date', dJour).lt('date', fJour),
     supabase.from('amendes').select('vehicule_id, montant, date_infraction').eq('statut', 'payee').gte('date_infraction', dIso).lt('date_infraction', fIso),
@@ -106,22 +106,27 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
     if (!v.cout_mensuel) return;
     const entree = minuit(v.date_entree ?? versJour(v.created_at)).getTime();
     const parJour = (Number(v.cout_mensuel) * 12) / 365;
-    repartir(v.id, Math.max(entree, debut.getTime()), Math.min(fin.getTime(), Date.now() + JOUR), 'vehicules', parJour, true);
+    const sortie = v.date_sortie ? minuit(v.date_sortie).getTime() : Infinity;
+    repartir(v.id, Math.max(entree, debut.getTime()), Math.min(fin.getTime(), Date.now() + JOUR, sortie), 'vehicules', parJour, true);
   });
 
-  (entretiens ?? []).forEach((e: any) => ajouter(e.vehicule_id, new Date(e.fin ?? e.debut ?? e.created_at).getTime(), 'entretien', Number(e.cout)));
+  (entretiens ?? []).forEach((e: any) => {
+    const quand = new Date(e.fin ?? e.debut ?? e.created_at).getTime();
+    if (e.cout) ajouter(e.vehicule_id, quand, 'entretien', Number(e.cout));
+    if (e.montant_recu) ajouter(e.vehicule_id, quand, 'transferts', Number(e.montant_recu));
+  });
   (dommages ?? []).forEach((d: any) => ajouter(d.vehicule_id, new Date(d.created_at).getTime(), 'degats', Number(d.cout)));
   (depenses ?? []).forEach((d: any) => ajouter(d.vehicule_id, minuit(d.date).getTime() + 12 * 3600 * 1000, 'depenses', Number(d.montant)));
   (amendes ?? []).forEach((a: any) => ajouter(a.vehicule_id, new Date(a.date_infraction).getTime(), 'amendes', Number(a.montant ?? 0)));
 
   const finir = (p: Poste, i: number): Periode => {
-    const recettes = p.locations + p.kmSup + p.cautions;
+    const recettes = p.locations + p.kmSup + p.cautions + p.transferts;
     const couts = p.vehicules + p.entretien + p.degats + p.depenses + p.amendes;
     return { ...p, ...liste[i], recettes, couts, resultat: recettes - couts };
   };
   return {
     periodes: res.map(finir),
-    vehicules: (vehicules ?? []).map((v: any) => ({ ...v, periodes: parVehicule[v.id].map(finir) })),
-    nbVehicules: (vehicules ?? []).filter((v: any) => v.statut !== 'hors_service').length,
+    vehicules: (vehicules ?? []).filter((v: any) => !v.date_sortie || minuit(v.date_sortie).getTime() > debut.getTime()).map((v: any) => ({ ...v, periodes: parVehicule[v.id].map(finir) })),
+    nbVehicules: (vehicules ?? []).filter((v: any) => !['hors_service', 'sorti'].includes(v.statut)).length,
   };
 }

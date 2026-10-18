@@ -77,7 +77,7 @@ td a.bloc { display: block; }
 .reservee, .prevu, .en_attente { color: var(--bleu); }
 .maintenance, .a_prendre, .infos_manquantes, .proche, .moyen { color: var(--orange); }
 .hors_service, .encaissee, .litige, .refusee, .a_designer, .depasse, .ouvert, .grave, .retard { color: var(--rouge); }
-.annulee, .annule, .leger { color: var(--gris); }
+.annulee, .annule, .leger, .sorti { color: var(--gris); }
 .badge { display: inline-block; min-width: 20px; padding: 1px 7px; border-radius: 99px; font-size: 12px; font-weight: 700; text-align: center; }
 .badge.rouge { background: var(--rouge); color: white; }
 .badge.gris { background: var(--bord); color: var(--texte); }
