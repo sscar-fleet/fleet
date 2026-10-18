@@ -32,7 +32,7 @@ export default async function Clients({ searchParams }: { searchParams: { q?: st
         <form style={{ flex: '1 1 180px' }}><input name="q" defaultValue={searchParams.q} placeholder="Nom, téléphone, e-mail…" /></form>
       </div>
       <div className="tableau">
-        <table>
+        <table className="cartes">
           <thead><tr><th>Client</th><th>Téléphone</th><th>Locations</th><th className="masque-mobile">Papiers</th><th className="masque-mobile">Statut</th></tr></thead>
           <tbody>
             {clients.map((c: any) => {
@@ -49,7 +49,7 @@ export default async function Clients({ searchParams }: { searchParams: { q?: st
                 </tr>
               );
             })}
-            {!clients.length && <tr><td colSpan={5} className="vide">Aucun client.</td></tr>}
+            {!clients.length && <tr><td colSpan={5}><div className="vide-guide"><b>{tous?.length ? 'Aucun client trouvé' : 'Pas encore de client'}</b>{tous?.length ? 'Essayez une autre recherche.' : 'Les clients se créent tout seuls à la première location, ou avec « + Nouveau client ».'}</div></td></tr>}
           </tbody>
         </table>
       </div>

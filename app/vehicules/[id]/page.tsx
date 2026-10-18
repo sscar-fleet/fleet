@@ -10,6 +10,7 @@ import Formulaire from '../../_c/Formulaire';
 import Envoyer from '../../_c/Envoyer';
 import Fichier from '../../_c/Fichier';
 import Depot from '../../_c/Depot';
+import Onglets from '../../_c/Onglets';
 import BoutonPdf from '../../_c/BoutonPdf';
 import { donneesAgence } from '@/lib/donnees';
 
@@ -89,6 +90,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
       </>}>
 
       {v.statut === 'sorti' && <div className="alerte-bandeau">Sorti de la flotte le {date(v.date_sortie)} · {motifsSortie[v.motif_sortie] ?? v.motif_sortie}{v.prix_sortie ? ` · vendu ${euros(v.prix_sortie)}` : ''}</div>}
+      <Onglets panneaux={[
+        { cle: 'resume', titre: 'Résumé', contenu: <>
       <section className="chiffres">
         <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>
         <div><span>Jours loués</span><b>{joursLoues}</b></div>
@@ -97,20 +100,6 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         <div><span>Coûts (véhicule, entretien, dégâts, dépenses)</span><b>{euros(coutVehicule + coutEntretien + coutDegats + totalDepenses)}</b></div>
         <div><span>Résultat depuis l&apos;entrée</span><b style={{ color: resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{resultat >= 0 ? '+' : ''}{euros(resultat)}</b></div>
       </section>
-
-      <div className="colonnes">
-        <section className="carte">
-          <h2>Papiers du véhicule</h2>
-          {papier('Carte grise', 'carte_grise_path')}
-          {papier('Assurance', 'assurance_path')}
-          {papier('Contrôle technique', 'ct_path')}
-          {papier('Photo du véhicule', 'photo_path')}
-          <div className="infos" style={{ marginTop: 12 }}>
-            <div><span>Fin d&apos;assurance</span><b className={`pastille ${echeance(v.assurance_echeance) || (v.assurance_echeance ? 'ok' : 'annulee')}`}>{date(v.assurance_echeance)}</b></div>
-            <div><span>Prochain contrôle technique</span><b className={`pastille ${echeance(v.ct_echeance) || (v.ct_echeance ? 'ok' : 'annulee')}`}>{date(v.ct_echeance)}</b></div>
-          </div>
-        </section>
-
         <section className="carte">
           <h2>Informations</h2>
           <Formulaire action={A.majVehicule.bind(null, v.id)} className="grille">
@@ -140,7 +129,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           {v.statut !== 'sorti' ? (
             <details className="formulaire" style={{ marginTop: 14 }}>
               <summary className="bouton petit danger">Sortir de la flotte</summary>
-              <Formulaire action={A.sortirVehicule.bind(null, v.id)} className="grille">
+              <Formulaire action={A.sortirVehicule.bind(null, v.id)} className="grille" succes="Véhicule sorti de la flotte" confirmer="Sortir ce véhicule de la flotte ? Il disparaîtra du planning (l'historique est gardé).">
                 <label>Motif<select name="motif_sortie">{Object.entries(motifsSortie).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
                 <label>Date de sortie<input name="date_sortie" type="date" defaultValue={versJour(new Date())} /></label>
                 <label>Prix de vente (€)<input name="prix_sortie" type="number" step="0.01" min={0} /></label>
@@ -154,43 +143,49 @@ export default async function FicheVehicule({ params }: { params: { id: string }
             </Formulaire>
           )}
         </section>
-      </div>
-
-      <section className="carte" style={{ marginTop: 16 }}>
-        <div className="titre" style={{ marginBottom: 10 }}>
-          <h2 style={{ margin: 0 }}>Dommages {ouverts > 0 && <span className="badge rouge">{ouverts}</span>}</h2>
-          <BoutonPdf genre="dommages" nom={`dommages-${v.immatriculation}.pdf`} libelle="Relevé PDF" classe="bouton petit"
-            donnees={{ agence, vehicule: { immatriculation: v.immatriculation, marque: v.marque, modele: v.modele }, dommages: dommagesDoc }} />
-        </div>
-        <details className="formulaire">
-          <summary className="bouton petit">+ Signaler un dommage</summary>
-          <Formulaire vider action={A.ajouterDommage} className="grille">
-            <input type="hidden" name="vehicule_id" value={v.id} />
-            <label>Type<select name="type">{Object.entries(typeDommage).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
-            <label>Gravité<select name="gravite">{Object.entries(graviteDommage).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
-            <label>Zone<select name="zone"><option value="">—</option>{photosGuidees.filter((p) => p.position !== 'compteur').map((p) => <option key={p.position} value={p.position}>{p.libelle}</option>)}</select></label>
-            <label>Coût estimé (€)<input name="cout" type="number" step="0.01" min={0} /></label>
-            <Envoyer className="bouton">Enregistrer</Envoyer>
-          </Formulaire>
-        </details>
-        {!dommages?.length && <p className="gris">Aucun dommage.</p>}
-        {dommages?.map((d: any) => (
-          <div key={d.id} className="fichier">
-            <span><span className={`pastille ${d.statut === 'ouvert' ? d.gravite : d.statut}`}>{typeDommage[d.type]} · {graviteDommage[d.gravite]}</span>
-              <br /><span className="gris">{d.zone ? photosGuidees.find((p) => p.position === d.zone)?.libelle : 'Zone non précisée'} · {date(d.created_at)}{d.cout ? ' · ' + euros(d.cout) : ''}</span></span>
-            <span className="ligne">
-              <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="zone" libelle="Zone" camera accept="image/*"
-                lien={liens[d.photo_zone_path]} action={A.photoDommage.bind(null, d.id, 'photo_zone_path')} />
-              <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="gros-plan" libelle="Gros plan" camera accept="image/*"
-                lien={liens[d.photo_gros_plan_path]} action={A.photoDommage.bind(null, d.id, 'photo_gros_plan_path')} />
-              {d.statut === 'ouvert'
-                ? <Formulaire action={A.statutDommage.bind(null, d.id, 'repare')}><Envoyer className="bouton petit">Réparé</Envoyer></Formulaire>
-                : <Formulaire action={A.statutDommage.bind(null, d.id, 'ouvert')}><Envoyer className="bouton petit">Rouvrir</Envoyer></Formulaire>}
-            </span>
+        </> },
+        { cle: 'papiers', titre: 'Papiers', badge: [v.assurance_echeance, v.ct_echeance].filter((x) => echeance(x)).length, contenu: <>
+        <section className="carte">
+          <h2>Papiers du véhicule</h2>
+          {papier('Carte grise', 'carte_grise_path')}
+          {papier('Assurance', 'assurance_path')}
+          {papier('Contrôle technique', 'ct_path')}
+          {papier('Photo du véhicule', 'photo_path')}
+          <div className="infos" style={{ marginTop: 12 }}>
+            <div><span>Fin d&apos;assurance</span><b className={`pastille ${echeance(v.assurance_echeance) || (v.assurance_echeance ? 'ok' : 'annulee')}`}>{date(v.assurance_echeance)}</b></div>
+            <div><span>Prochain contrôle technique</span><b className={`pastille ${echeance(v.ct_echeance) || (v.ct_echeance ? 'ok' : 'annulee')}`}>{date(v.ct_echeance)}</b></div>
           </div>
-        ))}
-      </section>
-
+        </section>
+        </> },
+        { cle: 'locations', titre: `Locations (${locations?.length ?? 0})`, contenu: <div className="colonnes">
+        <section className="carte">
+          <h2>Locations ({locations?.length ?? 0})</h2>
+          {!locations?.length && <p className="gris">Jamais loué pour l&apos;instant.</p>}
+          {locations?.slice(0, 20).map((l: any) => (
+            <a key={l.id} href={`/locations/${l.id}`} className="fichier">
+              <span>N° {l.numero} · {[l.clients?.prenom, l.clients?.nom].filter(Boolean).join(' ')}<br /><span className="gris">{date(l.debut)} → {date(l.fin_reelle ?? l.fin_prevue)} · {euros(l.prix_total)}</span></span>
+              <span className={`pastille ${l.statut}`}>{statutLocation[l.statut]}</span>
+            </a>
+          ))}
+        </section>
+        <section className="carte">
+          <h2>Amendes ({amendes?.length ?? 0})</h2>
+          {!amendes?.length && <p className="gris">Aucune amende.</p>}
+          {amendes?.map((a: any) => (
+            <a key={a.id} href="/amendes" className="fichier">
+              <span>{a.type ?? 'Amende'} · {euros(a.montant)}<br /><span className="gris">{dateHeure(a.date_infraction)}</span></span>
+              <span className={`pastille ${a.statut}`}>{statutAmende[a.statut]}</span>
+            </a>
+          ))}
+          {!!historique?.length && <>
+            <h3 style={{ marginTop: 18 }}>Historique</h3>
+            {historique.map((h: any, i: number) => (
+              <div key={i} className="fichier"><span>{h.action}{h.detail ? <span className="gris"> · {h.detail}</span> : null}</span><span className="gris">{dateHeure(h.created_at)}</span></div>
+            ))}
+          </>}
+        </section>
+        </div> },
+        { cle: 'entretien', titre: 'Entretien et dégâts', badge: ouverts, contenu: <>
       <section className="carte">
         <h2>Maintenance et transferts</h2>
         <details className="formulaire">
@@ -226,7 +221,50 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           </div>
         ))}
       </section>
-
+      <section className="carte">
+        <div className="titre" style={{ marginBottom: 10 }}>
+          <h2 style={{ margin: 0 }}>Dommages {ouverts > 0 && <span className="badge rouge">{ouverts}</span>}</h2>
+          <BoutonPdf genre="dommages" nom={`dommages-${v.immatriculation}.pdf`} libelle="Relevé PDF" classe="bouton petit"
+            donnees={{ agence, vehicule: { immatriculation: v.immatriculation, marque: v.marque, modele: v.modele }, dommages: dommagesDoc }} />
+        </div>
+        <details className="formulaire">
+          <summary className="bouton petit">+ Signaler un dommage</summary>
+          <Formulaire vider action={A.ajouterDommage} className="grille">
+            <input type="hidden" name="vehicule_id" value={v.id} />
+            <label>Type<select name="type">{Object.entries(typeDommage).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
+            <label>Gravité<select name="gravite">{Object.entries(graviteDommage).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
+            <label>Zone<select name="zone"><option value="">—</option>{photosGuidees.filter((p) => p.position !== 'compteur').map((p) => <option key={p.position} value={p.position}>{p.libelle}</option>)}</select></label>
+            <label>Coût estimé (€)<input name="cout" type="number" step="0.01" min={0} /></label>
+            <Envoyer className="bouton">Enregistrer</Envoyer>
+          </Formulaire>
+        </details>
+        {!dommages?.length && <p className="gris">Aucun dommage.</p>}
+        {dommages?.map((d: any) => (
+          <div key={d.id} className="fichier">
+            <span><span className={`pastille ${d.statut === 'ouvert' ? d.gravite : d.statut}`}>{typeDommage[d.type]} · {graviteDommage[d.gravite]}</span>
+              <br /><span className="gris">{d.zone ? photosGuidees.find((p) => p.position === d.zone)?.libelle : 'Zone non précisée'} · {date(d.created_at)}{d.cout ? ' · ' + euros(d.cout) : ''}</span></span>
+            <span className="ligne">
+              <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="zone" libelle="Zone" camera accept="image/*"
+                lien={liens[d.photo_zone_path]} action={A.photoDommage.bind(null, d.id, 'photo_zone_path')} />
+              <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="gros-plan" libelle="Gros plan" camera accept="image/*"
+                lien={liens[d.photo_gros_plan_path]} action={A.photoDommage.bind(null, d.id, 'photo_gros_plan_path')} />
+              {d.statut === 'ouvert'
+                ? <Formulaire action={A.statutDommage.bind(null, d.id, 'repare')}><Envoyer className="bouton petit">Réparé</Envoyer></Formulaire>
+                : <Formulaire action={A.statutDommage.bind(null, d.id, 'ouvert')}><Envoyer className="bouton petit">Rouvrir</Envoyer></Formulaire>}
+            </span>
+          </div>
+        ))}
+      </section>
+        </> },
+        { cle: 'argent', titre: 'Argent', contenu: <>
+      <section className="chiffres">
+        <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>
+        <div><span>Jours loués</span><b>{joursLoues}</b></div>
+        <div><span>Occupation (90 jours)</span><b>{Math.round((jours90 / 90) * 100)} %</b></div>
+        <div><span>Revenu par jour loué</span><b>{joursLoues ? euros(ca / joursLoues) : '—'}</b></div>
+        <div><span>Coûts (véhicule, entretien, dégâts, dépenses)</span><b>{euros(coutVehicule + coutEntretien + coutDegats + totalDepenses)}</b></div>
+        <div><span>Résultat depuis l&apos;entrée</span><b style={{ color: resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{resultat >= 0 ? '+' : ''}{euros(resultat)}</b></div>
+      </section>
       <section className="carte">
         <h2>Dépenses {totalDepenses > 0 && <span className="gris" style={{ fontWeight: 400 }}>· {euros(totalDepenses)}</span>}</h2>
         <details className="formulaire">
@@ -249,35 +287,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           </div>
         ))}
       </section>
-
-      <div className="colonnes">
-        <section className="carte">
-          <h2>Locations ({locations?.length ?? 0})</h2>
-          {!locations?.length && <p className="gris">Jamais loué pour l&apos;instant.</p>}
-          {locations?.slice(0, 20).map((l: any) => (
-            <a key={l.id} href={`/locations/${l.id}`} className="fichier">
-              <span>N° {l.numero} · {[l.clients?.prenom, l.clients?.nom].filter(Boolean).join(' ')}<br /><span className="gris">{date(l.debut)} → {date(l.fin_reelle ?? l.fin_prevue)} · {euros(l.prix_total)}</span></span>
-              <span className={`pastille ${l.statut}`}>{statutLocation[l.statut]}</span>
-            </a>
-          ))}
-        </section>
-        <section className="carte">
-          <h2>Amendes ({amendes?.length ?? 0})</h2>
-          {!amendes?.length && <p className="gris">Aucune amende.</p>}
-          {amendes?.map((a: any) => (
-            <a key={a.id} href="/amendes" className="fichier">
-              <span>{a.type ?? 'Amende'} · {euros(a.montant)}<br /><span className="gris">{dateHeure(a.date_infraction)}</span></span>
-              <span className={`pastille ${a.statut}`}>{statutAmende[a.statut]}</span>
-            </a>
-          ))}
-          {!!historique?.length && <>
-            <h3 style={{ marginTop: 18 }}>Historique</h3>
-            {historique.map((h: any, i: number) => (
-              <div key={i} className="fichier"><span>{h.action}{h.detail ? <span className="gris"> · {h.detail}</span> : null}</span><span className="gris">{dateHeure(h.created_at)}</span></div>
-            ))}
-          </>}
-        </section>
-      </div>
+        </> },
+      ]} />
     </Cadre>
   );
 }

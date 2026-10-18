@@ -22,8 +22,8 @@ export default function Graphique({ periodes, selection, lien, hauteur = 220 }: 
   return (
     <div className="graphique">
       <div className="legende" style={{ marginBottom: 6 }}>
-        <span><i style={{ background: RECETTES }} />Recettes</span>
-        <span><i style={{ background: COUTS }} />Coûts</span>
+        <span><i style={{ background: RECETTES }} />Encaissé</span>
+        <span><i style={{ background: COUTS }} />Dépensé</span>
       </div>
       <svg viewBox={`0 0 ${L} ${H}`} role="img" aria-label="Recettes et coûts par période" style={{ width: '100%', height: 'auto', display: 'block' }}>
         {graduations.map((g) => (
@@ -37,7 +37,7 @@ export default function Graphique({ periodes, selection, lien, hauteur = 220 }: 
           const actif = selection === i;
           const contenu = (
             <g>
-              <title>{`${p.libelle}\nRecettes : ${euros(p.recettes)}\nCoûts : ${euros(p.couts)}\nRésultat : ${euros(p.resultat)}`}</title>
+              <title>{`${p.libelle}\nEncaissé : ${euros(p.recettes)}\nDépensé : ${euros(p.couts)}\nBénéfice : ${euros(p.resultat)}`}</title>
               <rect x={gauche + i * largeurGroupe} y={haut - 10} width={largeurGroupe} height={H - bas - haut + 10} fill={actif ? 'rgba(255,255,255,.05)' : 'transparent'} rx={6} />
               <path d={barrePath(x0 - barre - 1, y(p.recettes), barre, H - bas - y(p.recettes))} fill={RECETTES} />
               <path d={barrePath(x0 + 1, y(p.couts), barre, H - bas - y(p.couts))} fill={COUTS} />

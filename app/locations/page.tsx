@@ -29,7 +29,7 @@ export default async function Locations({ searchParams }: { searchParams: { filt
         {filtres.map(([k, v]) => <a key={k} href={`/locations?filtre=${k}`} className={filtre === k ? 'actif' : ''}>{v}</a>)}
       </div>
       <div className="tableau">
-        <table>
+        <table className="cartes">
           <thead><tr><th>Client</th><th>Véhicule</th><th>Dates</th><th>Statut</th><th className="masque-mobile">Prix · caution</th></tr></thead>
           <tbody>
             {(locations ?? []).map((l: any) => {
@@ -45,7 +45,7 @@ export default async function Locations({ searchParams }: { searchParams: { filt
                 </tr>
               );
             })}
-            {!locations?.length && <tr><td colSpan={5} className="vide">Aucune location dans cette liste.</td></tr>}
+            {!locations?.length && <tr><td colSpan={5}><div className="vide-guide"><b>Rien dans cette liste</b>{filtre === 'actives' ? 'Aucune location en cours ni à venir.' : 'Choisissez un autre filtre.'}<br /><a className="bouton principal" href="/locations/nouvelle">+ Nouvelle location</a></div></td></tr>}
           </tbody>
         </table>
       </div>

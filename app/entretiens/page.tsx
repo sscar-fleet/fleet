@@ -39,7 +39,7 @@ export default async function Entretiens({ searchParams }: { searchParams: { fil
         <a href="/entretiens?filtre=termines" className={filtre !== 'actifs' ? 'actif' : ''}>Terminés</a>
       </div>
       <div className="tableau">
-        <table>
+        <table className="cartes">
           <thead><tr><th>Véhicule</th><th>Type</th><th>Statut</th><th className="masque-mobile">Retour prévu</th><th></th></tr></thead>
           <tbody>
             {(entretiens ?? []).map((e: any) => {

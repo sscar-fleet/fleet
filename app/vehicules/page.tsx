@@ -1,4 +1,4 @@
-import { utilisateurCourant } from '@/lib/agence';
+import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import { statutVehicule, carburants, financements, km, echeance, date } from '@/lib/format';
 import { ajouterVehicule } from '../actions';
 import Cadre from '../_c/Cadre';
@@ -11,11 +11,12 @@ export const dynamic = 'force-dynamic';
 export default async function Vehicules({ searchParams }: { searchParams: { statut?: string; q?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('vehicules')
-    .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance').order('immatriculation');
+    .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance, photo_path').order('immatriculation');
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const vehicules = (tous ?? []).filter((v: any) =>
     (searchParams.statut ? v.statut === searchParams.statut : v.statut !== 'sorti') &&
     (!q || `${v.immatriculation} ${v.marque ?? ''} ${v.modele ?? ''}`.toLowerCase().includes(q)));
+  const photos = await liensFichiers(supabase, vehicules.map((v: any) => v.photo_path));
   const compte = (s: string) => (tous ?? []).filter((v: any) => v.statut === s).length;
 
   return (
@@ -23,22 +24,27 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
       actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a></>}>
       <details className="formulaire carte" open={!tous?.length}>
         <summary className="bouton principal">+ Ajouter un véhicule</summary>
-        <Formulaire action={ajouterVehicule} className="grille">
+        <Formulaire action={ajouterVehicule} className="grille" succes="Véhicule ajouté">
           <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Photo de la carte grise : remplissage automatique" />
           <input type="hidden" name="carte_grise_path" />
           <label>Immatriculation *<input name="immatriculation" placeholder="AB-123-CD" required /></label>
           <label>Marque<input name="marque" placeholder="Peugeot" /></label>
           <label>Modèle<input name="modele" placeholder="208" /></label>
-          <label>Carburant<select name="carburant" defaultValue=""><option value="">—</option>
-            {Object.entries(carburants).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label>Kilométrage<input name="km" type="number" min={0} inputMode="numeric" /></label>
           <label>Prix par jour (€)<input name="prix_jour" type="number" min={0} step="0.01" inputMode="decimal" /></label>
-          <label>Fin d&apos;assurance<input name="assurance_echeance" type="date" /></label>
-          <label>Prochain contrôle technique<input name="ct_echeance" type="date" /></label>
-          <label>Financement<select name="financement" defaultValue=""><option value="">—</option>
-            {Object.entries(financements).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-          <label>Coût mensuel (€)<input name="cout_mensuel" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Loyer, crédit ou amortissement" /></label>
-          <label>Entré dans la flotte le<input name="date_entree" type="date" /></label>
+          <details className="options pleine">
+            <summary>+ Plus d&apos;options (papiers, coût du véhicule)</summary>
+            <div className="grille">
+              <label>Carburant<select name="carburant" defaultValue=""><option value="">—</option>
+                {Object.entries(carburants).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+              <label>Fin d&apos;assurance<input name="assurance_echeance" type="date" /></label>
+              <label>Prochain contrôle technique<input name="ct_echeance" type="date" /></label>
+              <label>Financement<select name="financement" defaultValue=""><option value="">—</option>
+                {Object.entries(financements).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+              <label>Coût mensuel (€)<input name="cout_mensuel" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Loyer, crédit ou amortissement" /></label>
+              <label>Entré dans la flotte le<input name="date_entree" type="date" /></label>
+            </div>
+          </details>
           <Envoyer>Ajouter le véhicule</Envoyer>
         </Formulaire>
         <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>La photo de la carte grise est rangée dans la fiche. Assurance et contrôle technique s&apos;ajoutent ensuite sur la fiche.</p>
@@ -53,7 +59,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
       </div>
 
       <div className="tableau">
-        <table>
+        <table className="cartes">
           <thead><tr><th>Immat</th><th>Véhicule</th><th>Statut</th><th className="masque-mobile">Km</th><th className="masque-mobile">Papiers</th></tr></thead>
           <tbody>
             {vehicules.map((v: any) => {
@@ -61,7 +67,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
               const pire = a === 'depasse' || c === 'depasse' ? 'depasse' : a || c;
               return (
                 <tr key={v.id}>
-                  <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{v.immatriculation}</b></a></td>
+                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <span className="vignette" />}<b>{v.immatriculation}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span></td>
                   <td className="masque-mobile">{km(v.km)}</td>
@@ -72,7 +78,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
                 </tr>
               );
             })}
-            {!vehicules.length && <tr><td colSpan={5} className="vide">Aucun véhicule.</td></tr>}
+            {!vehicules.length && <tr><td colSpan={5}><div className="vide-guide"><b>{tous?.length ? 'Aucun véhicule dans ce filtre' : 'Ajoutez votre premier véhicule'}</b>{tous?.length ? 'Changez de filtre ou de recherche.' : 'Prenez la carte grise en photo : marque, modèle et immatriculation se remplissent seuls.'}</div></td></tr>}
           </tbody>
         </table>
       </div>

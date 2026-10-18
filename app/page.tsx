@@ -30,6 +30,19 @@ export default async function Accueil() {
   ]);
 
   const planning = await chargerPlanning(supabase, versJour(new Date()), 7);
+  // Guide de démarrage pour un nouveau loueur
+  const [{ data: ag }, { count: nbClients }, { count: nbLocations }] = await Promise.all([
+    supabase.from('agences').select('adresse, gerant_nom, signature_path').eq('id', profil.agence_id).single(),
+    supabase.from('clients').select('id', { count: 'exact', head: true }),
+    supabase.from('locations').select('id', { count: 'exact', head: true }),
+  ]);
+  const etapesDemarrage = [
+    { fait: !!(ag?.adresse && ag?.gerant_nom && ag?.signature_path), titre: 'Renseigner l\u2019agence (adresse, gérant, signature)', lien: '/parametres', bouton: 'Réglages' },
+    { fait: (vehicules ?? []).length > 0, titre: 'Ajouter un premier véhicule', lien: '/vehicules', bouton: 'Ajouter' },
+    { fait: (nbClients ?? 0) > 0, titre: 'Créer un premier client', lien: '/clients', bouton: 'Ajouter' },
+    { fait: (nbLocations ?? 0) > 0, titre: 'Faire une première location', lien: '/locations/nouvelle', bouton: 'Commencer' },
+  ];
+  const demarrageFini = etapesDemarrage.every((e) => e.fait);
   const pilotage = await calculerPilotage(supabase, 'mois');
   const mois = pilotage.periodes[pilotage.periodes.length - 1];
   const moisPrec = pilotage.periodes[pilotage.periodes.length - 2];
@@ -90,6 +103,17 @@ export default async function Accueil() {
     <Cadre titre={<>Bonjour {profil.nom.split(' ')[0]} <span className="gris" style={{ fontWeight: 400, fontSize: 16 }}>· {jourTexte}</span></>}
       tables={['locations', 'vehicules', 'amendes', 'entretiens', 'etats_des_lieux']}
       actions={<a className="bouton principal" href="/locations/nouvelle">+ Nouvelle location</a>}>
+      {profil.role === 'gerant' && !demarrageFini && (
+        <section className="carte demarrage">
+          <h2>Pour bien démarrer ({etapesDemarrage.filter((e) => e.fait).length}/4)</h2>
+          <ol>{etapesDemarrage.map((e) => (
+            <li key={e.titre} className={e.fait ? 'fait' : ''}>
+              <span style={{ display: 'flex', alignItems: 'center' }}><span className="coche">{e.fait ? '✓' : ''}</span>{e.titre}</span>
+              {!e.fait && <a className="bouton petit principal" href={e.lien}>{e.bouton}</a>}
+            </li>
+          ))}</ol>
+        </section>
+      )}
       <section className="compteurs">
         {tuiles.map((t) => (
           <a key={t.titre} href={t.lien} className={`compteur ${t.valeur > 0 ? t.classe : ''}`}>
@@ -153,9 +177,9 @@ export default async function Accueil() {
                 <span className="lien" style={{ fontSize: 13.5 }}>Pilotage →</span>
               </div>
               <div className="trois">
-                <div><span>Recettes</span><b>{euros(mois.recettes)}</b></div>
-                <div><span>Coûts</span><b>{euros(mois.couts)}</b></div>
-                <div><span>Résultat</span><b style={{ color: mois.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{mois.resultat >= 0 ? '+' : ''}{euros(mois.resultat)}</b></div>
+                <div><span>Encaissé</span><b>{euros(mois.recettes)}</b></div>
+                <div><span>Dépensé</span><b>{euros(mois.couts)}</b></div>
+                <div><span>Bénéfice</span><b style={{ color: mois.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{mois.resultat >= 0 ? '+' : ''}{euros(mois.resultat)}</b></div>
               </div>
               <p className="gris" style={{ fontSize: 12.5, margin: '8px 0 0' }}>Mois dernier : {moisPrec.resultat >= 0 ? '+' : ''}{euros(moisPrec.resultat)}</p>
             </a>

@@ -63,9 +63,9 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
       </div>
 
       <section className="compteurs">
-        <div className="compteur"><span>Recettes</span><b style={{ color: 'var(--texte)' }}>{euros(p.recettes)}</b></div>
-        <div className="compteur"><span>Coûts</span><b style={{ color: 'var(--texte)' }}>{euros(p.couts)}</b></div>
-        <div className="compteur"><span>Résultat{evolution !== null ? ` (${evolution >= 0 ? '+' : ''}${evolution} %)` : ''}</span>
+        <div className="compteur"><span>Encaissé</span><b style={{ color: 'var(--texte)' }}>{euros(p.recettes)}</b></div>
+        <div className="compteur"><span>Dépenses</span><b style={{ color: 'var(--texte)' }}>{euros(p.couts)}</b></div>
+        <div className="compteur"><span>Bénéfice{evolution !== null ? ` (${evolution >= 0 ? '+' : ''}${evolution} %)` : ''}</span>
           <b style={{ color: p.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{p.resultat >= 0 ? '+' : ''}{euros(p.resultat)}</b></div>
         <div className="compteur"><span>Marge</span><b style={{ color: 'var(--texte)' }}>{p.recettes ? marge + ' %' : '—'}</b></div>
         <div className="compteur"><span>Occupation de la flotte</span><b style={{ color: 'var(--texte)' }}>{occupation} %</b></div>
@@ -73,14 +73,14 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
       </section>
 
       <section className="carte">
-        <h2>Recettes et coûts par {libelleG}</h2>
+        <h2>Encaissé et dépensé par {libelleG}</h2>
         <Graphique periodes={r.periodes} selection={i} lien={lien} />
         <p className="gris" style={{ fontSize: 12.5, margin: '6px 0 0' }}>Toucher une période pour voir son détail. Le prix d&apos;une location est réparti sur ses jours ; le coût mensuel du véhicule est compté au jour près.</p>
         <details style={{ marginTop: 10 }}>
           <summary className="gris" style={{ cursor: 'pointer', fontSize: 13.5 }}>Voir les chiffres en tableau</summary>
           <div className="tableau" style={{ marginTop: 10 }}>
             <table>
-              <thead><tr><th>Période</th><th>Recettes</th><th>Coûts</th><th>Résultat</th><th className="masque-mobile">Départs</th></tr></thead>
+              <thead><tr><th>Période</th><th>Encaissé</th><th>Dépensé</th><th>Bénéfice</th><th className="masque-mobile">Départs</th></tr></thead>
               <tbody>{[...r.periodes].reverse().map((x, k) => (
                 <tr key={k}><td><a className="bloc" href={lien(n - 1 - k)}>{x.libelle}</a></td><td>{euros(x.recettes)}</td><td>{euros(x.couts)}</td>
                   <td style={{ color: x.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{euros(x.resultat)}</td><td className="masque-mobile">{x.departs}</td></tr>
@@ -105,7 +105,7 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
         <h2>Rentabilité par véhicule</h2>
         <div className="tableau" style={{ marginBottom: 0 }}>
           <table>
-            <thead><tr><th>Véhicule</th><th>Recettes</th><th>Coûts</th><th>Résultat</th><th className="masque-mobile">Jours loués</th></tr></thead>
+            <thead><tr><th>Véhicule</th><th>Encaissé</th><th>Dépensé</th><th>Bénéfice</th><th className="masque-mobile">Jours loués</th></tr></thead>
             <tbody>
               {[...r.vehicules].sort((a: any, b: any) => b.periodes[i].resultat - a.periodes[i].resultat).map((v: any) => {
                 const x = v.periodes[i];

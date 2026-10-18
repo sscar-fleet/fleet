@@ -1,4 +1,5 @@
 'use client';
+import Logo from '../_c/Logo';
 import { useState } from 'react';
 import { supabaseNavigateur } from '@/lib/supabase-navigateur';
 
@@ -21,7 +22,7 @@ export default function NouveauMotDePasse() {
 
   return (
     <main className="connexion">
-      <img src="/logo-blanc.svg" alt="SS CAR FLEET" />
+      <Logo />
       <h1>Nouveau mot de passe</h1>
       <form onSubmit={valider}>
         <label>Nouveau mot de passe<input type="password" value={mdp} onChange={(e) => setMdp(e.target.value)} minLength={8} required autoComplete="new-password" /></label>

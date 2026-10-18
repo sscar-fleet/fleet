@@ -1,8 +1,9 @@
+import Logo from './Logo';
 import { utilisateurCourant } from '@/lib/agence';
 import Navigation from './Navigation';
 import Direct from './Direct';
 
-// Cadre commun : en-tête, menu, synchronisation en direct
+// Cadre commun : logo, recherche, menu, synchronisation en direct
 export default async function Cadre({ titre, actions, tables = [], children, retour }: {
   titre?: React.ReactNode; actions?: React.ReactNode; tables?: string[]; children: React.ReactNode; retour?: { lien: string; texte: string };
 }) {
@@ -10,7 +11,10 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
   return (
     <main className="page">
       <header className="entete">
-        <a href="/" className="logo"><img src="/logo-blanc.svg" alt="SS CAR FLEET" /></a>
+        <a href="/" className="logo"><Logo /></a>
+        <form action="/recherche" className="recherche" role="search">
+          <input name="q" type="search" placeholder="Rechercher : 208, Martin, AB-123…" aria-label="Rechercher" />
+        </form>
         <span className="agence">{profil.agences?.nom}</span>
       </header>
       <Navigation gerant={profil.role === 'gerant'} />

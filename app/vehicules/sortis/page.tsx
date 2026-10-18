@@ -42,7 +42,7 @@ export default async function Sortis({ searchParams }: { searchParams: { motif?:
         <div><span>Résultat d&apos;exploitation cumulé</span><b style={{ color: total >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{euros(total)}</b></div>
       </section>
       <div className="tableau">
-        <table>
+        <table className="cartes">
           <thead><tr><th>Véhicule</th><th>Sortie</th><th>Vente</th><th>Résultat</th><th className="masque-mobile">Dans la flotte</th></tr></thead>
           <tbody>
             {lignes.map(({ v, resultat, recettes, couts, mois, nbLocations }) => (

@@ -59,7 +59,7 @@ export default async function FicheDevis({ params }: { params: { id: string } })
                   {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}</option>)}</select></label>}
                 <Envoyer>Accepté : créer la réservation</Envoyer>
               </Formulaire>
-              <Formulaire action={A.statutDevis.bind(null, x.id, 'refuse')} style={{ marginTop: 10 }}><Envoyer className="bouton">Refusé</Envoyer></Formulaire>
+              <Formulaire action={A.statutDevis.bind(null, x.id, 'refuse')} style={{ marginTop: 10 }} succes="Devis marqué refusé" confirmer="Le client a refusé ce devis ?"><Envoyer className="bouton">Refusé</Envoyer></Formulaire>
               <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>La réservation reprend les dates, le prix, les kilomètres et la caution du devis. Le client est créé s&apos;il n&apos;existe pas.</p>
             </>
           )}

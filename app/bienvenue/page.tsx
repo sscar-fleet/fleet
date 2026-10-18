@@ -1,3 +1,4 @@
+import Logo from '../_c/Logo';
 import { redirect } from 'next/navigation';
 import { supabaseServeur } from '@/lib/supabase';
 import Formulaire from '../_c/Formulaire';
@@ -20,7 +21,7 @@ async function creer(formData: FormData) {
 export default function Bienvenue() {
   return (
     <main className="connexion">
-      <img src="/logo-blanc.svg" alt="SS CAR FLEET" />
+      <Logo />
       <h1>Bienvenue</h1>
       <Formulaire action={creer}>
         <label>Nom de votre agence<input name="agence" required /></label>

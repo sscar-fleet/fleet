@@ -7,6 +7,7 @@ import Formulaire from '../../_c/Formulaire';
 import Envoyer from '../../_c/Envoyer';
 import Fichier from '../../_c/Fichier';
 import ChampsClient from '../../_c/ChampsClient';
+import Onglets from '../../_c/Onglets';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,24 +33,14 @@ export default async function FicheClient({ params }: { params: { id: string } }
         <a className="bouton principal" href={`/locations/nouvelle?client=${c.id}`}>+ Louer</a>
       </>}>
       {c.liste_noire && <div className="alerte-bandeau">Client en liste noire (conduite à risque ou incident). {c.note}</div>}
+      <Onglets panneaux={[
+        { cle: 'resume', titre: 'Résumé', contenu: <>
       <section className="chiffres">
         <div><span>Locations</span><b>{utiles.length}</b></div>
         <div><span>Total dépensé</span><b>{euros(total)}</b></div>
         <div><span>Ancienneté du permis</span><b>{ancienPermis === null ? '—' : `${Math.floor(ancienPermis)} an${ancienPermis >= 2 ? 's' : ''}`}</b></div>
         <div><span>Amendes</span><b>{amendes?.length ?? 0}</b></div>
       </section>
-      <div className="colonnes">
-        <section className="carte">
-          <h2>Papiers</h2>
-          <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="permis" libelle="Permis de conduire" camera
-            lien={liens[c.permis_path]} action={A.documentClient.bind(null, c.id, 'permis_path')} />
-          <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="identite" libelle="Pièce d'identité" camera
-            lien={liens[c.piece_identite_path]} action={A.documentClient.bind(null, c.id, 'piece_identite_path')} />
-          <p className="gris" style={{ fontSize: 13 }}>Sur le téléphone, « Photo » ouvre directement l&apos;appareil photo.</p>
-          <Formulaire action={A.listeNoire.bind(null, c.id, !c.liste_noire)} style={{ marginTop: 10 }}>
-            <Envoyer className={`bouton petit ${c.liste_noire ? '' : 'danger'}`}>{c.liste_noire ? 'Retirer de la liste noire' : 'Mettre en liste noire'}</Envoyer>
-          </Formulaire>
-        </section>
         <section className="carte">
           <h2>Coordonnées</h2>
           <Formulaire action={A.majClient.bind(null, c.id)} className="grille">
@@ -63,8 +54,21 @@ export default async function FicheClient({ params }: { params: { id: string } }
             {c.email && <a className="bouton petit" href={`mailto:${c.email}`}>E-mail</a>}
           </div>
         </section>
-      </div>
-      <div className="colonnes" style={{ marginTop: 16 }}>
+        </> },
+        { cle: 'papiers', titre: 'Papiers', contenu: <>
+        <section className="carte">
+          <h2>Papiers</h2>
+          <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="permis" libelle="Permis de conduire" camera
+            lien={liens[c.permis_path]} action={A.documentClient.bind(null, c.id, 'permis_path')} />
+          <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="identite" libelle="Pièce d'identité" camera
+            lien={liens[c.piece_identite_path]} action={A.documentClient.bind(null, c.id, 'piece_identite_path')} />
+          <p className="gris" style={{ fontSize: 13 }}>Sur le téléphone, « Photo » ouvre directement l&apos;appareil photo.</p>
+          <Formulaire action={A.listeNoire.bind(null, c.id, !c.liste_noire)} style={{ marginTop: 10 }} succes={c.liste_noire ? 'Retiré de la liste noire' : 'Ajouté à la liste noire'} confirmer={c.liste_noire ? undefined : 'Mettre ce client en liste noire ?'}>
+            <Envoyer className={`bouton petit ${c.liste_noire ? '' : 'danger'}`}>{c.liste_noire ? 'Retirer de la liste noire' : 'Mettre en liste noire'}</Envoyer>
+          </Formulaire>
+        </section>
+        </> },
+        { cle: 'locations', titre: `Locations (${locations?.length ?? 0})`, contenu: <>
         <section className="carte">
           <h2>Historique des locations</h2>
           {!locations?.length && <p className="gris">Aucune location.</p>}
@@ -76,6 +80,8 @@ export default async function FicheClient({ params }: { params: { id: string } }
             </a>
           ))}
         </section>
+        </> },
+        { cle: 'amendes', titre: 'Amendes', badge: (amendes ?? []).filter((a: any) => ['a_designer', 'infos_manquantes'].includes(a.statut)).length, contenu: <>
         <section className="carte">
           <h2>Amendes</h2>
           {!amendes?.length && <p className="gris">Aucune amende.</p>}
@@ -86,7 +92,8 @@ export default async function FicheClient({ params }: { params: { id: string } }
             </a>
           ))}
         </section>
-      </div>
+        </> },
+      ]} />
     </Cadre>
   );
 }

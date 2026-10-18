@@ -11,7 +11,7 @@ export const typesMaintenance: Record<string, string> = {
   nettoyage: 'Nettoyage', transfert: 'Transfert à un autre loueur', autre: 'Autre',
 };
 export const statutLocation: Record<string, string> = {
-  reservee: 'Réservée', en_cours: 'En cours', terminee: 'Terminée', annulee: 'Annulée',
+  reservee: 'Réservée', en_cours: 'En cours', terminee: 'Rendue', annulee: 'Annulée',
 };
 export const statutCaution: Record<string, string> = {
   a_prendre: 'À prendre', prise: 'Prise', rendue: 'Rendue', encaissee: 'Retenue', litige: 'Litige',

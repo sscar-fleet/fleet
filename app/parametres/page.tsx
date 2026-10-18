@@ -65,7 +65,7 @@ export default async function Parametres() {
           <div key={u.id} className="fichier">
             <span>{u.nom}{u.email ? <span className="gris"> · {u.email}</span> : null}</span>
             <span className="ligne"><span className="gris">{u.role === 'gerant' ? 'Gérant' : 'Employé'}</span>
-              {gerant && u.role !== 'gerant' && <Formulaire action={A.retirerAcces.bind(null, u.id)}><Envoyer className="bouton petit danger">Retirer l&apos;accès</Envoyer></Formulaire>}</span>
+              {gerant && u.role !== 'gerant' && <Formulaire action={A.retirerAcces.bind(null, u.id)} succes="Accès retiré" confirmer={`Retirer l'accès de ${u.nom} ?`}><Envoyer className="bouton petit danger">Retirer l&apos;accès</Envoyer></Formulaire>}</span>
           </div>
         ))}
         {gerant && invitations?.map((i: any) => {
@@ -77,7 +77,7 @@ export default async function Parametres() {
               <span className="ligne">
                 <a className="bouton petit" href={lienWhatsApp(null, message)} target="_blank" rel="noreferrer">WhatsApp</a>
                 <a className="bouton petit" href={`mailto:${i.email}?subject=${encodeURIComponent('Ton accès SS CAR FLEET')}&body=${encodeURIComponent(message)}`}>E-mail</a>
-                <Formulaire action={A.annulerInvitation.bind(null, i.id)}><Envoyer className="bouton petit">Annuler</Envoyer></Formulaire>
+                <Formulaire action={A.annulerInvitation.bind(null, i.id)} succes="Invitation annulée"><Envoyer className="bouton petit">Annuler</Envoyer></Formulaire>
               </span>
             </div>
           );
@@ -85,7 +85,7 @@ export default async function Parametres() {
         {gerant && (
           <details className="formulaire" style={{ marginTop: 12 }}>
             <summary className="bouton petit principal">+ Ajouter un employé</summary>
-            <Formulaire vider action={A.inviterEmploye} className="grille">
+            <Formulaire vider action={A.inviterEmploye} className="grille" succes="Invitation créée : envoyez le lien">
               <label>Prénom et nom<input name="nom" required /></label>
               <label>E-mail<input name="email" type="email" required /></label>
               <Envoyer className="bouton">Créer l&apos;invitation</Envoyer>

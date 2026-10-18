@@ -20,7 +20,7 @@ export default async function Devis({ searchParams }: { searchParams: { filtre?:
         ))}
       </div>
       <div className="tableau">
-        <table>
+        <table className="cartes">
           <thead><tr><th>Client</th><th>Dates</th><th>Prix</th><th>Statut</th><th className="masque-mobile">Véhicule</th></tr></thead>
           <tbody>
             {(devis ?? []).map((d: any) => {
@@ -35,7 +35,7 @@ export default async function Devis({ searchParams }: { searchParams: { filtre?:
                 </tr>
               );
             })}
-            {!devis?.length && <tr><td colSpan={5} className="vide">Aucun devis dans cette liste.</td></tr>}
+            {!devis?.length && <tr><td colSpan={5}><div className="vide-guide"><b>Aucun devis ici</b>Un client demande un prix ? Faites le devis en 10 secondes et envoyez-le sur WhatsApp.<br /><a className="bouton principal" href="/devis/nouveau">+ Nouveau devis</a></div></td></tr>}
           </tbody>
         </table>
       </div>

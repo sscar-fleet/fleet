@@ -1,4 +1,5 @@
 'use client';
+import Logo from '../_c/Logo';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseNavigateur } from '@/lib/supabase-navigateur';
@@ -53,7 +54,7 @@ export default function Connexion() {
 
   return (
     <main className="connexion">
-      <img src="/logo-blanc.svg" alt="SS CAR FLEET" />
+      <Logo />
       <form onSubmit={valider}>
         {mode === 'oubli' && <p className="gris" style={{ margin: 0 }}>Indiquez votre e-mail : vous recevrez un lien pour choisir un nouveau mot de passe.</p>}
         <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" /></label>
