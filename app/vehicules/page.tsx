@@ -4,6 +4,7 @@ import { ajouterVehicule } from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Scanner from '../_c/Scanner';
+import ApercuModele from '../_c/ApercuModele';
 import Envoyer from '../_c/Envoyer';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +31,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
           <label>Immatriculation *<input name="immatriculation" placeholder="AB-123-CD" required /></label>
           <label>Marque<input name="marque" placeholder="Peugeot" /></label>
           <label>Modèle<input name="modele" placeholder="208" /></label>
+          <ApercuModele />
           <label>Kilométrage<input name="km" type="number" min={0} inputMode="numeric" /></label>
           <details className="options pleine">
             <summary>+ Plus d&apos;options (prix, papiers, coût du véhicule)</summary>

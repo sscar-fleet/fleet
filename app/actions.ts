@@ -65,7 +65,8 @@ async function _ajouterVehicule(formData: FormData) {
     prix_achat: nombre(formData.get('prix_achat')),
   }).select('id').single();
   verifier(error, 'Ajout du véhicule');
-  const photo = await chercherPhotoModele(texte(formData.get('marque')), texte(formData.get('modele')));
+  const apercu = texte(formData.get('photo_modele'));
+  const photo = apercu?.startsWith('https://upload.wikimedia.org/') ? apercu : await chercherPhotoModele(texte(formData.get('marque')), texte(formData.get('modele')));
   if (photo) await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', data!.id);
   rafraichir();
   redirect(`/vehicules/${data!.id}`);
