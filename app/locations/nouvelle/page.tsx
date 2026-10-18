@@ -9,7 +9,7 @@ import ChampsClient from '../../_c/ChampsClient';
 export const dynamic = 'force-dynamic';
 
 export default async function NouvelleLocation({ searchParams }: { searchParams: { vehicule?: string; client?: string } }) {
-  const { supabase } = await utilisateurCourant();
+  const { supabase, profil } = await utilisateurCourant();
   const [{ data: vehicules }, { data: clients }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('clients').select('id, nom, prenom, telephone, liste_noire').order('nom'),
@@ -45,7 +45,7 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
           {!searchParams.client && (
             <details className="formulaire" style={{ marginTop: 12 }} open={!clients?.length}>
               <summary className="bouton petit">Nouveau client</summary>
-              <div className="grille"><ChampsClient obligatoire={false} /></div>
+              <div className="grille"><ChampsClient obligatoire={false} agenceId={profil.agence_id} /></div>
             </details>
           )}
           <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Le permis et la pièce d&apos;identité se scannent sur la fiche de la location.</p>

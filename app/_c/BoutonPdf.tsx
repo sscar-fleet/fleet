@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { livrer } from '@/lib/pdf';
 import * as docs from '@/lib/documents-pdf';
 
-type Genre = 'contrat' | 'facture' | 'edl' | 'dommages' | 'bilan';
+type Genre = 'contrat' | 'facture' | 'edl' | 'dommages' | 'bilan' | 'devis';
 
 // Bouton qui fabrique le PDF dans le navigateur, puis le télécharge (PC) ou ouvre le partage (téléphone : WhatsApp…)
 export default function BoutonPdf({ genre, donnees, nom, libelle, classe = 'bouton' }:
@@ -18,6 +18,7 @@ export default function BoutonPdf({ genre, donnees, nom, libelle, classe = 'bout
         : genre === 'facture' ? await docs.facturePdf(a, l, v, c)
         : genre === 'edl' ? await docs.edlPdf(a, l, v, c, edl, dommages ?? [])
         : genre === 'bilan' ? await docs.bilanPdf(a, donnees.bilan)
+        : genre === 'devis' ? await docs.devisPdf(a, donnees.devis)
         : await docs.dommagesPdf(a, v, dommages ?? [], l, c);
       await livrer(octets, nom, true);
       setEtat('');

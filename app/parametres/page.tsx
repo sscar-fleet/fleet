@@ -1,4 +1,6 @@
+import { headers } from 'next/headers';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
+import { lienWhatsApp } from '@/lib/whatsapp';
 import * as A from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
@@ -11,10 +13,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function Parametres() {
   const { supabase, profil } = await utilisateurCourant();
-  const [{ data: a }, { data: utilisateurs }] = await Promise.all([
+  const [{ data: a }, { data: utilisateurs }, { data: invitations }] = await Promise.all([
     supabase.from('agences').select('*').eq('id', profil.agence_id).single(),
-    supabase.from('utilisateurs').select('nom, role').order('created_at'),
+    supabase.from('utilisateurs').select('id, nom, role, email').order('created_at'),
+    supabase.from('invitations').select('id, nom, email, jeton').eq('utilisee', false).order('created_at'),
   ]);
+  const h = headers();
+  const origine = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`;
   const liens = await liensFichiers(supabase, [a.logo_path, a.signature_path, a.tampon_path, a.kbis_path, a.gerant_piece_identite_path]);
   const gerant = profil.role === 'gerant';
   const doc = (titre: string, champ: string, accept?: string) => (
@@ -55,11 +60,40 @@ export default async function Parametres() {
         </section>
       </div>
       <section className="carte" style={{ marginTop: 16 }}>
-        <h2>Accès</h2>
-        {utilisateurs?.map((u: any, i: number) => (
-          <div key={i} className="fichier"><span>{u.nom}</span><span className="gris">{u.role === 'gerant' ? 'Gérant' : 'Employé'}</span></div>
+        <h2>Accès ({utilisateurs?.length ?? 0} sur {a.acces_inclus} inclus)</h2>
+        {utilisateurs?.map((u: any) => (
+          <div key={u.id} className="fichier">
+            <span>{u.nom}{u.email ? <span className="gris"> · {u.email}</span> : null}</span>
+            <span className="ligne"><span className="gris">{u.role === 'gerant' ? 'Gérant' : 'Employé'}</span>
+              {gerant && u.role !== 'gerant' && <Formulaire action={A.retirerAcces.bind(null, u.id)}><Envoyer className="bouton petit danger">Retirer l&apos;accès</Envoyer></Formulaire>}</span>
+          </div>
         ))}
-        <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>{a.acces_inclus} accès inclus. L&apos;ajout d&apos;un employé arrive dans une prochaine version.</p>
+        {gerant && invitations?.map((i: any) => {
+          const lien = `${origine}/invitation/${i.jeton}`;
+          const message = `Bonjour ${i.nom}, voici ton accès à SS CAR FLEET pour ${a.nom} : ${lien}`;
+          return (
+            <div key={i.id} className="fichier">
+              <span>{i.nom} <span className="gris">· {i.email} · invitation en attente</span><br /><span className="gris" style={{ fontSize: 12.5, wordBreak: 'break-all' }}>{lien}</span></span>
+              <span className="ligne">
+                <a className="bouton petit" href={lienWhatsApp(null, message)} target="_blank" rel="noreferrer">WhatsApp</a>
+                <a className="bouton petit" href={`mailto:${i.email}?subject=${encodeURIComponent('Ton accès SS CAR FLEET')}&body=${encodeURIComponent(message)}`}>E-mail</a>
+                <Formulaire action={A.annulerInvitation.bind(null, i.id)}><Envoyer className="bouton petit">Annuler</Envoyer></Formulaire>
+              </span>
+            </div>
+          );
+        })}
+        {gerant && (
+          <details className="formulaire" style={{ marginTop: 12 }}>
+            <summary className="bouton petit principal">+ Ajouter un employé</summary>
+            <Formulaire vider action={A.inviterEmploye} className="grille">
+              <label>Prénom et nom<input name="nom" required /></label>
+              <label>E-mail<input name="email" type="email" required /></label>
+              <Envoyer className="bouton">Créer l&apos;invitation</Envoyer>
+            </Formulaire>
+            <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Fleet crée un lien personnel à envoyer par WhatsApp ou e-mail. L&apos;employé choisit son mot de passe. Il voit les locations, véhicules, clients et états des lieux, mais pas le pilotage ni les réglages.</p>
+          </details>
+        )}
+        <p className="gris" style={{ fontSize: 12.5, marginBottom: 0, marginTop: 12 }}><a href="/confidentialite">Confidentialité</a> · <a href="/conditions">Conditions d&apos;utilisation</a></p>
       </section>
     </Cadre>
   );

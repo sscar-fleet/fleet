@@ -5,6 +5,7 @@ import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
 import Graphique from './_c/Graphique';
 import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
+import { lienWhatsApp, messageDepart, messageRetour, messageRetard } from '@/lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,13 +17,13 @@ export default async function Accueil() {
 
   const [{ data: departs }, { data: retours }, { data: retards }, { data: amendes }, { data: vehicules }, { data: entretiens }] = await Promise.all([
     supabase.from('locations')
-      .select('id, numero, debut, caution_statut, caution_montant, vehicules(immatriculation, marque, modele, statut), clients(nom, prenom, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut)')
+      .select('id, numero, debut, caution_statut, caution_montant, vehicules(immatriculation, marque, modele, statut), clients(nom, prenom, telephone, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut)')
       .eq('statut', 'reservee').lt('debut', demain).order('debut'),
     supabase.from('locations')
       .select('id, numero, fin_prevue, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)')
       .eq('statut', 'en_cours').gte('fin_prevue', aujourdhui).lt('fin_prevue', demain).order('fin_prevue'),
     supabase.from('locations')
-      .select('id, numero, fin_prevue, vehicules(immatriculation), clients(nom, prenom, telephone)')
+      .select('id, numero, fin_prevue, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)')
       .eq('statut', 'en_cours').lt('fin_prevue', maintenant).order('fin_prevue'),
     supabase.from('amendes').select('id, echeance, statut').in('statut', ['a_designer', 'infos_manquantes']),
     supabase.from('vehicules').select('id, immatriculation, assurance_echeance, ct_echeance, statut'),
@@ -76,7 +77,7 @@ export default async function Accueil() {
         ))}
       </section>
 
-      <section className="carte">
+      {profil.role === 'gerant' && <section className="carte">
         <div className="titre" style={{ marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>Pilotage business · {mois.debut.toLocaleDateString('fr-FR', { month: 'long', timeZone: 'Europe/Paris' })}</h2>
           <a className="bouton petit" href="/pilotage">Jour, semaine, mois et par véhicule</a>
@@ -88,7 +89,7 @@ export default async function Accueil() {
           <div><span>Mois dernier</span><b style={{ color: moisPrec.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{moisPrec.resultat >= 0 ? '+' : ''}{euros(moisPrec.resultat)}</b></div>
         </div>
         <Graphique periodes={pilotage.periodes.slice(-6)} selection={5} hauteur={170} />
-      </section>
+      </section>}
 
       <section className="carte">
         <div className="titre" style={{ marginBottom: 12 }}>
@@ -129,12 +130,15 @@ export default async function Accueil() {
               { ok: (l.etats_des_lieux ?? []).some((e: any) => e.type === 'depart'), titre: 'État des lieux commencé' },
             ];
             return (
-              <a key={l.id} href={`/locations/${l.id}`} className="fichier">
-                <span><b>{heure(l.debut)}</b> · {v?.immatriculation} {voiture(v)}<br /><span className="gris">{nom(c)}{c?.liste_noire ? ' · liste noire' : ''}</span></span>
-                <span className="voyants" title={voyants.map((x) => `${x.ok ? '✔' : '✘'} ${x.titre}`).join('\n')}>
-                  {voyants.map((x, i) => <i key={i} className={`voyant ${x.ok ? 'on' : ''}`} />)}
+              <div key={l.id} className="fichier">
+                <a href={`/locations/${l.id}`}><b>{heure(l.debut)}</b> · {v?.immatriculation} {voiture(v)}<br /><span className="gris">{nom(c)}{c?.liste_noire ? ' · liste noire' : ''}</span></a>
+                <span className="ligne">
+                  <span className="voyants" title={voyants.map((x) => `${x.ok ? '✔' : '✘'} ${x.titre}`).join('\n')}>
+                    {voyants.map((x, i) => <i key={i} className={`voyant ${x.ok ? 'on' : ''}`} />)}
+                  </span>
+                  {c?.telephone && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(c.telephone, messageDepart(c.prenom, voiture(v) || v?.immatriculation, l.debut, profil.agences?.nom ?? ''))}>WhatsApp</a>}
                 </span>
-              </a>
+              </div>
             );
           })}
           {!!departs?.length && <p className="gris" style={{ fontSize: 12.5, marginBottom: 0 }}>Voyants : client vérifié · caution · voiture prête · état des lieux</p>}
@@ -144,16 +148,16 @@ export default async function Accueil() {
           <h2>Retours du jour</h2>
           {!retours?.length && !retards?.length && <p className="gris">Aucun retour prévu aujourd&apos;hui.</p>}
           {retards?.map((l: any) => (
-            <a key={l.id} href={`/locations/${l.id}`} className="fichier">
-              <span><b className="retard">En retard</b> · {l.vehicules?.immatriculation}<br /><span className="gris">{nom(l.clients)} · prévu le {date(l.fin_prevue)} à {heure(l.fin_prevue)}</span></span>
-              {l.clients?.telephone && <span className="lien">{l.clients.telephone}</span>}
-            </a>
+            <div key={l.id} className="fichier">
+              <a href={`/locations/${l.id}`}><b className="retard">En retard</b> · {l.vehicules?.immatriculation}<br /><span className="gris">{nom(l.clients)} · prévu le {date(l.fin_prevue)} à {heure(l.fin_prevue)}</span></a>
+              {l.clients?.telephone && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(l.clients.telephone, messageRetard(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.fin_prevue))}>WhatsApp</a>}
+            </div>
           ))}
           {retours?.map((l: any) => (
-            <a key={l.id} href={`/locations/${l.id}`} className="fichier">
-              <span><b>{heure(l.fin_prevue)}</b> · {l.vehicules?.immatriculation} {voiture(l.vehicules)}<br /><span className="gris">{nom(l.clients)}</span></span>
-              {l.clients?.telephone && <span className="gris">{l.clients.telephone}</span>}
-            </a>
+            <div key={l.id} className="fichier">
+              <a href={`/locations/${l.id}`}><b>{heure(l.fin_prevue)}</b> · {l.vehicules?.immatriculation} {voiture(l.vehicules)}<br /><span className="gris">{nom(l.clients)}</span></a>
+              {l.clients?.telephone && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(l.clients.telephone, messageRetour(l.clients.prenom, voiture(l.vehicules) || l.vehicules?.immatriculation, l.fin_prevue))}>WhatsApp</a>}
+            </div>
           ))}
         </section>
 

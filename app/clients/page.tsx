@@ -8,7 +8,7 @@ import ChampsClient from '../_c/ChampsClient';
 export const dynamic = 'force-dynamic';
 
 export default async function Clients({ searchParams }: { searchParams: { q?: string; filtre?: string } }) {
-  const { supabase } = await utilisateurCourant();
+  const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('clients')
     .select('id, nom, prenom, telephone, email, liste_noire, permis_path, piece_identite_path, locations(id, statut)').order('nom');
   const q = (searchParams.q ?? '').toLowerCase().trim();
@@ -21,7 +21,7 @@ export default async function Clients({ searchParams }: { searchParams: { q?: st
       <details className="formulaire carte">
         <summary className="bouton principal">+ Nouveau client</summary>
         <Formulaire action={ajouterClient} className="grille">
-          <ChampsClient />
+          <ChampsClient agenceId={profil.agence_id} />
           <Envoyer>Créer la fiche</Envoyer>
         </Formulaire>
         <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Permis et pièce d&apos;identité se scannent ensuite sur la fiche du client, avec le téléphone.</p>

@@ -1,7 +1,15 @@
 // Champs d'une fiche client (création et modification)
-export default function ChampsClient({ c = {} as any, obligatoire = true }: { c?: any; obligatoire?: boolean }) {
+import Scanner from './Scanner';
+
+export default function ChampsClient({ c = {} as any, obligatoire = true, agenceId }: { c?: any; obligatoire?: boolean; agenceId?: string }) {
   return (
     <>
+      {agenceId && <>
+        <Scanner genre="permis" agenceId={agenceId} champChemin="permis_path" libelle="Photo du permis : remplissage automatique" />
+        <Scanner genre="identite" agenceId={agenceId} champChemin="piece_identite_path" libelle="Photo de la pièce d'identité" />
+        <input type="hidden" name="permis_path" />
+        <input type="hidden" name="piece_identite_path" />
+      </>}
       <label>Nom{obligatoire ? ' *' : ''}<input name="nom" defaultValue={c.nom ?? ''} required={obligatoire} autoComplete="off" /></label>
       <label>Prénom<input name="prenom" defaultValue={c.prenom ?? ''} autoComplete="off" /></label>
       <label>Téléphone<input name="telephone" type="tel" defaultValue={c.telephone ?? ''} autoComplete="off" /></label>

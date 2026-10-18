@@ -3,12 +3,13 @@ import { statutVehicule, carburants, financements, km, echeance, date } from '@/
 import { ajouterVehicule } from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
+import Scanner from '../_c/Scanner';
 import Envoyer from '../_c/Envoyer';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Vehicules({ searchParams }: { searchParams: { statut?: string; q?: string } }) {
-  const { supabase } = await utilisateurCourant();
+  const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('vehicules')
     .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance').order('immatriculation');
   const q = (searchParams.q ?? '').toLowerCase().trim();
@@ -23,6 +24,8 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
       <details className="formulaire carte" open={!tous?.length}>
         <summary className="bouton principal">+ Ajouter un véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille">
+          <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Photo de la carte grise : remplissage automatique" />
+          <input type="hidden" name="carte_grise_path" />
           <label>Immatriculation *<input name="immatriculation" placeholder="AB-123-CD" required /></label>
           <label>Marque<input name="marque" placeholder="Peugeot" /></label>
           <label>Modèle<input name="modele" placeholder="208" /></label>
@@ -38,7 +41,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
           <label>Entré dans la flotte le<input name="date_entree" type="date" /></label>
           <Envoyer>Ajouter le véhicule</Envoyer>
         </Formulaire>
-        <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Carte grise, assurance et contrôle technique s&apos;ajoutent ensuite sur la fiche du véhicule.</p>
+        <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>La photo de la carte grise est rangée dans la fiche. Assurance et contrôle technique s&apos;ajoutent ensuite sur la fiche.</p>
       </details>
 
       <div className="filtres">

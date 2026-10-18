@@ -18,8 +18,15 @@ export async function middleware(request: NextRequest) {
     }
   );
 
+  // Lien d'e-mail arrivé sur la racine : on le fait passer par la page de retour
+  if (request.nextUrl.pathname === '/' && request.nextUrl.searchParams.get('code')) {
+    const cible = new URL('/auth/callback', request.url);
+    cible.searchParams.set('code', request.nextUrl.searchParams.get('code')!);
+    return NextResponse.redirect(cible);
+  }
   const { data } = await supabase.auth.getUser();
-  const publique = request.nextUrl.pathname.startsWith('/login');
+  const publique = ['/login', '/auth', '/mot-de-passe', '/invitation', '/confidentialite', '/conditions']
+    .some((p) => request.nextUrl.pathname.startsWith(p));
   if (!data.user && !publique) {
     return NextResponse.redirect(new URL('/login', request.url));
   }

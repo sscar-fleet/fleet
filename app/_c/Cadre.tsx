@@ -13,7 +13,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
         <a href="/" className="logo"><img src="/logo-blanc.svg" alt="SS CAR FLEET" /></a>
         <span className="agence">{profil.agences?.nom}</span>
       </header>
-      <Navigation />
+      <Navigation gerant={profil.role === 'gerant'} />
       {retour && <a className="retour" href={retour.lien}>← {retour.texte}</a>}
       {(titre || actions) && (
         <div className="titre">

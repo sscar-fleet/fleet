@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { utilisateurCourant } from '@/lib/agence';
 import { calculerPilotage, Granularite } from '@/lib/pilotage';
 import { euros, versJour, date, categoriesDepense } from '@/lib/format';
@@ -10,7 +11,8 @@ import Graphique, { RECETTES, COUTS } from '../_c/Graphique';
 export const dynamic = 'force-dynamic';
 
 export default async function Pilotage({ searchParams }: { searchParams: { g?: string; i?: string } }) {
-  const { supabase } = await utilisateurCourant();
+  const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') redirect('/');
   const g = (['jour', 'semaine', 'mois'].includes(searchParams.g ?? '') ? searchParams.g : 'mois') as Granularite;
   const r = await calculerPilotage(supabase, g);
   const n = r.periodes.length;

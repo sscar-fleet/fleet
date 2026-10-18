@@ -187,3 +187,7 @@ details.formulaire[open] > summary { margin-bottom: 12px; }
 .planning th.mois { text-transform: capitalize; color: var(--texte); font-weight: 600; text-align: left; padding-left: 8px; }
 .planning table.serre th, .planning table.serre td { padding: 4px 1px; font-size: 10.5px; }
 .planning table.serre td:first-child, .planning table.serre th:first-child { font-size: 12px; padding-left: 10px; }
+.legal h2 { margin-top: 26px; font-size: 18px; }
+.legal p, .legal li { line-height: 1.6; color: #d5dde2; }
+.scanner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.scanner .bouton { border-color: var(--turquoise); }

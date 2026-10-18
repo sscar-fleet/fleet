@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { utilisateurCourant } from '@/lib/agence';
 import { chargerLocation } from '@/lib/location';
+import { lienWhatsApp, messageDepart, messageRetour, messageRetard } from '@/lib/whatsapp';
 import { kmSupplementaires } from '@/lib/documents-pdf';
 import { statutLocation, statutCaution, statutEdl, typeDommage, graviteDommage, dateHeure, date, euros, km, joursEntre, versLocal } from '@/lib/format';
 import * as A from '../../actions';
@@ -87,6 +88,13 @@ export default async function FicheLocation({ params }: { params: { id: string }
             <div><span>Téléphone</span><b>{c.telephone ? <a className="lien" href={`tel:${c.telephone}`}>{c.telephone}</a> : '—'}</b></div>
             <div><span>Permis du</span><b>{date(c.date_permis)}</b></div>
           </div>
+          {c.telephone && (l.statut === 'reservee' || l.statut === 'en_cours') && (() => {
+            const voiture = [v.marque, v.modele].filter(Boolean).join(' ') || v.immatriculation;
+            const msg = l.statut === 'reservee' ? messageDepart(c.prenom, voiture, l.debut, d.agence.nom)
+              : retard ? messageRetard(c.prenom, voiture, l.fin_prevue) : messageRetour(c.prenom, voiture, l.fin_prevue);
+            return <a className="bouton petit" style={{ marginBottom: 8 }} target="_blank" rel="noreferrer" href={lienWhatsApp(c.telephone, msg)}>
+              WhatsApp : {l.statut === 'reservee' ? 'confirmer le départ' : retard ? 'relancer le retard' : 'rappel du retour'}</a>;
+          })()}
           <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="permis" libelle="Permis de conduire" camera
             lien={d.liens[c.permis_path]} action={A.documentClient.bind(null, c.id, 'permis_path')} />
           <Fichier agenceId={profil.agence_id} dossier={`clients/${c.id}`} nom="identite" libelle="Pièce d'identité" camera

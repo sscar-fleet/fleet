@@ -28,6 +28,11 @@ async function journal(location_id: string | null, vehicule_id: string | null, a
   await supabase.from('historique').insert({ agence_id: profil.agence_id, location_id, vehicule_id, action, detail, auteur: profil.id });
 }
 
+function cheminScan(formData: FormData, nom: string, agenceId: string) {
+  const v = texte(formData.get(nom));
+  return v && v.startsWith(agenceId + '/') ? v : null;
+}
+
 function champAutorise(champ: string, liste: string[]) {
   if (!liste.includes(champ)) throw new Error('Champ non autorisé');
 }
@@ -50,6 +55,7 @@ async function _ajouterVehicule(formData: FormData) {
     cout_mensuel: nombre(formData.get('cout_mensuel')),
     financement: texte(formData.get('financement')),
     date_entree: texte(formData.get('date_entree')) ?? new Date().toISOString().slice(0, 10),
+    carte_grise_path: cheminScan(formData, 'carte_grise_path', profil.agence_id),
   }).select('id').single();
   verifier(error, 'Ajout du véhicule');
   rafraichir();
@@ -227,7 +233,8 @@ async function _ajouterClient(formData: FormData) {
   const { supabase, profil } = await utilisateurCourant();
   const champs = champsClient(formData);
   if (!champs.nom) throw new Error('Le nom du client est obligatoire.');
-  const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs }).select('id').single();
+  const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs,
+    permis_path: cheminScan(formData, 'permis_path', profil.agence_id), piece_identite_path: cheminScan(formData, 'piece_identite_path', profil.agence_id) }).select('id').single();
   verifier(error, 'Ajout du client');
   rafraichir();
   redirect(`/clients/${data!.id}`);
@@ -280,7 +287,8 @@ async function _creerLocation(formData: FormData) {
   if (!client_id) {
     const champs = champsClient(formData);
     if (!champs.nom) throw new Error('Choisissez un client ou saisissez le nom d’un nouveau client.');
-    const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs }).select('id').single();
+    const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs,
+      permis_path: cheminScan(formData, 'permis_path', profil.agence_id), piece_identite_path: cheminScan(formData, 'piece_identite_path', profil.agence_id) }).select('id').single();
     verifier(error, 'Création du client');
     client_id = data!.id;
   }
@@ -508,6 +516,100 @@ async function _ajouterDepense(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// Devis
+// ---------------------------------------------------------------------------
+async function _creerDevis(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const debut = depuisParis(texte(formData.get('debut')));
+  const fin = depuisParis(texte(formData.get('fin')));
+  if (!debut || !fin) throw new Error('Indiquez les dates.');
+  if (new Date(fin) <= new Date(debut)) throw new Error('Le retour doit être après le départ.');
+  const client_id = texte(formData.get('client_id'));
+  let client_nom = texte(formData.get('client_nom')); let telephone = texte(formData.get('telephone')); let email = texte(formData.get('email'));
+  if (client_id) {
+    const { data: c } = await supabase.from('clients').select('nom, prenom, telephone, email').eq('id', client_id).single();
+    client_nom = [c?.prenom, c?.nom].filter(Boolean).join(' '); telephone = telephone ?? c?.telephone ?? null; email = email ?? c?.email ?? null;
+  }
+  if (!client_nom) throw new Error('Choisissez un client ou indiquez un nom.');
+  const vehicule_id = texte(formData.get('vehicule_id'));
+  let prix = nombre(formData.get('prix_total'));
+  if (prix === null && vehicule_id) {
+    const { data: v } = await supabase.from('vehicules').select('prix_jour').eq('id', vehicule_id).single();
+    if (v?.prix_jour) prix = Number(v.prix_jour) * joursEntre(debut, fin);
+  }
+  const { data, error } = await supabase.from('devis').insert({
+    agence_id: profil.agence_id, client_id, client_nom, telephone, email, vehicule_id, debut, fin, prix_total: prix,
+    km_inclus: nombre(formData.get('km_inclus')), prix_km_sup: nombre(formData.get('prix_km_sup')), caution: nombre(formData.get('caution')),
+    note: texte(formData.get('note')), valide_jusqu: texte(formData.get('valide_jusqu')),
+  }).select('id').single();
+  verifier(error, 'Création du devis');
+  rafraichir();
+  redirect(`/devis/${data!.id}`);
+}
+
+async function _statutDevis(id: string, statut: string) {
+  champAutorise(statut, ['envoye', 'refuse']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('devis').update({ statut }).eq('id', id)).error);
+  rafraichir();
+}
+
+// Le client accepte : la réservation est créée avec les mêmes valeurs
+async function _transformerDevis(id: string, formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const { data: x } = await supabase.from('devis').select('*').eq('id', id).single();
+  if (!x) throw new Error('Devis introuvable.');
+  if (x.location_id) redirect(`/locations/${x.location_id}`);
+  const vehicule_id = texte(formData.get('vehicule_id')) ?? x.vehicule_id;
+  if (!vehicule_id) throw new Error('Choisissez le véhicule à réserver.');
+  await verifierDisponible(supabase, vehicule_id, x.debut, x.fin);
+  let client_id = x.client_id;
+  if (!client_id) {
+    const morceaux = String(x.client_nom).trim().split(/\s+/);
+    const nom = (morceaux.length > 1 ? morceaux.slice(1).join(' ') : morceaux[0]).toUpperCase();
+    const prenom = morceaux.length > 1 ? morceaux[0] : null;
+    const { data: c, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, nom, prenom, telephone: x.telephone, email: x.email }).select('id').single();
+    verifier(error, 'Création du client');
+    client_id = c!.id;
+  }
+  const { data: v } = await supabase.from('vehicules').select('km').eq('id', vehicule_id).single();
+  const { data: l, error } = await supabase.from('locations').insert({
+    agence_id: profil.agence_id, vehicule_id, client_id, debut: x.debut, fin_prevue: x.fin, prix_total: x.prix_total,
+    km_inclus: x.km_inclus, prix_km_sup: x.prix_km_sup, caution_montant: x.caution, km_depart: v?.km ?? null, note: x.note,
+  }).select('id').single();
+  verifier(error, 'Création de la réservation');
+  await supabase.from('devis').update({ statut: 'accepte', location_id: l!.id, client_id, vehicule_id }).eq('id', id);
+  await journal(l!.id, vehicule_id, 'Réservation créée depuis le devis', `D-${String(x.numero).padStart(4, '0')}`);
+  rafraichir();
+  redirect(`/locations/${l!.id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Accès employés
+// ---------------------------------------------------------------------------
+async function _inviterEmploye(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') throw new Error('Seul le gérant peut ajouter un accès.');
+  const email = (texte(formData.get('email')) ?? '').toLowerCase();
+  const nom = texte(formData.get('nom'));
+  if (!email || !nom) throw new Error('Indiquez le nom et l\u2019e-mail de l\u2019employé.');
+  verifier((await supabase.from('invitations').insert({ agence_id: profil.agence_id, email, nom, role: 'employe' })).error, 'Invitation');
+  rafraichir();
+}
+
+async function _annulerInvitation(id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('invitations').delete().eq('id', id).eq('utilisee', false)).error);
+  rafraichir();
+}
+
+async function _retirerAcces(id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.rpc('retirer_acces', { utilisateur: id })).error, 'Retrait de l\u2019accès');
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
 // Réglages de l'agence
 // ---------------------------------------------------------------------------
 async function _majAgence(formData: FormData) {
@@ -529,6 +631,7 @@ async function _majAgence(formData: FormData) {
 async function _documentAgence(champ: string, chemin: string) {
   champAutorise(champ, ['gerant_piece_identite_path', 'kbis_path', 'signature_path', 'tampon_path', 'logo_path']);
   const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') throw new Error('Seul le gérant peut modifier ces documents.');
   verifier((await supabase.from('agences').update({ [champ]: chemin }).eq('id', profil.agence_id)).error);
   rafraichir();
 }
@@ -570,6 +673,12 @@ export const avisAmende = proteger(_avisAmende);
 export const clientAmende = proteger(_clientAmende);
 export const majAgence = proteger(_majAgence);
 export const ajouterDepense = proteger(_ajouterDepense);
+export const creerDevis = proteger(_creerDevis);
+export const statutDevis = proteger(_statutDevis);
+export const transformerDevis = proteger(_transformerDevis);
+export const inviterEmploye = proteger(_inviterEmploye);
+export const annulerInvitation = proteger(_annulerInvitation);
+export const retirerAcces = proteger(_retirerAcces);
 export const sortirVehicule = proteger(_sortirVehicule);
 export const remettreVehicule = proteger(_remettreVehicule);
 export const documentAgence = proteger(_documentAgence);

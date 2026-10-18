@@ -158,6 +158,35 @@ export async function dommagesPdf(a: AgenceDoc, v: VehiculeDoc, dommages: Dommag
 }
 
 // ---------------------------------------------------------------------------
+export type DevisDoc = { numero?: number | null; debut: string; fin: string; prix_total?: number | null; km_inclus?: number | null;
+  prix_km_sup?: number | null; caution?: number | null; note?: string | null; valide_jusqu?: string | null; created_at?: string;
+  client: { nom: string; telephone?: string | null; email?: string | null }; vehicule?: string | null };
+export async function devisPdf(a: AgenceDoc, x: DevisDoc) {
+  const num = String(x.numero ?? '').padStart(4, '0');
+  const d = await Doc.creer('Devis ' + num, a.logo);
+  d.entete('Devis de location', a, `N° D-${num} · ${date(x.created_at ?? new Date().toISOString())}${x.valide_jusqu ? ' · valable jusqu\u2019au ' + date(x.valide_jusqu) : ''}`);
+  d.section('Pour');
+  d.texte(x.client.nom, { gras: true, apres: 0 });
+  if (x.client.telephone) d.texte(x.client.telephone, { apres: 0 });
+  if (x.client.email) d.texte(x.client.email, { apres: 0 });
+  d.y -= 8;
+  const jours = joursEntre(x.debut, x.fin);
+  d.tableau(['Désignation', 'Durée', 'Montant TTC'],
+    [[`Location${x.vehicule ? ' ' + x.vehicule : ''} du ${dateHeure(x.debut)} au ${dateHeure(x.fin)}`, `${jours} j`, euros(x.prix_total)]], [0.66, 0.14, 0.2]);
+  d.trait();
+  const t = `Total TTC   ${euros(x.prix_total)}`;
+  d.place(20); d.page.drawText(t, { x: 595.28 - 48 - d.largeur(t, 12, true), y: d.y - 12, size: 12, font: d.fb }); d.y -= 26;
+  d.infos([['Kilomètres inclus', x.km_inclus != null ? km(x.km_inclus) : 'Illimités'], ['Kilomètre supplémentaire', x.prix_km_sup != null ? euros(x.prix_km_sup) + ' / km' : '—'],
+    ['Dépôt de garantie', euros(x.caution)], ['', '']]);
+  if (x.note) { d.section('Précisions'); d.texte(x.note, { taille: 10 }); }
+  d.y -= 8;
+  d.texte('Pièces à présenter au départ : permis de conduire et pièce d\u2019identité en cours de validité.', { taille: 9.5 });
+  d.texte('Pour réserver, répondez simplement à ce devis.', { taille: 9.5 });
+  d.pied(PIED);
+  return d.octets();
+}
+
+// ---------------------------------------------------------------------------
 // Bilan complet d'un véhicule (archive au moment de la sortie de flotte)
 export type BilanDoc = {
   vehicule: { immatriculation: string; marque?: string | null; modele?: string | null; financement?: string | null; cout_mensuel?: number | null;
