@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(cible);
   }
   const { data } = await supabase.auth.getUser();
-  const publique = ['/login', '/auth', '/mot-de-passe', '/invitation', '/confidentialite', '/conditions']
+  const publique = ['/app', '/login', '/auth', '/mot-de-passe', '/invitation', '/confidentialite', '/conditions']
     .some((p) => request.nextUrl.pathname.startsWith(p));
   if (!data.user && !publique) {
     return NextResponse.redirect(new URL('/login', request.url));

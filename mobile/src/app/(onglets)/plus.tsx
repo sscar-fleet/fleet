@@ -8,7 +8,7 @@ import { useSession } from '@/lib/session';
 import { enAttente, envoyerFile } from '@/lib/hors-ligne';
 import { telematiqueActive } from '@/lib/telematique';
 
-const FLEET = process.env.EXPO_PUBLIC_FLEET_URL ?? 'https://fleet-beryl-seven.vercel.app';
+const FLEET = process.env.EXPO_PUBLIC_FLEET_URL || '/';
 
 export default function Plus() {
   const { profil, session } = useSession();
