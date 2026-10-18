@@ -127,6 +127,7 @@ export class Doc {
       this.place(30);
       let bas = this.y;
       paires.slice(i, i + colonnes).forEach(([l, v], j) => {
+        if (!l) return;
         const x = MARGE + j * larg;
         this.page.drawText(propre(l), { x, y: this.y - 8, size: 8, font: this.f, color: GRIS });
         const ls = this.lignes(String(v ?? '—') || '—', 10.5, true, larg - 10);

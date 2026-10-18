@@ -121,6 +121,8 @@ details.formulaire[open] > summary { margin-bottom: 12px; }
 /* Fichiers */
 .fichier { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--bord); }
 .fichier:last-child { border-bottom: 0; }
+.fichier > span { min-width: 0; overflow-wrap: anywhere; }
+.fichier .pastille { white-space: normal; }
 .fichier-titre { font-weight: 600; }
 .fichier-actions { display: flex; align-items: center; gap: 10px; }
 .fichier.compact { padding: 6px 0; border: 0; }
