@@ -47,6 +47,9 @@ async function _ajouterVehicule(formData: FormData) {
     prix_jour: nombre(formData.get('prix_jour')),
     assurance_echeance: texte(formData.get('assurance_echeance')),
     ct_echeance: texte(formData.get('ct_echeance')),
+    cout_mensuel: nombre(formData.get('cout_mensuel')),
+    financement: texte(formData.get('financement')),
+    date_entree: texte(formData.get('date_entree')) ?? new Date().toISOString().slice(0, 10),
   }).select('id').single();
   verifier(error, 'Ajout du véhicule');
   rafraichir();
@@ -64,6 +67,9 @@ async function _majVehicule(id: string, formData: FormData) {
     prix_jour: nombre(formData.get('prix_jour')),
     assurance_echeance: texte(formData.get('assurance_echeance')),
     ct_echeance: texte(formData.get('ct_echeance')),
+    cout_mensuel: nombre(formData.get('cout_mensuel')),
+    financement: texte(formData.get('financement')),
+    date_entree: texte(formData.get('date_entree')),
   }).eq('id', id);
   verifier(error, 'Modification du véhicule');
   rafraichir();
@@ -84,8 +90,11 @@ async function _documentVehicule(id: string, champ: string, chemin: string) {
   rafraichir();
 }
 
-async function _enregistrerAttestation(vehicule_id: string, personne: string, fourriere: string) {
+async function _enregistrerAttestation(vehicule_id: string, personne: string, fourriere: string, frais?: number | null) {
   const { supabase, profil } = await utilisateurCourant();
+  if (frais && frais > 0) {
+    verifier((await supabase.from('depenses').insert({ agence_id: profil.agence_id, vehicule_id, categorie: 'fourriere', montant: frais, libelle: fourriere || 'Fourrière' })).error, 'Frais de fourrière');
+  }
   verifier((await supabase.from('attestations_fourriere').insert({
     agence_id: profil.agence_id, vehicule_id, personne_autorisee: personne, fourriere: fourriere || null, created_by: profil.id,
   })).error);
@@ -459,6 +468,22 @@ async function _clientAmende(id: string, formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// Dépenses (fourrière, réparation, carburant…)
+// ---------------------------------------------------------------------------
+async function _ajouterDepense(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const montant = nombre(formData.get('montant'));
+  if (!montant || montant <= 0) throw new Error('Indiquez le montant de la dépense.');
+  const categorie = texte(formData.get('categorie')) ?? 'autre';
+  champAutorise(categorie, ['fourriere', 'reparation', 'carburant', 'nettoyage', 'peage', 'autre']);
+  verifier((await supabase.from('depenses').insert({
+    agence_id: profil.agence_id, vehicule_id: texte(formData.get('vehicule_id')), location_id: texte(formData.get('location_id')),
+    categorie, montant, date: texte(formData.get('date')) ?? new Date().toISOString().slice(0, 10), libelle: texte(formData.get('libelle')),
+  })).error, 'Ajout de la dépense');
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
 // Réglages de l'agence
 // ---------------------------------------------------------------------------
 async function _majAgence(formData: FormData) {
@@ -520,4 +545,5 @@ export const statutAmende = proteger(_statutAmende);
 export const avisAmende = proteger(_avisAmende);
 export const clientAmende = proteger(_clientAmende);
 export const majAgence = proteger(_majAgence);
+export const ajouterDepense = proteger(_ajouterDepense);
 export const documentAgence = proteger(_documentAgence);

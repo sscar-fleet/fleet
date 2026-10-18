@@ -180,3 +180,7 @@ details.formulaire[open] > summary { margin-bottom: 12px; }
 .legende i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 .legende b { color: var(--texte); }
 .compteur b { font-size: 36px; }
+.poste { display: grid; gap: 6px; padding: 9px 0; border-bottom: 1px solid var(--bord); }
+.poste:last-child { border-bottom: 0; }
+.poste .jauge { height: 6px; }
+.legende span { display: inline-flex; align-items: center; gap: 7px; }

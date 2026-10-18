@@ -1,5 +1,5 @@
 import { utilisateurCourant } from '@/lib/agence';
-import { statutVehicule, carburants, km, echeance, date } from '@/lib/format';
+import { statutVehicule, carburants, financements, km, echeance, date } from '@/lib/format';
 import { ajouterVehicule } from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
@@ -32,6 +32,10 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
           <label>Prix par jour (€)<input name="prix_jour" type="number" min={0} step="0.01" inputMode="decimal" /></label>
           <label>Fin d&apos;assurance<input name="assurance_echeance" type="date" /></label>
           <label>Prochain contrôle technique<input name="ct_echeance" type="date" /></label>
+          <label>Financement<select name="financement" defaultValue=""><option value="">—</option>
+            {Object.entries(financements).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+          <label>Coût mensuel (€)<input name="cout_mensuel" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Loyer, crédit ou amortissement" /></label>
+          <label>Entré dans la flotte le<input name="date_entree" type="date" /></label>
           <Envoyer>Ajouter le véhicule</Envoyer>
         </Formulaire>
         <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Carte grise, assurance et contrôle technique s&apos;ajoutent ensuite sur la fiche du véhicule.</p>

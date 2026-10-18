@@ -2,7 +2,7 @@
 import { usePathname } from 'next/navigation';
 
 const liens = [
-  ['/', 'Accueil'], ['/planning', 'Planning'], ['/locations', 'Locations'], ['/vehicules', 'Véhicules'],
+  ['/', 'Accueil'], ['/pilotage', 'Pilotage'], ['/planning', 'Planning'], ['/locations', 'Locations'], ['/vehicules', 'Véhicules'],
   ['/clients', 'Clients'], ['/amendes', 'Amendes'], ['/entretiens', 'Entretien'], ['/parametres', 'Réglages'],
 ];
 

@@ -5,11 +5,12 @@ import { attestationPdf } from '@/lib/documents-pdf';
 import { livrer } from '@/lib/pdf';
 
 export default function FormulaireFourriere({ action, agence, vehicule }: {
-  action: (personne: string, fourriere: string) => Promise<{ erreur?: string } | void>; agence: any; vehicule: any;
+  action: (personne: string, fourriere: string, frais?: number | null) => Promise<{ erreur?: string } | void>; agence: any; vehicule: any;
 }) {
   const router = useRouter();
   const [personne, setPersonne] = useState('');
   const [fourriere, setFourriere] = useState('');
+  const [frais, setFrais] = useState('');
   const [etat, setEtat] = useState('');
 
   async function generer(e: React.FormEvent) {
@@ -17,7 +18,7 @@ export default function FormulaireFourriere({ action, agence, vehicule }: {
     setEtat('Préparation du PDF…');
     try {
       const octets = await attestationPdf(agence, vehicule, personne.trim(), fourriere.trim());
-      const r = await action(personne.trim(), fourriere.trim());
+      const r = await action(personne.trim(), fourriere.trim(), frais ? Number(frais.replace(',', '.')) : null);
       if (r && r.erreur) throw new Error(r.erreur);
       await livrer(octets, `bon-de-pouvoir-${vehicule.immatriculation}.pdf`, true);
       setEtat('PDF prêt.');
@@ -35,6 +36,7 @@ export default function FormulaireFourriere({ action, agence, vehicule }: {
       </p>
       <label>Personne autorisée (convoyeur, salarié…) *<input value={personne} onChange={(e) => setPersonne(e.target.value)} placeholder="Prénom NOM" required /></label>
       <label>Fourrière<input value={fourriere} onChange={(e) => setFourriere(e.target.value)} placeholder="Ex. Fourrière de Pantin" /></label>
+      <label>Frais de fourrière (€)<input value={frais} onChange={(e) => setFrais(e.target.value)} type="number" step="0.01" min={0} inputMode="decimal" placeholder="Enlèvement + garde, compté dans le pilotage" /></label>
       <button className="bouton principal" type="submit" disabled={etat === 'Préparation du PDF…'}>Générer le PDF signé</button>
       <span className="gris" style={{ fontSize: 13 }}>Sur téléphone, le PDF s&apos;ouvre dans le partage : choisissez WhatsApp.</span>
       {etat && <span className={etat.startsWith('Erreur') ? 'erreur' : 'succes'}>{etat}</span>}

@@ -2,6 +2,8 @@ import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR } from '@/lib/format';
 import Cadre from './_c/Cadre';
 import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
+import Graphique from './_c/Graphique';
+import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
@@ -28,9 +30,10 @@ export default async function Accueil() {
   ]);
 
   const planning = await chargerPlanning(supabase, versJour(new Date()), 7);
-  const debutMois = versJour(new Date()).slice(0, 8) + '01';
-  const { data: duMois } = await supabase.from('locations').select('prix_total').in('statut', ['en_cours', 'terminee']).gte('debut', debutMois);
-  const caMois = (duMois ?? []).reduce((s: number, l: any) => s + Number(l.prix_total ?? 0), 0);
+  const pilotage = await calculerPilotage(supabase, 'mois');
+  const mois = pilotage.periodes[pilotage.periodes.length - 1];
+  const moisPrec = pilotage.periodes[pilotage.periodes.length - 2];
+  const caMois = mois.recettes;
   const flotte = ['loue', 'disponible', 'maintenance', 'hors_service'].map((k) => ({ k, n: (vehicules ?? []).filter((v: any) => v.statut === k).length }));
   const totalFlotte = (vehicules ?? []).length;
   const libFlotte: Record<string, string> = { loue: 'Loués', disponible: 'Disponibles', maintenance: 'En maintenance', hors_service: 'Hors service' };
@@ -75,8 +78,22 @@ export default async function Accueil() {
 
       <section className="carte">
         <div className="titre" style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>Pilotage business · {mois.debut.toLocaleDateString('fr-FR', { month: 'long', timeZone: 'Europe/Paris' })}</h2>
+          <a className="bouton petit" href="/pilotage">Jour, semaine, mois et par véhicule</a>
+        </div>
+        <div className="chiffres">
+          <div><span>Recettes</span><b>{euros(mois.recettes)}</b></div>
+          <div><span>Coûts</span><b>{euros(mois.couts)}</b></div>
+          <div><span>Résultat</span><b style={{ color: mois.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{mois.resultat >= 0 ? '+' : ''}{euros(mois.resultat)}</b></div>
+          <div><span>Mois dernier</span><b style={{ color: moisPrec.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{moisPrec.resultat >= 0 ? '+' : ''}{euros(moisPrec.resultat)}</b></div>
+        </div>
+        <Graphique periodes={pilotage.periodes.slice(-6)} selection={5} hauteur={170} />
+      </section>
+
+      <section className="carte">
+        <div className="titre" style={{ marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>Ma flotte</h2>
-          <span className="gris">{totalFlotte} véhicule{totalFlotte > 1 ? 's' : ''} · taux d&apos;utilisation <b style={{ color: 'var(--texte)' }}>{totalFlotte ? Math.round(((flotte[0].n) / totalFlotte) * 100) : 0} %</b> · ce mois-ci <b style={{ color: 'var(--texte)' }}>{euros(caMois)}</b></span>
+          <span className="gris">{totalFlotte} véhicule{totalFlotte > 1 ? 's' : ''} · taux d&apos;utilisation <b style={{ color: 'var(--texte)' }}>{totalFlotte ? Math.round(((flotte[0].n) / totalFlotte) * 100) : 0} %</b> </span>
         </div>
         <div className="barre-flotte">
           {flotte.filter((f) => f.n > 0).map((f) => (

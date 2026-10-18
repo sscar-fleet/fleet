@@ -16,6 +16,12 @@ export const statutEntretien: Record<string, string> = { prevu: 'Prévu', en_cou
 export const statutEdl: Record<string, string> = { en_attente: 'En attente', a_comparer: 'À comparer', termine: 'Terminé' };
 export const typeDommage: Record<string, string> = { rayure: 'Rayure', bosse: 'Bosse', impact: 'Impact', jante: 'Jante', autre: 'Autre' };
 export const graviteDommage: Record<string, string> = { leger: 'Léger', moyen: 'Moyen', grave: 'Grave' };
+export const categoriesDepense: Record<string, string> = {
+  fourriere: 'Fourrière', reparation: 'Réparation', carburant: 'Carburant', nettoyage: 'Nettoyage', peage: 'Péage / parking', autre: 'Autre',
+};
+export const financements: Record<string, string> = {
+  achat: 'Achat comptant', credit: 'Crédit', leasing: 'Leasing / LOA', lld: 'LLD', autre: 'Autre',
+};
 export const carburants: Record<string, string> = {
   essence: 'Essence', diesel: 'Diesel', hybride: 'Hybride', electrique: 'Électrique', gpl: 'GPL',
 };

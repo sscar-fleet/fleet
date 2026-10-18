@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
-  statutVehicule, statutLocation, statutEntretien, statutAmende, typeDommage, graviteDommage, carburants, photosGuidees,
-  km, date, dateHeure, euros, echeance, joursEntre, JOUR, versJour,
+  statutVehicule, statutLocation, statutEntretien, statutAmende, typeDommage, graviteDommage, carburants, financements, photosGuidees,
+  km, date, dateHeure, euros, echeance, joursEntre, JOUR, versJour, categoriesDepense,
 } from '@/lib/format';
 import * as A from '../../actions';
 import Cadre from '../../_c/Cadre';
@@ -43,6 +43,12 @@ export default async function FicheVehicule({ params }: { params: { id: string }
     return s + Math.max(0, (b - a) / JOUR);
   }, 0);
   const coutEntretien = (entretiens ?? []).reduce((s: number, e: any) => s + Number(e.cout ?? 0), 0);
+  const { data: depensesV } = await supabase.from('depenses').select('id, categorie, montant, date, libelle').eq('vehicule_id', v.id).order('date', { ascending: false });
+  const totalDepenses = (depensesV ?? []).reduce((s: number, d: any) => s + Number(d.montant), 0);
+  const coutDegats = (dommages ?? []).filter((d: any) => d.statut !== 'annule').reduce((s: number, d: any) => s + Number(d.cout ?? 0), 0);
+  const moisDansFlotte = v.date_entree ? Math.max(0, (Date.now() - new Date(v.date_entree).getTime()) / (30.44 * JOUR)) : 0;
+  const coutVehicule = Number(v.cout_mensuel ?? 0) * moisDansFlotte;
+  const resultat = ca - coutEntretien - totalDepenses - coutDegats - coutVehicule;
 
   const agence = await donneesAgence(supabase, profil.agence_id);
   const dommagesDoc = (dommages ?? []).filter((d: any) => d.statut !== 'annule').map((d: any) => ({
@@ -68,7 +74,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         <div><span>Jours loués</span><b>{joursLoues}</b></div>
         <div><span>Occupation (90 jours)</span><b>{Math.round((jours90 / 90) * 100)} %</b></div>
         <div><span>Revenu par jour loué</span><b>{joursLoues ? euros(ca / joursLoues) : '—'}</b></div>
-        <div><span>Coût d&apos;entretien</span><b>{euros(coutEntretien)}</b></div>
+        <div><span>Coûts (véhicule, entretien, dégâts, dépenses)</span><b>{euros(coutVehicule + coutEntretien + coutDegats + totalDepenses)}</b></div>
+        <div><span>Résultat depuis l&apos;entrée</span><b style={{ color: resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{resultat >= 0 ? '+' : ''}{euros(resultat)}</b></div>
       </section>
 
       <div className="colonnes">
@@ -96,6 +103,10 @@ export default async function FicheVehicule({ params }: { params: { id: string }
             <label>Prix par jour (€)<input name="prix_jour" type="number" step="0.01" min={0} defaultValue={v.prix_jour ?? ''} /></label>
             <label>Fin d&apos;assurance<input name="assurance_echeance" type="date" defaultValue={v.assurance_echeance ?? ''} /></label>
             <label>Prochain CT<input name="ct_echeance" type="date" defaultValue={v.ct_echeance ?? ''} /></label>
+            <label>Financement<select name="financement" defaultValue={v.financement ?? ''}><option value="">—</option>
+              {Object.entries(financements).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
+            <label>Coût mensuel (€)<input name="cout_mensuel" type="number" step="0.01" min={0} defaultValue={v.cout_mensuel ?? ''} placeholder="Loyer, crédit…" /></label>
+            <label>Entré dans la flotte le<input name="date_entree" type="date" defaultValue={v.date_entree ?? ''} /></label>
             <Envoyer className="bouton">Enregistrer</Envoyer>
           </Formulaire>
           <div className="ligne" style={{ marginTop: 14 }}>
@@ -172,6 +183,25 @@ export default async function FicheVehicule({ params }: { params: { id: string }
               {e.statut === 'en_cours' && <Formulaire action={A.terminerEntretien.bind(null, e.id)}><Envoyer className="bouton petit">Terminer</Envoyer></Formulaire>}
             </span>
           </div>
+        ))}
+      </section>
+
+      <section className="carte">
+        <h2>Dépenses {totalDepenses > 0 && <span className="gris" style={{ fontWeight: 400 }}>· {euros(totalDepenses)}</span>}</h2>
+        <details className="formulaire">
+          <summary className="bouton petit">+ Ajouter une dépense (fourrière, réparation…)</summary>
+          <Formulaire vider action={A.ajouterDepense} className="grille">
+            <input type="hidden" name="vehicule_id" value={v.id} />
+            <label>Type<select name="categorie">{Object.entries(categoriesDepense).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
+            <label>Montant (€) *<input name="montant" type="number" step="0.01" min={0} required /></label>
+            <label>Date<input name="date" type="date" defaultValue={versJour(new Date())} /></label>
+            <label>Détail<input name="libelle" /></label>
+            <Envoyer className="bouton">Enregistrer</Envoyer>
+          </Formulaire>
+        </details>
+        {!depensesV?.length && <p className="gris">Aucune dépense.</p>}
+        {depensesV?.map((d: any) => (
+          <div key={d.id} className="fichier"><span>{categoriesDepense[d.categorie] ?? d.categorie} · <b>{euros(d.montant)}</b>{d.libelle ? <span className="gris"> · {d.libelle}</span> : null}</span><span className="gris">{date(d.date)}</span></div>
         ))}
       </section>
 
