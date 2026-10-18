@@ -17,7 +17,20 @@ export default function Connexion() {
     const { error } = creation
       ? await supabase.auth.signUp({ email, password: motDePasse })
       : await supabase.auth.signInWithPassword({ email, password: motDePasse });
-    if (error) return setErreur(error.message);
+    if (error) {
+      const m = error.message;
+      return setErreur(
+        m.includes('Invalid login') ? 'E-mail ou mot de passe incorrect.'
+        : m.includes('Email not confirmed') ? 'Confirmez d\u2019abord votre adresse avec le lien reçu par e-mail.'
+        : m.includes('already registered') ? 'Un compte existe déjà avec cet e-mail.'
+        : m.includes('Password should') ? 'Le mot de passe doit faire au moins 8 caractères.'
+        : m
+      );
+    }
+    if (creation) {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) return setErreur('Compte créé. Cliquez sur le lien reçu par e-mail pour l\u2019activer, puis connectez-vous.');
+    }
     router.push('/');
     router.refresh();
   }

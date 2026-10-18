@@ -1,0 +1,523 @@
+'use server';
+// Toutes les actions qui modifient les données. Les règles d'accès de la base (RLS)
+// garantissent qu'un loueur ne touche qu'aux données de son agence.
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { utilisateurCourant, verifier } from '@/lib/agence';
+import { texte, nombre, immat, depuisParis, joursEntre, JOUR } from '@/lib/format';
+
+const rafraichir = () => revalidatePath('/', 'layout');
+
+// Les erreurs lancées dans une action serveur sont masquées en production :
+// on les renvoie donc sous forme de message, affiché en français dans le formulaire.
+type Resultat = { erreur?: string } | void;
+function proteger<A extends any[]>(fn: (...a: A) => Promise<any>) {
+  return async (...a: A): Promise<Resultat> => {
+    try {
+      await fn(...a);
+    } catch (e: any) {
+      if (typeof e?.digest === 'string' && e.digest.startsWith('NEXT_')) throw e; // redirection
+      return { erreur: e?.message || 'Une erreur est survenue.' };
+    }
+  };
+}
+
+
+async function journal(location_id: string | null, vehicule_id: string | null, action: string, detail?: string) {
+  const { supabase, profil } = await utilisateurCourant();
+  await supabase.from('historique').insert({ agence_id: profil.agence_id, location_id, vehicule_id, action, detail, auteur: profil.id });
+}
+
+function champAutorise(champ: string, liste: string[]) {
+  if (!liste.includes(champ)) throw new Error('Champ non autorisé');
+}
+
+// ---------------------------------------------------------------------------
+// Véhicules
+// ---------------------------------------------------------------------------
+async function _ajouterVehicule(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const { data, error } = await supabase.from('vehicules').insert({
+    agence_id: profil.agence_id,
+    immatriculation: immat(formData.get('immatriculation')),
+    marque: texte(formData.get('marque')),
+    modele: texte(formData.get('modele')),
+    carburant: texte(formData.get('carburant')),
+    km: nombre(formData.get('km')),
+    prix_jour: nombre(formData.get('prix_jour')),
+    assurance_echeance: texte(formData.get('assurance_echeance')),
+    ct_echeance: texte(formData.get('ct_echeance')),
+  }).select('id').single();
+  verifier(error, 'Ajout du véhicule');
+  rafraichir();
+  redirect(`/vehicules/${data!.id}`);
+}
+
+async function _majVehicule(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const { error } = await supabase.from('vehicules').update({
+    immatriculation: immat(formData.get('immatriculation')),
+    marque: texte(formData.get('marque')),
+    modele: texte(formData.get('modele')),
+    carburant: texte(formData.get('carburant')),
+    km: nombre(formData.get('km')),
+    prix_jour: nombre(formData.get('prix_jour')),
+    assurance_echeance: texte(formData.get('assurance_echeance')),
+    ct_echeance: texte(formData.get('ct_echeance')),
+  }).eq('id', id);
+  verifier(error, 'Modification du véhicule');
+  rafraichir();
+}
+
+async function _statutVehicule(id: string, statut: string) {
+  champAutorise(statut, ['disponible', 'loue', 'maintenance', 'hors_service']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ statut }).eq('id', id)).error);
+  await journal(null, id, 'Statut du véhicule', statut);
+  rafraichir();
+}
+
+async function _documentVehicule(id: string, champ: string, chemin: string) {
+  champAutorise(champ, ['carte_grise_path', 'assurance_path', 'ct_path', 'photo_path']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ [champ]: chemin }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _enregistrerAttestation(vehicule_id: string, personne: string, fourriere: string) {
+  const { supabase, profil } = await utilisateurCourant();
+  verifier((await supabase.from('attestations_fourriere').insert({
+    agence_id: profil.agence_id, vehicule_id, personne_autorisee: personne, fourriere: fourriere || null, created_by: profil.id,
+  })).error);
+  await journal(null, vehicule_id, 'Attestation fourrière', `${personne}${fourriere ? ' · ' + fourriere : ''}`);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+// Entretien
+// ---------------------------------------------------------------------------
+async function _ajouterEntretien(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const vehicule_id = String(formData.get('vehicule_id'));
+  const demarrer = formData.get('demarrer') === 'oui';
+  verifier((await supabase.from('entretiens').insert({
+    agence_id: profil.agence_id, vehicule_id,
+    raison: texte(formData.get('raison')) ?? 'Entretien',
+    commentaire: texte(formData.get('commentaire')),
+    garage: texte(formData.get('garage')),
+    retour_prevu: depuisParis(texte(formData.get('retour_prevu'))),
+    km: nombre(formData.get('km')),
+    cout: nombre(formData.get('cout')),
+    statut: demarrer ? 'en_cours' : 'prevu',
+    debut: demarrer ? new Date().toISOString() : null,
+  })).error, 'Ajout de l’entretien');
+  if (demarrer) await supabase.from('vehicules').update({ statut: 'maintenance' }).eq('id', vehicule_id);
+  rafraichir();
+}
+
+async function _demarrerEntretien(id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data, error } = await supabase.from('entretiens')
+    .update({ statut: 'en_cours', debut: new Date().toISOString() }).eq('id', id).select('vehicule_id').single();
+  verifier(error);
+  await supabase.from('vehicules').update({ statut: 'maintenance' }).eq('id', data!.vehicule_id);
+  rafraichir();
+}
+
+async function _terminerEntretien(id: string, formData?: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const cout = formData ? nombre(formData.get('cout')) : null;
+  const maj: any = { statut: 'termine', fin: new Date().toISOString() };
+  if (cout !== null) maj.cout = cout;
+  const { data, error } = await supabase.from('entretiens').update(maj).eq('id', id).select('vehicule_id').single();
+  verifier(error);
+  const { data: v } = await supabase.from('vehicules').select('statut').eq('id', data!.vehicule_id).single();
+  if (v?.statut === 'maintenance') await supabase.from('vehicules').update({ statut: 'disponible' }).eq('id', data!.vehicule_id);
+  rafraichir();
+}
+
+async function _devisEntretien(id: string, chemin: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('entretiens').update({ devis_path: chemin }).eq('id', id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+// Dommages
+// ---------------------------------------------------------------------------
+async function _ajouterDommage(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  verifier((await supabase.from('dommages').insert({
+    agence_id: profil.agence_id,
+    vehicule_id: String(formData.get('vehicule_id')),
+    location_id: texte(formData.get('location_id')),
+    edl_id: texte(formData.get('edl_id')),
+    type: texte(formData.get('type')) ?? 'autre',
+    gravite: texte(formData.get('gravite')) ?? 'leger',
+    zone: texte(formData.get('zone')),
+    cout: nombre(formData.get('cout')),
+  })).error, 'Ajout du dommage');
+  rafraichir();
+}
+
+async function _photoDommage(id: string, champ: string, chemin: string) {
+  champAutorise(champ, ['photo_zone_path', 'photo_gros_plan_path']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('dommages').update({ [champ]: chemin }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _statutDommage(id: string, statut: string) {
+  champAutorise(statut, ['ouvert', 'repare', 'annule']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('dommages').update({ statut }).eq('id', id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+// Clients
+// ---------------------------------------------------------------------------
+function champsClient(formData: FormData) {
+  return {
+    nom: (texte(formData.get('nom')) ?? '').toUpperCase(),
+    prenom: texte(formData.get('prenom')),
+    telephone: texte(formData.get('telephone')),
+    email: texte(formData.get('email')),
+    adresse: texte(formData.get('adresse')),
+    date_naissance: texte(formData.get('date_naissance')),
+    date_permis: texte(formData.get('date_permis')),
+    numero_permis: texte(formData.get('numero_permis')),
+  };
+}
+
+async function _ajouterClient(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const champs = champsClient(formData);
+  if (!champs.nom) throw new Error('Le nom du client est obligatoire.');
+  const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs }).select('id').single();
+  verifier(error, 'Ajout du client');
+  rafraichir();
+  redirect(`/clients/${data!.id}`);
+}
+
+async function _majClient(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const champs: any = champsClient(formData);
+  champs.note = texte(formData.get('note'));
+  verifier((await supabase.from('clients').update(champs).eq('id', id)).error, 'Modification du client');
+  rafraichir();
+}
+
+async function _documentClient(id: string, champ: string, chemin: string) {
+  champAutorise(champ, ['permis_path', 'piece_identite_path']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('clients').update({ [champ]: chemin }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _listeNoire(id: string, valeur: boolean) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('clients').update({ liste_noire: valeur }).eq('id', id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+// Locations
+// ---------------------------------------------------------------------------
+async function verifierDisponible(supabase: any, vehicule_id: string, debut: string, fin: string, sauf?: string) {
+  let q = supabase.from('locations').select('id, numero, debut, fin_prevue')
+    .eq('vehicule_id', vehicule_id).in('statut', ['reservee', 'en_cours'])
+    .lt('debut', fin).gt('fin_prevue', debut);
+  if (sauf) q = q.neq('id', sauf);
+  const { data } = await q;
+  if (data?.length) throw new Error(`Ce véhicule est déjà réservé sur ces dates (contrat n° ${data[0].numero}).`);
+}
+
+async function _creerLocation(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const vehicule_id = String(formData.get('vehicule_id') || '');
+  if (!vehicule_id) throw new Error('Choisissez un véhicule.');
+  const debut = depuisParis(texte(formData.get('debut')));
+  const fin = depuisParis(texte(formData.get('fin_prevue')));
+  if (!debut || !fin) throw new Error('Indiquez les dates de départ et de retour.');
+  if (new Date(fin) <= new Date(debut)) throw new Error('Le retour doit être après le départ.');
+  await verifierDisponible(supabase, vehicule_id, debut, fin);
+
+  let client_id = texte(formData.get('client_id'));
+  if (!client_id) {
+    const champs = champsClient(formData);
+    if (!champs.nom) throw new Error('Choisissez un client ou saisissez le nom d’un nouveau client.');
+    const { data, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, ...champs }).select('id').single();
+    verifier(error, 'Création du client');
+    client_id = data!.id;
+  }
+
+  const { data: v } = await supabase.from('vehicules').select('prix_jour, km').eq('id', vehicule_id).single();
+  let prix = nombre(formData.get('prix_total'));
+  if (prix === null && v?.prix_jour) prix = Number(v.prix_jour) * joursEntre(debut, fin);
+
+  const { data, error } = await supabase.from('locations').insert({
+    agence_id: profil.agence_id, vehicule_id, client_id, debut, fin_prevue: fin, prix_total: prix,
+    km_inclus: nombre(formData.get('km_inclus')), prix_km_sup: nombre(formData.get('prix_km_sup')),
+    caution_montant: nombre(formData.get('caution_montant')), km_depart: v?.km ?? null,
+    note: texte(formData.get('note')),
+  }).select('id').single();
+  verifier(error, 'Création de la location');
+  await journal(data!.id, vehicule_id, 'Réservation créée');
+  rafraichir();
+  redirect(`/locations/${data!.id}`);
+}
+
+async function _prolonger(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const { data: l } = await supabase.from('locations').select('vehicule_id, debut, fin_prevue, prix_total').eq('id', id).single();
+  const fin = depuisParis(texte(formData.get('fin_prevue')));
+  if (!l || !fin) throw new Error('Nouvelle date de retour manquante.');
+  if (new Date(fin) <= new Date(l.debut)) throw new Error('Le retour doit être après le départ.');
+  await verifierDisponible(supabase, l.vehicule_id, l.debut, fin, id);
+  const prix = nombre(formData.get('prix_total')) ?? l.prix_total;
+  verifier((await supabase.from('locations').update({ fin_prevue: fin, prix_total: prix }).eq('id', id)).error);
+  await journal(id, l.vehicule_id, 'Prolongation', `retour le ${new Date(fin).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}`);
+  rafraichir();
+}
+
+async function _changerVoiture(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const nouveau = String(formData.get('vehicule_id') || '');
+  const { data: l } = await supabase.from('locations').select('vehicule_id, debut, fin_prevue, statut, vehicules(immatriculation)').eq('id', id).single();
+  if (!l || !nouveau || nouveau === l.vehicule_id) return;
+  await verifierDisponible(supabase, nouveau, l.debut, l.fin_prevue, id);
+  const { data: v } = await supabase.from('vehicules').select('immatriculation, km').eq('id', nouveau).single();
+  verifier((await supabase.from('locations').update({ vehicule_id: nouveau, ...(l.statut === 'reservee' ? { km_depart: v?.km ?? null } : {}) }).eq('id', id)).error);
+  if (l.statut === 'en_cours') {
+    await supabase.from('vehicules').update({ statut: 'disponible' }).eq('id', l.vehicule_id);
+    await supabase.from('vehicules').update({ statut: 'loue' }).eq('id', nouveau);
+  }
+  await journal(id, nouveau, 'Changement de voiture', `${(l as any).vehicules?.immatriculation ?? ''} → ${v?.immatriculation ?? ''}`);
+  rafraichir();
+}
+
+async function _annulerLocation(id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data: l } = await supabase.from('locations').select('statut, vehicule_id').eq('id', id).single();
+  if (l?.statut !== 'reservee') throw new Error('Seule une réservation pas encore partie peut être annulée.');
+  verifier((await supabase.from('locations').update({ statut: 'annulee' }).eq('id', id)).error);
+  await journal(id, l.vehicule_id, 'Réservation annulée');
+  rafraichir();
+}
+
+async function _cautionLocation(id: string, formData: FormData) {
+  const statut = String(formData.get('caution_statut'));
+  champAutorise(statut, ['a_prendre', 'prise', 'rendue', 'encaissee', 'litige']);
+  const { supabase } = await utilisateurCourant();
+  const retenue = nombre(formData.get('caution_retenue'));
+  const motif = texte(formData.get('caution_motif'));
+  if (statut === 'encaissee' && !motif) throw new Error('Indiquez le motif de la retenue.');
+  verifier((await supabase.from('locations').update({
+    caution_statut: statut, caution_montant: nombre(formData.get('caution_montant')),
+    caution_retenue: statut === 'encaissee' ? retenue : null, caution_motif: statut === 'encaissee' || statut === 'litige' ? motif : null,
+  }).eq('id', id)).error);
+  await journal(id, null, 'Caution', statut + (motif ? ' · ' + motif : ''));
+  rafraichir();
+}
+
+async function _signatureContrat(id: string, chemin: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('locations').update({ signature_contrat_path: chemin }).eq('id', id)).error);
+  await journal(id, null, 'Contrat signé');
+  rafraichir();
+}
+
+async function _noteLocation(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('locations').update({ note: texte(formData.get('note')) }).eq('id', id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+// État des lieux
+// ---------------------------------------------------------------------------
+async function _ouvrirEdl(location_id: string, type: 'depart' | 'retour') {
+  const { supabase, profil } = await utilisateurCourant();
+  const { data: existe } = await supabase.from('etats_des_lieux').select('id').eq('location_id', location_id).eq('type', type).maybeSingle();
+  if (!existe) {
+    verifier((await supabase.from('etats_des_lieux').insert({ agence_id: profil.agence_id, location_id, type, created_by: profil.id })).error);
+  }
+  redirect(`/locations/${location_id}/edl/${type}`);
+}
+
+async function _photoEdl(edl_id: string, position: string, chemin: string) {
+  const { supabase, profil } = await utilisateurCourant();
+  if (position !== 'libre') await supabase.from('photos_edl').delete().eq('edl_id', edl_id).eq('position', position);
+  verifier((await supabase.from('photos_edl').insert({ agence_id: profil.agence_id, edl_id, position, path: chemin })).error);
+  rafraichir();
+}
+
+async function _majEdl(edl_id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const checklist: Record<string, boolean> = {};
+  ['voyant', 'badge', 'kit', 'accessoires', 'proprete'].forEach((c) => { checklist[c] = formData.get(c) === 'on'; });
+  verifier((await supabase.from('etats_des_lieux').update({
+    km: nombre(formData.get('km')), carburant: nombre(formData.get('carburant')), checklist,
+  }).eq('id', edl_id)).error);
+  rafraichir();
+}
+
+async function _signatureEdl(edl_id: string, chemin: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('etats_des_lieux').update({ signature_path: chemin, signe_le: new Date().toISOString() }).eq('id', edl_id)).error);
+  rafraichir();
+}
+
+async function _positionEdl(edl_id: string, latitude: number, longitude: number) {
+  const { supabase } = await utilisateurCourant();
+  await supabase.from('etats_des_lieux').update({ latitude, longitude }).eq('id', edl_id);
+}
+
+async function _terminerEdl(edl_id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data: e } = await supabase.from('etats_des_lieux')
+    .select('id, type, km, carburant, location_id, locations(vehicule_id, statut, km_depart)').eq('id', edl_id).single();
+  if (!e) throw new Error('État des lieux introuvable.');
+  if (e.km === null) throw new Error('Indiquez le kilométrage avant de terminer.');
+  const l: any = e.locations;
+  const maintenant = new Date().toISOString();
+  if (e.type === 'depart') {
+    verifier((await supabase.from('etats_des_lieux').update({ statut: 'termine' }).eq('id', edl_id)).error);
+    verifier((await supabase.from('locations').update({ statut: 'en_cours', km_depart: e.km, carburant_depart: e.carburant }).eq('id', e.location_id)).error);
+    await supabase.from('vehicules').update({ statut: 'loue', km: e.km }).eq('id', l.vehicule_id);
+    await journal(e.location_id, l.vehicule_id, 'Départ', `${e.km} km`);
+  } else {
+    if (l.km_depart !== null && e.km < l.km_depart) throw new Error('Le kilométrage de retour est inférieur à celui du départ.');
+    verifier((await supabase.from('etats_des_lieux').update({ statut: 'a_comparer' }).eq('id', edl_id)).error);
+    await supabase.from('etats_des_lieux').update({ statut: 'a_comparer' }).eq('location_id', e.location_id).eq('type', 'depart');
+    verifier((await supabase.from('locations').update({ statut: 'terminee', km_retour: e.km, carburant_retour: e.carburant, fin_reelle: maintenant }).eq('id', e.location_id)).error);
+    await supabase.from('vehicules').update({ statut: 'disponible', km: e.km }).eq('id', l.vehicule_id);
+    await journal(e.location_id, l.vehicule_id, 'Retour', `${e.km} km`);
+  }
+  rafraichir();
+  redirect(e.type === 'retour' ? `/locations/${e.location_id}/comparaison` : `/locations/${e.location_id}`);
+}
+
+async function _validerComparaison(location_id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('etats_des_lieux').update({ statut: 'termine' }).eq('location_id', location_id)).error);
+  await journal(location_id, null, 'États des lieux comparés');
+  rafraichir();
+  redirect(`/locations/${location_id}`);
+}
+
+// ---------------------------------------------------------------------------
+// Amendes
+// ---------------------------------------------------------------------------
+async function _ajouterAmende(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const plaque = immat(formData.get('immatriculation'));
+  const quand = depuisParis(texte(formData.get('date_infraction')));
+  if (!quand) throw new Error('Indiquez la date et l’heure de l’infraction.');
+  const { data: v } = await supabase.from('vehicules').select('id').eq('immatriculation', plaque).maybeSingle();
+  if (!v) throw new Error(`Aucun véhicule ${plaque} dans votre flotte.`);
+  // La location en cours à ce moment-là donne le conducteur
+  const { data: locs } = await supabase.from('locations').select('id, client_id, debut, fin_prevue, fin_reelle')
+    .eq('vehicule_id', v.id).neq('statut', 'annulee').lte('debut', quand).order('debut', { ascending: false }).limit(5);
+  const loc = (locs ?? []).find((l: any) => new Date(l.fin_reelle ?? l.fin_prevue) >= new Date(quand));
+  const echeanceSaisie = texte(formData.get('echeance'));
+  const echeance = echeanceSaisie ?? new Date(new Date(quand).getTime() + 45 * JOUR).toISOString().slice(0, 10);
+  verifier((await supabase.from('amendes').insert({
+    agence_id: profil.agence_id, vehicule_id: v.id, location_id: loc?.id ?? null, client_id: loc?.client_id ?? null,
+    numero_avis: texte(formData.get('numero_avis')), type: texte(formData.get('type')), date_infraction: quand,
+    lieu: texte(formData.get('lieu')), montant: nombre(formData.get('montant')), echeance,
+    statut: loc ? 'a_designer' : 'infos_manquantes',
+  })).error, 'Ajout de l’amende');
+  rafraichir();
+}
+
+async function _statutAmende(id: string, statut: string) {
+  champAutorise(statut, ['a_designer', 'infos_manquantes', 'designee', 'refusee', 'payee']);
+  const { supabase } = await utilisateurCourant();
+  const maj: any = { statut };
+  if (statut === 'designee') {
+    const { data } = await supabase.from('amendes').select('clients(nom, prenom)').eq('id', id).single();
+    const c: any = data?.clients;
+    if (c) maj.conducteur_designe = [c.prenom, c.nom].filter(Boolean).join(' ');
+  }
+  verifier((await supabase.from('amendes').update(maj).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _avisAmende(id: string, chemin: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('amendes').update({ avis_path: chemin }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _clientAmende(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const client_id = texte(formData.get('client_id'));
+  verifier((await supabase.from('amendes').update({ client_id, statut: client_id ? 'a_designer' : 'infos_manquantes' }).eq('id', id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+// Réglages de l'agence
+// ---------------------------------------------------------------------------
+async function _majAgence(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') throw new Error('Seul le gérant peut modifier les réglages.');
+  verifier((await supabase.from('agences').update({
+    nom: texte(formData.get('nom')) ?? 'Mon agence',
+    siret: texte(formData.get('siret')),
+    adresse: texte(formData.get('adresse')),
+    telephone: texte(formData.get('telephone')),
+    email: texte(formData.get('email')),
+    gerant_nom: texte(formData.get('gerant_nom')),
+    tva_taux: nombre(formData.get('tva_taux')) ?? 20,
+    conditions: texte(formData.get('conditions')),
+  }).eq('id', profil.agence_id)).error, 'Réglages');
+  rafraichir();
+}
+
+async function _documentAgence(champ: string, chemin: string) {
+  champAutorise(champ, ['gerant_piece_identite_path', 'kbis_path', 'signature_path', 'tampon_path', 'logo_path']);
+  const { supabase, profil } = await utilisateurCourant();
+  verifier((await supabase.from('agences').update({ [champ]: chemin }).eq('id', profil.agence_id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
+export const ajouterVehicule = proteger(_ajouterVehicule);
+export const majVehicule = proteger(_majVehicule);
+export const statutVehicule = proteger(_statutVehicule);
+export const documentVehicule = proteger(_documentVehicule);
+export const enregistrerAttestation = proteger(_enregistrerAttestation);
+export const ajouterEntretien = proteger(_ajouterEntretien);
+export const demarrerEntretien = proteger(_demarrerEntretien);
+export const terminerEntretien = proteger(_terminerEntretien);
+export const devisEntretien = proteger(_devisEntretien);
+export const ajouterDommage = proteger(_ajouterDommage);
+export const photoDommage = proteger(_photoDommage);
+export const statutDommage = proteger(_statutDommage);
+export const ajouterClient = proteger(_ajouterClient);
+export const majClient = proteger(_majClient);
+export const documentClient = proteger(_documentClient);
+export const listeNoire = proteger(_listeNoire);
+export const creerLocation = proteger(_creerLocation);
+export const prolonger = proteger(_prolonger);
+export const changerVoiture = proteger(_changerVoiture);
+export const annulerLocation = proteger(_annulerLocation);
+export const cautionLocation = proteger(_cautionLocation);
+export const signatureContrat = proteger(_signatureContrat);
+export const noteLocation = proteger(_noteLocation);
+export const ouvrirEdl = proteger(_ouvrirEdl);
+export const photoEdl = proteger(_photoEdl);
+export const majEdl = proteger(_majEdl);
+export const signatureEdl = proteger(_signatureEdl);
+export const positionEdl = proteger(_positionEdl);
+export const terminerEdl = proteger(_terminerEdl);
+export const validerComparaison = proteger(_validerComparaison);
+export const ajouterAmende = proteger(_ajouterAmende);
+export const statutAmende = proteger(_statutAmende);
+export const avisAmende = proteger(_avisAmende);
+export const clientAmende = proteger(_clientAmende);
+export const majAgence = proteger(_majAgence);
+export const documentAgence = proteger(_documentAgence);

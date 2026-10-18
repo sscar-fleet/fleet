@@ -1,0 +1,237 @@
+// Fabrication des PDF dans le navigateur (contrat, facture, état des lieux, dommages, attestation fourrière).
+// Aucun serveur ni service payant : pdf-lib assemble le document, les pièces jointes sont ajoutées à la suite.
+import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage, PDFImage } from 'pdf-lib';
+
+const A4: [number, number] = [595.28, 841.89];
+const MARGE = 48;
+const NOIR = rgb(0.04, 0.06, 0.07);
+const GRIS = rgb(0.45, 0.5, 0.54);
+const TURQUOISE = rgb(0.1, 0.97, 0.84);
+const TRAIT = rgb(0.85, 0.88, 0.9);
+
+// Les polices standard du PDF ne connaissent que l'alphabet occidental (WinAnsi)
+const EXTRAS = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+function propre(s: unknown) {
+  return String(s ?? '')
+    .replace(/[  ]/g, ' ')
+    .replace(/\t/g, ' ')
+    .split('')
+    .filter((c) => c === '\n' || (c >= ' ' && c <= '~') || (c >= '¡' && c <= 'ÿ') || EXTRAS.includes(c))
+    .join('');
+}
+
+async function octets(url: string) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('Fichier introuvable');
+  return new Uint8Array(await r.arrayBuffer());
+}
+function genre(o: Uint8Array) {
+  if (o[0] === 0x25 && o[1] === 0x50 && o[2] === 0x44 && o[3] === 0x46) return 'pdf';
+  if (o[0] === 0x89 && o[1] === 0x50) return 'png';
+  if (o[0] === 0xff && o[1] === 0xd8) return 'jpg';
+  return 'autre';
+}
+
+export class Doc {
+  pdf!: PDFDocument;
+  page!: PDFPage;
+  f!: PDFFont;
+  fb!: PDFFont;
+  y = 0;
+  logo?: PDFImage;
+
+  static async creer(titre: string, logoUrl?: string | null) {
+    const d = new Doc();
+    d.pdf = await PDFDocument.create();
+    d.pdf.setTitle(propre(titre));
+    d.pdf.setCreator('SS CAR FLEET');
+    d.f = await d.pdf.embedFont(StandardFonts.Helvetica);
+    d.fb = await d.pdf.embedFont(StandardFonts.HelveticaBold);
+    if (logoUrl) {
+      try {
+        const o = await octets(logoUrl);
+        const g = genre(o);
+        if (g === 'png') d.logo = await d.pdf.embedPng(o);
+        else if (g === 'jpg') d.logo = await d.pdf.embedJpg(o);
+      } catch { /* sans logo */ }
+    }
+    d.nouvellePage();
+    return d;
+  }
+
+  nouvellePage() {
+    this.page = this.pdf.addPage(A4);
+    this.y = A4[1] - MARGE;
+    this.page.drawRectangle({ x: 0, y: A4[1] - 6, width: A4[0], height: 6, color: TURQUOISE });
+  }
+  place(h: number) { if (this.y - h < MARGE + 20) this.nouvellePage(); }
+  largeur(t: string, taille: number, gras = false) { return (gras ? this.fb : this.f).widthOfTextAtSize(propre(t), taille); }
+
+  lignes(t: string, taille: number, gras: boolean, max: number) {
+    const sortie: string[] = [];
+    propre(t).split('\n').forEach((para) => {
+      let ligne = '';
+      para.split(' ').forEach((mot) => {
+        const essai = ligne ? ligne + ' ' + mot : mot;
+        if (this.largeur(essai, taille, gras) > max && ligne) { sortie.push(ligne); ligne = mot; } else ligne = essai;
+      });
+      sortie.push(ligne);
+    });
+    return sortie;
+  }
+
+  texte(t: string, o: { taille?: number; gras?: boolean; couleur?: any; x?: number; max?: number; apres?: number } = {}) {
+    const taille = o.taille ?? 10.5;
+    const x = o.x ?? MARGE;
+    const max = o.max ?? A4[0] - x - MARGE;
+    for (const l of this.lignes(t, taille, !!o.gras, max)) {
+      this.place(taille * 1.45);
+      this.page.drawText(l, { x, y: this.y - taille, size: taille, font: o.gras ? this.fb : this.f, color: o.couleur ?? NOIR });
+      this.y -= taille * 1.45;
+    }
+    this.y -= o.apres ?? 4;
+  }
+
+  entete(titre: string, agence: Agence, sousTitre?: string) {
+    if (this.logo) {
+      const h = 34; const w = (this.logo.width / this.logo.height) * h;
+      this.page.drawImage(this.logo, { x: MARGE, y: this.y - h, width: w, height: h });
+    }
+    const droite = [agence.nom, agence.adresse, agence.telephone, agence.email, agence.siret ? 'SIRET ' + agence.siret : '']
+      .filter(Boolean) as string[];
+    let yy = this.y;
+    droite.forEach((l, i) => {
+      const t = propre(l); const taille = i === 0 ? 10.5 : 8.5;
+      const font = i === 0 ? this.fb : this.f;
+      this.page.drawText(t, { x: A4[0] - MARGE - font.widthOfTextAtSize(t, taille), y: yy - taille, size: taille, font, color: i === 0 ? NOIR : GRIS });
+      yy -= taille * 1.5;
+    });
+    this.y = Math.min(this.y - 50, yy - 10);
+    this.texte(titre, { taille: 18, gras: true, apres: 2 });
+    if (sousTitre) this.texte(sousTitre, { taille: 10, couleur: GRIS });
+    this.trait();
+  }
+
+  trait() {
+    this.place(12);
+    this.page.drawLine({ start: { x: MARGE, y: this.y - 4 }, end: { x: A4[0] - MARGE, y: this.y - 4 }, thickness: 0.7, color: TRAIT });
+    this.y -= 14;
+  }
+
+  section(t: string) { this.y -= 4; this.texte(t.toUpperCase(), { taille: 9, gras: true, couleur: GRIS, apres: 2 }); }
+
+  // Paires libellé / valeur sur deux colonnes
+  infos(paires: [string, unknown][], colonnes = 2) {
+    const larg = (A4[0] - 2 * MARGE) / colonnes;
+    for (let i = 0; i < paires.length; i += colonnes) {
+      this.place(30);
+      let bas = this.y;
+      paires.slice(i, i + colonnes).forEach(([l, v], j) => {
+        const x = MARGE + j * larg;
+        this.page.drawText(propre(l), { x, y: this.y - 8, size: 8, font: this.f, color: GRIS });
+        const ls = this.lignes(String(v ?? '—') || '—', 10.5, true, larg - 10);
+        ls.forEach((ligne, k) => this.page.drawText(ligne, { x, y: this.y - 22 - k * 14, size: 10.5, font: this.fb, color: NOIR }));
+        bas = Math.min(bas, this.y - 22 - (ls.length - 1) * 14 - 10);
+      });
+      this.y = bas - 4;
+    }
+  }
+
+  tableau(entetes: string[], lignes: string[][], largeurs: number[]) {
+    const total = A4[0] - 2 * MARGE;
+    const xs = largeurs.reduce<number[]>((a, w, i) => [...a, (a[i - 1] ?? MARGE) + (i ? largeurs[i - 1] * total : 0)], []);
+    const ligne = (cells: string[], gras: boolean, couleur = NOIR) => {
+      this.place(18);
+      cells.forEach((c, i) => {
+        const t = this.lignes(c, 9.5, gras, largeurs[i] * total - 6)[0] ?? '';
+        const droite = i === cells.length - 1;
+        const x = droite ? MARGE + total - this.largeur(t, 9.5, gras) : xs[i];
+        this.page.drawText(t, { x, y: this.y - 10, size: 9.5, font: gras ? this.fb : this.f, color: couleur });
+      });
+      this.y -= 16;
+    };
+    ligne(entetes, true, GRIS);
+    this.trait();
+    lignes.forEach((l) => ligne(l, false));
+  }
+
+  async image(url: string | null | undefined, largeurMax: number, hauteurMax: number, x?: number) {
+    if (!url) return 0;
+    try {
+      const o = await octets(url);
+      const g = genre(o);
+      if (g !== 'png' && g !== 'jpg') return 0;
+      const img = g === 'png' ? await this.pdf.embedPng(o) : await this.pdf.embedJpg(o);
+      const e = Math.min(largeurMax / img.width, hauteurMax / img.height);
+      const w = img.width * e; const h = img.height * e;
+      this.place(h + 6);
+      this.page.drawImage(img, { x: x ?? MARGE, y: this.y - h, width: w, height: h });
+      return h;
+    } catch { return 0; }
+  }
+
+  // Grille de photos 2 par ligne, avec légende
+  async photos(liste: { url: string; legende: string }[]) {
+    const larg = (A4[0] - 2 * MARGE - 12) / 2;
+    const haut = 165;
+    for (let i = 0; i < liste.length; i += 2) {
+      this.place(haut + 24);
+      const yHaut = this.y;
+      for (let j = 0; j < 2 && i + j < liste.length; j++) {
+        const p = liste[i + j];
+        const x = MARGE + j * (larg + 12);
+        this.y = yHaut;
+        this.page.drawText(propre(p.legende).slice(0, 60), { x, y: yHaut - 9, size: 8.5, font: this.fb, color: GRIS });
+        this.y = yHaut - 14;
+        await this.image(p.url, larg, haut, x);
+      }
+      this.y = yHaut - haut - 24;
+    }
+  }
+
+  // Ajoute un document en pièce jointe : PDF fusionné page par page, ou image sur une page
+  async joindre(url: string | null | undefined, titre: string) {
+    if (!url) return;
+    try {
+      const o = await octets(url);
+      const g = genre(o);
+      if (g === 'pdf') {
+        const autre = await PDFDocument.load(o, { ignoreEncryption: true });
+        const pages = await this.pdf.copyPages(autre, autre.getPageIndices());
+        pages.forEach((p) => this.pdf.addPage(p));
+      } else if (g === 'png' || g === 'jpg') {
+        this.nouvellePage();
+        this.texte(titre, { taille: 12, gras: true });
+        await this.image(url, A4[0] - 2 * MARGE, A4[1] - 2 * MARGE - 40);
+      }
+    } catch { /* pièce illisible : ignorée */ }
+  }
+
+  pied(t: string) {
+    const pages = this.pdf.getPages();
+    pages.forEach((p, i) => {
+      const s = propre(`${t} · page ${i + 1}/${pages.length}`);
+      p.drawText(s, { x: MARGE, y: 24, size: 7.5, font: this.f, color: GRIS });
+    });
+  }
+
+  async octets() { return this.pdf.save(); }
+}
+
+export type Agence = {
+  nom: string; adresse?: string | null; telephone?: string | null; email?: string | null; siret?: string | null;
+  gerant_nom?: string | null;
+};
+
+export async function livrer(octetsPdf: Uint8Array, nom: string, partager = false) {
+  const blob = new Blob([octetsPdf], { type: 'application/pdf' });
+  const fichier = new File([blob], nom, { type: 'application/pdf' });
+  const nav: any = navigator;
+  if (partager && nav.canShare && nav.canShare({ files: [fichier] })) {
+    try { await nav.share({ files: [fichier], title: nom }); return; } catch { /* annulé : on télécharge */ }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nom; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
