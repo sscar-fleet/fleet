@@ -5,6 +5,7 @@ import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Scanner from '../_c/Scanner';
 import ApercuModele from '../_c/ApercuModele';
+import LogoMarque from '../_c/LogoMarque';
 import Envoyer from '../_c/Envoyer';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export default async function Vehicules({ searchParams }: { searchParams: { statut?: string; q?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('vehicules')
-    .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance, photo_path, photo_modele').order('immatriculation');
+    .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance, photo_path').order('immatriculation');
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const vehicules = (tous ?? []).filter((v: any) =>
     (searchParams.statut ? v.statut === searchParams.statut : v.statut !== 'sorti') &&
@@ -70,7 +71,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
               const pire = a === 'depasse' || c === 'depasse' ? 'depasse' : a || c;
               return (
                 <tr key={v.id}>
-                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] || v.photo_modele ? <img className="vignette" src={photos[v.photo_path] ?? v.photo_modele} alt="" /> : <span className="vignette" />}<b>{v.immatriculation}</b></a></td>
+                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} />}<b>{v.immatriculation}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span></td>
                   <td className="masque-mobile">{km(v.km)}</td>

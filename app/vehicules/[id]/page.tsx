@@ -1,3 +1,4 @@
+import LogoMarque from '@/app/_c/LogoMarque';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
@@ -93,13 +94,10 @@ export default async function FicheVehicule({ params }: { params: { id: string }
       <Onglets panneaux={[
         { cle: 'resume', titre: 'Résumé', contenu: <>
           <section className="carte photo-vehicule">
-            {liens[v.photo_path] || v.photo_modele
-              ? <img src={liens[v.photo_path] ?? v.photo_modele} alt={`${v.marque ?? ''} ${v.modele ?? ''}`} />
-              : <div className="vide-guide" style={{ padding: 20 }}>Pas encore de photo</div>}
-            <div className="ligne" style={{ justifyContent: 'space-between' }}>
-              <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : v.photo_modele ? 'Photo du modèle trouvée automatiquement' : ''}</span>
-              {!liens[v.photo_path] && <Formulaire action={A.photoModele.bind(null, v.id)} succes="Photo trouvée"><Envoyer className="bouton petit">{v.photo_modele ? 'Chercher une autre photo' : 'Trouver la photo du modèle'}</Envoyer></Formulaire>}
-            </div>
+            {liens[v.photo_path]
+              ? <img src={liens[v.photo_path]} alt={`${v.marque ?? ''} ${v.modele ?? ''}`} />
+              : <div className="logo-fiche"><LogoMarque marque={v.marque} className="logo-marque grand" /></div>}
+            <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : 'Logo de la marque · ajoutez votre propre photo dans Papiers si vous le souhaitez'}</span>
           </section>
       <section className="chiffres">
         <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>

@@ -65,16 +65,12 @@ async function _ajouterVehicule(formData: FormData) {
     prix_achat: nombre(formData.get('prix_achat')),
   }).select('id').single();
   verifier(error, 'Ajout du véhicule');
-  const apercu = texte(formData.get('photo_modele'));
-  const photo = apercu?.startsWith('https://upload.wikimedia.org/') ? apercu : await chercherPhotoModele(texte(formData.get('marque')), texte(formData.get('modele')));
-  if (photo) await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', data!.id);
   rafraichir();
   redirect(`/vehicules/${data!.id}`);
 }
 
 async function _majVehicule(id: string, formData: FormData) {
   const { supabase } = await utilisateurCourant();
-  const { data: avant } = await supabase.from('vehicules').select('marque, modele, photo_modele').eq('id', id).single();
   const { error } = await supabase.from('vehicules').update({
     prix_achat: nombre(formData.get('prix_achat')),
     immatriculation: immat(formData.get('immatriculation')),
@@ -90,11 +86,6 @@ async function _majVehicule(id: string, formData: FormData) {
     date_entree: texte(formData.get('date_entree')),
   }).eq('id', id);
   verifier(error, 'Modification du véhicule');
-  const marque = texte(formData.get('marque')); const modele = texte(formData.get('modele'));
-  if (!avant?.photo_modele || avant.marque !== marque || avant.modele !== modele) {
-    const photo = await chercherPhotoModele(marque, modele);
-    if (photo) await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', id);
-  }
   rafraichir();
 }
 
