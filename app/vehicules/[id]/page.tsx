@@ -92,12 +92,22 @@ export default async function FicheVehicule({ params }: { params: { id: string }
       {v.statut === 'sorti' && <div className="alerte-bandeau">Sorti de la flotte le {date(v.date_sortie)} · {motifsSortie[v.motif_sortie] ?? v.motif_sortie}{v.prix_sortie ? ` · vendu ${euros(v.prix_sortie)}` : ''}</div>}
       <Onglets panneaux={[
         { cle: 'resume', titre: 'Résumé', contenu: <>
+          <section className="carte photo-vehicule">
+            {liens[v.photo_path] || v.photo_modele
+              ? <img src={liens[v.photo_path] ?? v.photo_modele} alt={`${v.marque ?? ''} ${v.modele ?? ''}`} />
+              : <div className="vide-guide" style={{ padding: 20 }}>Pas encore de photo</div>}
+            <div className="ligne" style={{ justifyContent: 'space-between' }}>
+              <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : v.photo_modele ? 'Photo du modèle trouvée automatiquement' : ''}</span>
+              {!liens[v.photo_path] && <Formulaire action={A.photoModele.bind(null, v.id)} succes="Photo trouvée"><Envoyer className="bouton petit">{v.photo_modele ? 'Chercher une autre photo' : 'Trouver la photo du modèle'}</Envoyer></Formulaire>}
+            </div>
+          </section>
       <section className="chiffres">
         <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>
         <div><span>Jours loués</span><b>{joursLoues}</b></div>
         <div><span>Occupation (90 jours)</span><b>{Math.round((jours90 / 90) * 100)} %</b></div>
         <div><span>Revenu par jour loué</span><b>{joursLoues ? euros(ca / joursLoues) : '—'}</b></div>
         <div><span>Coûts (véhicule, entretien, dégâts, dépenses)</span><b>{euros(coutVehicule + coutEntretien + coutDegats + totalDepenses)}</b></div>
+        {v.prix_achat ? <div><span>Prix d&apos;achat · rentabilisé</span><b>{euros(v.prix_achat)} · {Math.round(((resultat + Number(v.prix_sortie ?? 0)) / Number(v.prix_achat)) * 100)} %</b></div> : null}
         <div><span>Résultat depuis l&apos;entrée</span><b style={{ color: resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{resultat >= 0 ? '+' : ''}{euros(resultat)}</b></div>
       </section>
         <section className="carte">
@@ -115,6 +125,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
             <label>Financement<select name="financement" defaultValue={v.financement ?? ''}><option value="">—</option>
               {Object.entries(financements).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
             <label>Coût mensuel (€)<input name="cout_mensuel" type="number" step="0.01" min={0} defaultValue={v.cout_mensuel ?? ''} placeholder="Loyer, crédit…" /></label>
+            <label>Prix d&apos;achat (€)<input name="prix_achat" type="number" step="0.01" min={0} defaultValue={v.prix_achat ?? ''} placeholder="Si acheté comptant" /></label>
             <label>Entré dans la flotte le<input name="date_entree" type="date" defaultValue={v.date_entree ?? ''} /></label>
             <Envoyer className="bouton">Enregistrer</Envoyer>
           </Formulaire>
@@ -263,6 +274,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         <div><span>Occupation (90 jours)</span><b>{Math.round((jours90 / 90) * 100)} %</b></div>
         <div><span>Revenu par jour loué</span><b>{joursLoues ? euros(ca / joursLoues) : '—'}</b></div>
         <div><span>Coûts (véhicule, entretien, dégâts, dépenses)</span><b>{euros(coutVehicule + coutEntretien + coutDegats + totalDepenses)}</b></div>
+        {v.prix_achat ? <div><span>Prix d&apos;achat · rentabilisé</span><b>{euros(v.prix_achat)} · {Math.round(((resultat + Number(v.prix_sortie ?? 0)) / Number(v.prix_achat)) * 100)} %</b></div> : null}
         <div><span>Résultat depuis l&apos;entrée</span><b style={{ color: resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{resultat >= 0 ? '+' : ''}{euros(resultat)}</b></div>
       </section>
       <section className="carte">

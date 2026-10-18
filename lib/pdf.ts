@@ -8,6 +8,7 @@ const NOIR = rgb(0.04, 0.06, 0.07);
 const GRIS = rgb(0.45, 0.5, 0.54);
 const TURQUOISE = rgb(0.1, 0.97, 0.84);
 const TRAIT = rgb(0.85, 0.88, 0.9);
+const FOND = rgb(0.955, 0.965, 0.972);
 
 // Les polices standard du PDF ne connaissent que l'alphabet occidental (WinAnsi)
 const EXTRAS = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
@@ -39,9 +40,18 @@ export class Doc {
   fb!: PDFFont;
   y = 0;
   logo?: PDFImage;
+  accent = TURQUOISE;
+  accentFonce = rgb(0.03, 0.45, 0.4);
+  mentions = '';
 
-  static async creer(titre: string, logoUrl?: string | null) {
+  static async creer(titre: string, logoUrl?: string | null, couleur?: string | null) {
     const d = new Doc();
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(couleur ?? '');
+    if (m) {
+      const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16) / 255);
+      d.accent = rgb(r, g, b);
+      d.accentFonce = rgb(r * 0.55, g * 0.55, b * 0.55); // même teinte, lisible en texte sur blanc
+    }
     d.pdf = await PDFDocument.create();
     d.pdf.setTitle(propre(titre));
     d.pdf.setCreator('SS CAR FLEET');
@@ -62,7 +72,7 @@ export class Doc {
   nouvellePage() {
     this.page = this.pdf.addPage(A4);
     this.y = A4[1] - MARGE;
-    this.page.drawRectangle({ x: 0, y: A4[1] - 6, width: A4[0], height: 6, color: TURQUOISE });
+    this.page.drawRectangle({ x: 0, y: A4[1] - 8, width: A4[0], height: 8, color: this.accent });
   }
   place(h: number) { if (this.y - h < MARGE + 20) this.nouvellePage(); }
   largeur(t: string, taille: number, gras = false) { return (gras ? this.fb : this.f).widthOfTextAtSize(propre(t), taille); }
@@ -93,23 +103,67 @@ export class Doc {
   }
 
   entete(titre: string, agence: Agence, sousTitre?: string) {
+    this.mentions = mentionsLegales(agence);
+    this.y -= 4;
+    const haut = this.y;
     if (this.logo) {
-      const h = 34; const w = (this.logo.width / this.logo.height) * h;
-      this.page.drawImage(this.logo, { x: MARGE, y: this.y - h, width: w, height: h });
+      const h = 52; const w = Math.min(170, (this.logo.width / this.logo.height) * h);
+      this.page.drawImage(this.logo, { x: MARGE, y: this.y - (w / (this.logo.width / this.logo.height)), width: w, height: w / (this.logo.width / this.logo.height) });
+    } else {
+      this.page.drawText(propre(agence.nom), { x: MARGE, y: this.y - 18, size: 17, font: this.fb, color: this.accentFonce });
     }
-    const droite = [agence.nom, agence.adresse, agence.telephone, agence.email, agence.siret ? 'SIRET ' + agence.siret : '']
+    const droite = [agence.nom, agence.adresse, [agence.telephone, agence.email].filter(Boolean).join(' · '), agence.site]
       .filter(Boolean) as string[];
-    let yy = this.y;
+    let yy = haut;
     droite.forEach((l, i) => {
-      const t = propre(l); const taille = i === 0 ? 10.5 : 8.5;
+      const taille = i === 0 ? 11 : 8.8;
       const font = i === 0 ? this.fb : this.f;
-      this.page.drawText(t, { x: A4[0] - MARGE - font.widthOfTextAtSize(t, taille), y: yy - taille, size: taille, font, color: i === 0 ? NOIR : GRIS });
-      yy -= taille * 1.5;
+      for (const t of this.lignes(l, taille, i === 0, 220)) {
+        this.page.drawText(t, { x: A4[0] - MARGE - font.widthOfTextAtSize(t, taille), y: yy - taille, size: taille, font, color: i === 0 ? NOIR : GRIS });
+        yy -= taille * 1.5;
+      }
     });
-    this.y = Math.min(this.y - 50, yy - 10);
-    this.texte(titre, { taille: 18, gras: true, apres: 2 });
-    if (sousTitre) this.texte(sousTitre, { taille: 10, couleur: GRIS });
-    this.trait();
+    this.y = Math.min(haut - 62, yy - 14);
+    this.texte(titre, { taille: 22, gras: true, apres: 0 });
+    this.page.drawRectangle({ x: MARGE, y: this.y - 2, width: 46, height: 3, color: this.accent });
+    this.y -= 10;
+    if (sousTitre) this.texte(sousTitre, { taille: 10, couleur: GRIS, apres: 2 });
+    this.y -= 6;
+  }
+
+  // Deux encadrés côte à côte (ex. Loueur / Locataire)
+  boites(gauche: { titre: string; lignes: (string | null | undefined)[] }, droite: { titre: string; lignes: (string | null | undefined)[] }) {
+    const larg = (A4[0] - 2 * MARGE - 14) / 2;
+    const contenu = [gauche, droite].map((b) => b.lignes.filter(Boolean).flatMap((l, i) => this.lignes(String(l), i === 0 ? 10.5 : 9.3, i === 0, larg - 24).map((t) => ({ t, gras: i === 0 }))));
+    const h = 30 + Math.max(...contenu.map((c) => c.length)) * 14;
+    this.place(h + 8);
+    [gauche, droite].forEach((b, k) => {
+      const x = MARGE + k * (larg + 14);
+      this.page.drawRectangle({ x, y: this.y - h, width: larg, height: h, color: FOND });
+      this.page.drawRectangle({ x, y: this.y - h, width: 3, height: h, color: this.accent });
+      this.page.drawText(propre(b.titre.toUpperCase()), { x: x + 14, y: this.y - 16, size: 8, font: this.fb, color: this.accentFonce });
+      contenu[k].forEach((l, i) => this.page.drawText(l.t, { x: x + 14, y: this.y - 32 - i * 14, size: l.gras ? 10.5 : 9.3, font: l.gras ? this.fb : this.f, color: l.gras ? NOIR : GRIS }));
+    });
+    this.y -= h + 12;
+  }
+
+  // Encadré des totaux, à droite
+  totaux(paires: [string, string][], note?: string) {
+    const larg = 230; const h = 14 + paires.length * 20;
+    this.place(h + 10);
+    const x = A4[0] - MARGE - larg;
+    this.page.drawRectangle({ x, y: this.y - h, width: larg, height: h, color: FOND });
+    paires.forEach(([lib, val], i) => {
+      const dernier = i === paires.length - 1;
+      const taille = dernier ? 13 : 10;
+      const font = dernier ? this.fb : this.f;
+      const yy = this.y - 18 - i * 20;
+      if (dernier) this.page.drawRectangle({ x, y: yy - 8, width: larg, height: 24, color: this.accent, opacity: 0.18 });
+      this.page.drawText(propre(lib), { x: x + 12, y: yy, size: taille, font, color: NOIR });
+      this.page.drawText(propre(val), { x: x + larg - 12 - font.widthOfTextAtSize(propre(val), taille), y: yy, size: taille, font, color: NOIR });
+    });
+    if (note) this.page.drawText(propre(note), { x: MARGE, y: this.y - 18, size: 8.5, font: this.f, color: GRIS });
+    this.y -= h + 12;
   }
 
   trait() {
@@ -118,7 +172,13 @@ export class Doc {
     this.y -= 14;
   }
 
-  section(t: string) { this.y -= 4; this.texte(t.toUpperCase(), { taille: 9, gras: true, couleur: GRIS, apres: 2 }); }
+  section(t: string) {
+    this.y -= 6;
+    this.place(20);
+    this.page.drawRectangle({ x: MARGE, y: this.y - 10, width: 3, height: 10, color: this.accent });
+    this.page.drawText(propre(t.toUpperCase()), { x: MARGE + 9, y: this.y - 9.5, size: 9, font: this.fb, color: this.accentFonce });
+    this.y -= 18;
+  }
 
   // Paires libellé / valeur sur deux colonnes
   infos(paires: [string, unknown][], colonnes = 2) {
@@ -151,9 +211,16 @@ export class Doc {
       });
       this.y -= 16;
     };
+    this.place(26);
+    this.page.drawRectangle({ x: MARGE, y: this.y - 16, width: total, height: 20, color: FOND });
+    this.y -= 1;
     ligne(entetes, true, GRIS);
-    this.trait();
-    lignes.forEach((l) => ligne(l, false));
+    this.y -= 4;
+    lignes.forEach((l) => {
+      ligne(l, false);
+      this.page.drawLine({ start: { x: MARGE, y: this.y + 3 }, end: { x: MARGE + total, y: this.y + 3 }, thickness: 0.5, color: TRAIT });
+    });
+    this.y -= 4;
   }
 
   async image(url: string | null | undefined, largeurMax: number, hauteurMax: number, x?: number) {
@@ -211,8 +278,13 @@ export class Doc {
   pied(t: string) {
     const pages = this.pdf.getPages();
     pages.forEach((p, i) => {
+      p.drawLine({ start: { x: MARGE, y: 40 }, end: { x: A4[0] - MARGE, y: 40 }, thickness: 0.5, color: TRAIT });
+      if (this.mentions) {
+        const m = this.lignes(this.mentions, 7, false, A4[0] - 2 * MARGE)[0];
+        p.drawText(m, { x: (A4[0] - this.largeur(m, 7)) / 2, y: 29, size: 7, font: this.f, color: GRIS });
+      }
       const s = propre(`${t} · page ${i + 1}/${pages.length}`);
-      p.drawText(s, { x: MARGE, y: 24, size: 7.5, font: this.f, color: GRIS });
+      p.drawText(s, { x: (A4[0] - this.largeur(s, 6.5)) / 2, y: 18, size: 6.5, font: this.f, color: GRIS });
     });
   }
 
@@ -221,8 +293,17 @@ export class Doc {
 
 export type Agence = {
   nom: string; adresse?: string | null; telephone?: string | null; email?: string | null; siret?: string | null;
-  gerant_nom?: string | null;
+  gerant_nom?: string | null; forme_juridique?: string | null; rcs?: string | null; tva_intra?: string | null;
+  iban?: string | null; site?: string | null; couleur?: string | null;
 };
+
+// Ligne de mentions légales en bas de chaque page
+export function mentionsLegales(a: Agence) {
+  return [
+    [a.nom, a.forme_juridique].filter(Boolean).join(' '),
+    a.siret ? 'SIRET ' + a.siret : '', a.rcs ?? '', a.tva_intra ? 'TVA ' + a.tva_intra : '', a.adresse ?? '',
+  ].filter(Boolean).join(' · ');
+}
 
 export async function livrer(octetsPdf: Uint8Array, nom: string, partager = false) {
   const blob = new Blob([octetsPdf], { type: 'application/pdf' });

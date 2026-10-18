@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabaseNavigateur } from '@/lib/supabase-navigateur';
 import { compresser } from '@/lib/image';
+import Croquis from './Croquis';
 
 // Une case de l'état des lieux photo : ouvre l'appareil photo, envoie, affiche
 export default function PhotoEdl({ agenceId, edlId, position, libelle, numero, url, reference, suivante, action }: {
@@ -40,7 +41,7 @@ export default function PhotoEdl({ agenceId, edlId, position, libelle, numero, u
   const image = apercu ?? url;
   return (
     <div className={`photo ${suivante && !image ? 'suivante' : ''}`} onClick={() => champ.current?.click()} style={{ cursor: 'pointer' }}>
-      {image ? <img src={image} alt={libelle} /> : <div className="manque">{suivante ? '📷 Photo suivante' : '📷'}<br />{libelle}</div>}
+      {image ? <img src={image} alt={libelle} /> : <div className="manque"><Croquis position={position} /><span>{suivante ? '📷 À prendre maintenant' : '📷 Toucher pour photographier'}</span></div>}
       <div className="pied">
         <span>{numero ? `${numero}. ` : ''}{libelle}</span>
         {reference && <span className="gris">Départ : <a className="lien" href={reference} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>voir</a></span>}

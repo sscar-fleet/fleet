@@ -53,7 +53,7 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
   const dJour = versJour(debut); const fJour = versJour(fin);
 
   const [{ data: vehicules }, { data: locations }, { data: entretiens }, { data: dommages }, { data: depenses }, { data: amendes }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, cout_mensuel, financement, date_entree, date_sortie, created_at, statut').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, cout_mensuel, prix_achat, financement, date_entree, date_sortie, created_at, statut').order('immatriculation'),
     supabase.from('locations').select('id, vehicule_id, debut, fin_prevue, fin_reelle, statut, prix_total, km_depart, km_retour, km_inclus, prix_km_sup, caution_retenue, caution_statut')
       .in('statut', ['en_cours', 'terminee']).lt('debut', fIso).gte('fin_prevue', new Date(debut.getTime() - 60 * JOUR).toISOString()),
     supabase.from('entretiens').select('vehicule_id, type, cout, montant_recu, debut, fin, created_at'),
@@ -103,9 +103,11 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
 
   // Coût mensuel du véhicule (leasing, crédit, amortissement), au jour près, depuis son entrée dans la flotte
   (vehicules ?? []).forEach((v: any) => {
-    if (!v.cout_mensuel) return;
+    // Acheté comptant sans coût mensuel saisi : prix d'achat amorti sur 3 ans
+    const mensuel = v.cout_mensuel ? Number(v.cout_mensuel) : v.prix_achat ? Number(v.prix_achat) / 36 : 0;
+    if (!mensuel) return;
     const entree = minuit(v.date_entree ?? versJour(v.created_at)).getTime();
-    const parJour = (Number(v.cout_mensuel) * 12) / 365;
+    const parJour = (mensuel * 12) / 365;
     const sortie = v.date_sortie ? minuit(v.date_sortie).getTime() : Infinity;
     repartir(v.id, Math.max(entree, debut.getTime()), Math.min(fin.getTime(), Date.now() + JOUR, sortie), 'vehicules', parJour, true);
   });

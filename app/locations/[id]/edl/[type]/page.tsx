@@ -11,6 +11,7 @@ import Signature from '../../../../_c/Signature';
 import PhotoEdl from '../../../../_c/PhotoEdl';
 import Position from '../../../../_c/Position';
 import BoutonPdf from '../../../../_c/BoutonPdf';
+import CompteurEdl from '../../../../_c/CompteurEdl';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,14 +62,11 @@ export default async function EtatDesLieux({ params }: { params: { id: string; t
 
       <div className="colonnes">
         <section className="carte">
-          <h2>2. Compteur et vérifications</h2>
-          <Formulaire action={A.majEdl.bind(null, e.id)} className="grille">
-            <label>Kilométrage *<input name="km" type="number" min={0} inputMode="numeric" defaultValue={kmDefaut ?? ''} required /></label>
-            <label>Carburant (%)<input name="carburant" type="number" min={0} max={100} step={5} inputMode="numeric" defaultValue={e.carburant ?? ''} placeholder="0 à 100" /></label>
-            {checklistEdl.map((c) => (
-              <label key={c.cle} className="case pleine"><input type="checkbox" name={c.cle} defaultChecked={!!e.checklist?.[c.cle]} />{c.libelle}</label>
-            ))}
-            <Envoyer className="bouton">Enregistrer</Envoyer>
+          <h2>2. Tableau de bord</h2>
+          <Formulaire action={A.majEdl.bind(null, e.id)} className="grille" succes="Compteur enregistré">
+            <CompteurEdl km={kmDefaut ?? null} carburant={e.carburant ?? null} checklist={e.checklist ?? {}}
+              kmDepart={type === 'retour' ? (ref?.km ?? l.km_depart) : null} kmInclus={type === 'retour' ? l.km_inclus : null} />
+            <Envoyer>Enregistrer le compteur</Envoyer>
           </Formulaire>
           {type === 'retour' && ref && <p className="gris" style={{ fontSize: 13 }}>Au départ : {km(ref.km)}, carburant {ref.carburant ?? '—'} %.{l.km_inclus != null ? ` Forfait : ${km(l.km_inclus)}.` : ''}</p>}
         </section>

@@ -8,6 +8,7 @@ import Envoyer from '../_c/Envoyer';
 import Fichier from '../_c/Fichier';
 import Signature from '../_c/Signature';
 import Deconnexion from './Deconnexion';
+import ChampAdresse from '../_c/ChampAdresse';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,15 +32,24 @@ export default async function Parametres() {
     <Cadre titre="Réglages" actions={<Deconnexion />}>
       <div className="colonnes">
         <section className="carte">
-          <h2>Société</h2>
+          <h2>Identité de l&apos;agence</h2>
+          <p className="gris" style={{ fontSize: 13.5, marginTop: 0 }}>Ces informations et votre logo apparaissent sur tous les documents : contrat, facture, devis, état des lieux, bon de pouvoir fourrière.</p>
           <Formulaire action={A.majAgence} className="grille">
             <label>Nom de l&apos;agence<input name="nom" defaultValue={a.nom} required disabled={!gerant} /></label>
             <label>SIRET<input name="siret" defaultValue={a.siret ?? ''} disabled={!gerant} /></label>
-            <label className="pleine">Adresse<input name="adresse" defaultValue={a.adresse ?? ''} disabled={!gerant} /></label>
+            <label>Forme juridique<input name="forme_juridique" defaultValue={a.forme_juridique ?? ''} placeholder="SAS, SARL, EI…" disabled={!gerant} /></label>
+            <label>RCS<input name="rcs" defaultValue={a.rcs ?? ''} placeholder="RCS Paris 123 456 789" disabled={!gerant} /></label>
+            <ChampAdresse defaut={a.adresse ?? ''} disabled={!gerant} />
             <label>Téléphone<input name="telephone" defaultValue={a.telephone ?? ''} disabled={!gerant} /></label>
             <label>E-mail<input name="email" type="email" defaultValue={a.email ?? ''} disabled={!gerant} /></label>
             <label>Nom du gérant<input name="gerant_nom" defaultValue={a.gerant_nom ?? ''} disabled={!gerant} /></label>
             <label>TVA (%)<input name="tva_taux" type="number" step="0.1" min={0} defaultValue={a.tva_taux ?? 20} disabled={!gerant} /></label>
+            <label>N° de TVA intracommunautaire<input name="tva_intra" defaultValue={a.tva_intra ?? ''} disabled={!gerant} /></label>
+            <label>Site internet<input name="site" defaultValue={a.site ?? ''} disabled={!gerant} /></label>
+            <label className="pleine">IBAN (imprimé sur les factures)<input name="iban" defaultValue={a.iban ?? ''} placeholder="FR76 …" disabled={!gerant} /></label>
+            <label>Couleur des documents<input name="couleur" type="color" defaultValue={a.couleur ?? '#19F7D6'} disabled={!gerant} style={{ height: 46, padding: 4 }} /></label>
+            <label className="case pleine"><input type="checkbox" name="envoi_contrat" defaultChecked={a.envoi_contrat ?? true} disabled={!gerant} />Proposer l&apos;envoi du contrat au client dès le départ</label>
+            <label className="case pleine"><input type="checkbox" name="facture_auto" defaultChecked={a.facture_auto ?? true} disabled={!gerant} />Proposer la facture au retour du véhicule</label>
             <label className="pleine">Conditions générales (imprimées sur le contrat)<textarea name="conditions" defaultValue={a.conditions ?? ''} disabled={!gerant}
               placeholder="Franchise, carburant, retard, amendes, interdiction de sous-louer…" /></label>
             {gerant && <Envoyer className="bouton">Enregistrer</Envoyer>}

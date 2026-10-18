@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { utilisateurCourant, verifier } from '@/lib/agence';
 import { texte, nombre, immat, depuisParis, joursEntre, JOUR } from '@/lib/format';
+import { chercherPhotoModele } from '@/lib/photoModele';
 
 const rafraichir = () => revalidatePath('/', 'layout');
 
@@ -56,15 +57,20 @@ async function _ajouterVehicule(formData: FormData) {
     financement: texte(formData.get('financement')),
     date_entree: texte(formData.get('date_entree')) ?? new Date().toISOString().slice(0, 10),
     carte_grise_path: cheminScan(formData, 'carte_grise_path', profil.agence_id),
+    prix_achat: nombre(formData.get('prix_achat')),
   }).select('id').single();
   verifier(error, 'Ajout du véhicule');
+  const photo = await chercherPhotoModele(texte(formData.get('marque')), texte(formData.get('modele')));
+  if (photo) await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', data!.id);
   rafraichir();
   redirect(`/vehicules/${data!.id}`);
 }
 
 async function _majVehicule(id: string, formData: FormData) {
   const { supabase } = await utilisateurCourant();
+  const { data: avant } = await supabase.from('vehicules').select('marque, modele, photo_modele').eq('id', id).single();
   const { error } = await supabase.from('vehicules').update({
+    prix_achat: nombre(formData.get('prix_achat')),
     immatriculation: immat(formData.get('immatriculation')),
     marque: texte(formData.get('marque')),
     modele: texte(formData.get('modele')),
@@ -78,6 +84,11 @@ async function _majVehicule(id: string, formData: FormData) {
     date_entree: texte(formData.get('date_entree')),
   }).eq('id', id);
   verifier(error, 'Modification du véhicule');
+  const marque = texte(formData.get('marque')); const modele = texte(formData.get('modele'));
+  if (!avant?.photo_modele || avant.marque !== marque || avant.modele !== modele) {
+    const photo = await chercherPhotoModele(marque, modele);
+    if (photo) await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', id);
+  }
   rafraichir();
 }
 
@@ -113,6 +124,15 @@ async function _remettreVehicule(id: string) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('vehicules').update({ statut: 'disponible', date_sortie: null, motif_sortie: null, prix_sortie: null }).eq('id', id)).error);
   await journal(null, id, 'Remis dans la flotte');
+  rafraichir();
+}
+
+async function _photoModele(id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data: v } = await supabase.from('vehicules').select('marque, modele').eq('id', id).single();
+  const photo = await chercherPhotoModele(v?.marque, v?.modele);
+  if (!photo) throw new Error('Aucune photo trouvée pour ce modèle. Vérifiez la marque et le modèle, ou ajoutez votre propre photo.');
+  verifier((await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', id)).error);
   rafraichir();
 }
 
@@ -396,8 +416,10 @@ async function _photoEdl(edl_id: string, position: string, chemin: string) {
 
 async function _majEdl(edl_id: string, formData: FormData) {
   const { supabase } = await utilisateurCourant();
-  const checklist: Record<string, boolean> = {};
+  const checklist: Record<string, boolean | string> = {};
   ['voyant', 'badge', 'kit', 'accessoires', 'proprete'].forEach((c) => { checklist[c] = formData.get(c) === 'on'; });
+  const voyantType = checklist.voyant ? texte(formData.get('voyant_type')) : null;
+  if (voyantType) (checklist as any).voyant_type = voyantType;
   verifier((await supabase.from('etats_des_lieux').update({
     km: nombre(formData.get('km')), carburant: nombre(formData.get('carburant')), checklist,
   }).eq('id', edl_id)).error);
@@ -637,6 +659,14 @@ async function _majAgence(formData: FormData) {
     gerant_nom: texte(formData.get('gerant_nom')),
     tva_taux: nombre(formData.get('tva_taux')) ?? 20,
     conditions: texte(formData.get('conditions')),
+    forme_juridique: texte(formData.get('forme_juridique')),
+    rcs: texte(formData.get('rcs')),
+    tva_intra: texte(formData.get('tva_intra')),
+    iban: texte(formData.get('iban')),
+    site: texte(formData.get('site')),
+    couleur: /^#[0-9a-fA-F]{6}$/.test(String(formData.get('couleur'))) ? String(formData.get('couleur')) : '#19F7D6',
+    envoi_contrat: formData.get('envoi_contrat') === 'on',
+    facture_auto: formData.get('facture_auto') === 'on',
   }).eq('id', profil.agence_id)).error, 'Réglages');
   rafraichir();
 }
@@ -694,5 +724,6 @@ export const inviterEmploye = proteger(_inviterEmploye);
 export const annulerInvitation = proteger(_annulerInvitation);
 export const retirerAcces = proteger(_retirerAcces);
 export const sortirVehicule = proteger(_sortirVehicule);
+export const photoModele = proteger(_photoModele);
 export const remettreVehicule = proteger(_remettreVehicule);
 export const documentAgence = proteger(_documentAgence);

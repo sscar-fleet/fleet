@@ -57,9 +57,10 @@ export default async function FicheLocation({ params }: { params: { id: string }
     ? { texte: retard ? `En retard depuis le ${dateHeure(l.fin_prevue)}. Au retour du véhicule : état des lieux de retour.` : `Retour prévu le ${dateHeure(l.fin_prevue)}.`, bouton: <Formulaire succes={false} action={A.ouvrirEdl.bind(null, l.id, 'retour')}><Envoyer>Faire le retour</Envoyer></Formulaire> }
     : l.statut === 'terminee' && d.retour?.statut === 'a_comparer'
     ? { texte: 'Véhicule rendu. Comparez les photos du départ et du retour, puis décidez pour la caution.', bouton: <a className="bouton principal" href={`/locations/${l.id}/comparaison`}>Comparer et rendre la caution</a> }
-    : l.statut === 'terminee'
-    ? { texte: 'Location terminée. La facture est prête.', bouton: <BoutonPdf genre="facture" nom={nomFichier('facture')} libelle="Facture PDF" classe="bouton principal" donnees={base} /> }
+    : l.statut === 'terminee' && d.agence.facture_auto
+    ? { texte: 'Véhicule rendu. La facture est prête.', bouton: <BoutonPdf genre="facture" nom={nomFichier('facture')} libelle="Facture PDF" classe="bouton principal" donnees={base} /> }
     : null;
+  const mailContrat = c.email ? `mailto:${c.email}?subject=${encodeURIComponent(`Votre contrat de location n° ${l.numero} · ${d.agence.nom}`)}&body=${encodeURIComponent(`Bonjour ${c.prenom ?? ''},\n\nVous trouverez ci-joint votre contrat de location pour la ${voiture}, du ${dateHeure(l.debut)} au ${dateHeure(l.fin_prevue)}.\n\nBonne route,\n${d.agence.nom}`)}` : null;
 
   const resume = (
     <div className="colonnes">
@@ -140,7 +141,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
         action={A.signatureContrat.bind(null, l.id)} />
       <div className="ligne" style={{ marginTop: 14 }}>
         <BoutonPdf genre="contrat" nom={nomFichier('contrat')} libelle="Contrat PDF" donnees={base} />
-        <BoutonPdf genre="facture" nom={nomFichier('facture')} libelle="Facture PDF" donnees={base} />
+        {d.agence.facture_auto ? <BoutonPdf genre="facture" nom={nomFichier('facture')} libelle="Facture PDF" donnees={base} /> : <span className="gris">Facture désactivée dans Réglages</span>}
       </div>
       <p className="gris" style={{ fontSize: 13.5, marginBottom: 0 }}>Sur téléphone, le PDF s&apos;ouvre dans le partage : WhatsApp, e-mail…</p>
     </section>
@@ -188,6 +189,15 @@ export default async function FicheLocation({ params }: { params: { id: string }
       actions={<span className={`pastille ${retard ? 'retard' : l.statut}`} style={{ fontSize: 16 }}>{retard ? 'En retard' : statutLocation[l.statut]}</span>}>
       {c.liste_noire && <div className="alerte-bandeau">Attention : ce client est en liste noire. {c.note}</div>}
       {action && <div className="action-principale"><span>{action.texte}</span>{action.bouton}</div>}
+      {d.agence.envoi_contrat && l.statut === 'en_cours' && (
+        <div className="info-bandeau ligne" style={{ justifyContent: 'space-between' }}>
+          <span>Envoyer le contrat au client{d.location.signature ? ' (signé)' : ''} :</span>
+          <span className="ligne">
+            <BoutonPdf genre="contrat" nom={nomFichier('contrat')} libelle="Contrat PDF à partager" classe="bouton petit" donnees={base} />
+            {mailContrat && <a className="bouton petit" href={mailContrat}>Par e-mail</a>}
+          </span>
+        </div>
+      )}
       <Onglets panneaux={[
         { cle: 'resume', titre: 'Résumé', contenu: resume },
         { cle: 'client', titre: 'Client', contenu: client },

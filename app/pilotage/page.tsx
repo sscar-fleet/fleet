@@ -23,7 +23,7 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
   const occupation = r.nbVehicules ? Math.min(100, Math.round((p.joursLoues / (r.nbVehicules * joursPeriode)) * 100)) : 0;
   const marge = p.recettes ? Math.round((p.resultat / p.recettes) * 100) : 0;
   const evolution = precedente && precedente.resultat !== 0 ? Math.round(((p.resultat - precedente.resultat) / Math.abs(precedente.resultat)) * 100) : null;
-  const sansCout = r.vehicules.filter((v: any) => !v.cout_mensuel && !['hors_service', 'sorti'].includes(v.statut));
+  const sansCout = r.vehicules.filter((v: any) => !v.cout_mensuel && !v.prix_achat && !['hors_service', 'sorti'].includes(v.statut));
 
   const [{ data: vehicules }, { data: dernieres }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele').order('immatriculation'),
@@ -111,7 +111,7 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
                 const x = v.periodes[i];
                 return (
                   <tr key={v.id}>
-                    <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{v.immatriculation}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}{!v.cout_mensuel ? ' · coût à renseigner' : ` · ${euros(v.cout_mensuel)}/mois`}</span></a></td>
+                    <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{v.immatriculation}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}{v.cout_mensuel ? ` · ${euros(v.cout_mensuel)}/mois` : v.prix_achat ? ` · acheté ${euros(v.prix_achat)} (amorti sur 3 ans)` : ' · coût à renseigner'}</span></a></td>
                     <td>{euros(x.recettes)}</td><td>{euros(x.couts)}</td>
                     <td style={{ color: x.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)', fontWeight: 600 }}>{x.resultat >= 0 ? '+' : ''}{euros(x.resultat)}</td>
                     <td className="masque-mobile">{Math.round(x.joursLoues * 10) / 10}</td>

@@ -20,14 +20,17 @@ export type LocationDoc = {
 };
 export type DommageDoc = { type: string; gravite: string; zone?: string | null; cout?: number | null; statut: string;
   photo_zone?: string | null; photo_gros_plan?: string | null; created_at: string };
-export type EdlDoc = { type: 'depart' | 'retour'; km?: number | null; carburant?: number | null; checklist?: Record<string, boolean>;
+export type EdlDoc = { type: 'depart' | 'retour'; km?: number | null; carburant?: number | null; checklist?: Record<string, any>;
   signe_le?: string | null; latitude?: number | null; longitude?: number | null; signature?: string | null;
   created_at: string; photos: { position: string; url: string }[] };
 
+const voyantsPdf: Record<string, string> = { moteur: 'moteur', huile: 'huile', batterie: 'batterie', freins: 'freins', airbag: 'airbag', pneus: 'pression des pneus', temperature: 'température', abs: 'ABS / ESP', entretien: 'entretien', autre: 'autre' };
 const nomClient = (c: ClientDoc) => [c.prenom, c.nom].filter(Boolean).join(' ');
 const nomVehicule = (v: VehiculeDoc) => [v.marque, v.modele].filter(Boolean).join(' ') + ' · ' + v.immatriculation;
 const numero = (l: LocationDoc) => String(l.numero ?? '').padStart(5, '0');
 const PIED = 'Document édité avec SS CAR FLEET';
+const loueur = (a: AgenceDoc) => ({ titre: 'Loueur', lignes: [a.nom + (a.forme_juridique ? ' ' + a.forme_juridique : ''), a.adresse, a.telephone, a.email, a.siret ? 'SIRET ' + a.siret : null] });
+
 
 export function kmSupplementaires(l: LocationDoc) {
   if (l.km_inclus == null || l.km_depart == null || l.km_retour == null) return { parcourus: null as number | null, enTrop: 0, montant: 0 };
@@ -52,13 +55,11 @@ async function signatures(d: Doc, gauche: { titre: string; url?: string | null }
 
 // ---------------------------------------------------------------------------
 export async function contratPdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c: ClientDoc) {
-  const d = await Doc.creer('Contrat de location ' + numero(l), a.logo);
+  const d = await Doc.creer('Contrat de location ' + numero(l), a.logo, a.couleur);
   d.entete('Contrat de location', a, `N° ${numero(l)} · établi le ${date(new Date().toISOString())}`);
-  d.section('Locataire');
-  d.infos([
-    ['Nom', nomClient(c)], ['Téléphone', c.telephone], ['E-mail', c.email], ['Adresse', c.adresse],
-    ['Date de naissance', date(c.date_naissance)], ['Permis', [c.numero_permis, c.date_permis ? 'du ' + date(c.date_permis) : ''].filter(Boolean).join(' ') || '—'],
-  ]);
+  d.boites(loueur(a), { titre: 'Locataire', lignes: [nomClient(c), c.adresse, c.telephone, c.email,
+    c.date_naissance ? 'Né(e) le ' + date(c.date_naissance) : null,
+    c.numero_permis || c.date_permis ? ['Permis', c.numero_permis, c.date_permis ? 'du ' + date(c.date_permis) : ''].filter(Boolean).join(' ') : null] });
   d.section('Véhicule');
   d.infos([['Véhicule', nomVehicule(v)], ['Carburant', v.carburant ? carburants[v.carburant] : '—']]);
   d.section('Location');
@@ -80,14 +81,10 @@ export async function contratPdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c
 
 // ---------------------------------------------------------------------------
 export async function facturePdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c: ClientDoc) {
-  const d = await Doc.creer('Facture ' + numero(l), a.logo);
+  const d = await Doc.creer('Facture ' + numero(l), a.logo, a.couleur);
   const annee = new Date(l.debut).getFullYear();
   d.entete('Facture', a, `N° F-${annee}-${numero(l)} · ${date(l.fin_reelle ?? new Date().toISOString())}`);
-  d.section('Facturé à');
-  d.texte(nomClient(c), { gras: true, apres: 0 });
-  if (c.adresse) d.texte(c.adresse, { apres: 0 });
-  if (c.email) d.texte(c.email, { apres: 0 });
-  d.y -= 10;
+  d.boites({ ...loueur(a), titre: 'Émetteur' }, { titre: 'Facturé à', lignes: [nomClient(c), c.adresse, c.telephone, c.email] });
   const fin = l.fin_reelle ?? l.fin_prevue;
   const jours = joursEntre(l.debut, fin);
   const lignes: string[][] = [[`Location ${nomVehicule(v)} du ${date(l.debut)} au ${date(fin)}`, `${jours} j`, euros(l.prix_total)]];
@@ -97,20 +94,13 @@ export async function facturePdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c
   d.tableau(['Désignation', 'Quantité', 'Montant TTC'], lignes, [0.66, 0.14, 0.2]);
   const ttc = Number(l.prix_total ?? 0) + sup.montant + Number(l.caution_retenue ?? 0);
   const taux = Number(a.tva_taux ?? 20);
-  d.trait();
   const totaux: [string, string][] = taux > 0
     ? [['Total HT', euros(ttc / (1 + taux / 100))], [`TVA ${taux} %`, euros(ttc - ttc / (1 + taux / 100))], ['Total TTC', euros(ttc)]]
     : [['Total', euros(ttc)]];
-  totaux.forEach(([lib, val], i) => {
-    const dernier = i === totaux.length - 1;
-    d.place(18);
-    const t = `${lib}   ${val}`;
-    d.page.drawText(t, { x: 595.28 - 48 - d.largeur(t, dernier ? 12 : 10, dernier), y: d.y - 12, size: dernier ? 12 : 10, font: dernier ? d.fb : d.f });
-    d.y -= 18;
-  });
-  if (taux === 0) d.texte('TVA non applicable, article 293 B du CGI.', { taille: 8.5 });
-  d.y -= 10;
-  d.texte('Règlement reçu par l’agence. Merci de votre confiance.', { taille: 9 });
+  d.totaux(totaux, taux === 0 ? 'TVA non applicable, article 293 B du CGI.' : undefined);
+  if (a.iban) { d.section('Règlement'); d.texte('Virement : IBAN ' + a.iban, { taille: 9.5 }); }
+  d.y -= 6;
+  d.texte('Merci de votre confiance.', { taille: 9.5, couleur: undefined });
   d.pied(PIED);
   return d.octets();
 }
@@ -118,7 +108,7 @@ export async function facturePdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c
 // ---------------------------------------------------------------------------
 export async function edlPdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c: ClientDoc, e: EdlDoc, dommages: DommageDoc[]) {
   const titre = e.type === 'depart' ? 'État des lieux de départ' : 'État des lieux de retour';
-  const d = await Doc.creer(titre, a.logo);
+  const d = await Doc.creer(titre, a.logo, a.couleur);
   d.entete(titre, a, `Contrat N° ${numero(l)} · ${nomVehicule(v)} · ${nomClient(c)}`);
   d.infos([
     ['Fait le', dateHeure(e.signe_le ?? e.created_at)],
@@ -126,7 +116,7 @@ export async function edlPdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c: Cl
     ['Kilométrage', km(e.km)], ['Carburant', e.carburant != null ? e.carburant + ' %' : '—'],
   ]);
   d.section('Vérifications');
-  d.infos(checklistEdl.map((x) => [x.libelle, e.checklist?.[x.cle] ? 'Oui' : 'Non'] as [string, string]), 3);
+  d.infos(checklistEdl.map((x) => [x.libelle, e.checklist?.[x.cle] ? (x.cle === 'voyant' && (e.checklist as any)?.voyant_type ? `Oui : ${voyantsPdf[(e.checklist as any).voyant_type] ?? (e.checklist as any).voyant_type}` : 'Oui') : 'Non'] as [string, string]), 3);
   if (dommages.length) {
     d.section(`Dommages (${dommages.length})`);
     d.tableau(['Type', 'Zone', 'Gravité', 'Statut'],
@@ -143,7 +133,7 @@ export async function edlPdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c: Cl
 
 // ---------------------------------------------------------------------------
 export async function dommagesPdf(a: AgenceDoc, v: VehiculeDoc, dommages: DommageDoc[], l?: LocationDoc | null, c?: ClientDoc | null) {
-  const d = await Doc.creer('Relevé de dommages', a.logo);
+  const d = await Doc.creer('Relevé de dommages', a.logo, a.couleur);
   d.entete('Relevé de dommages', a, `${nomVehicule(v)}${l ? ' · contrat N° ' + numero(l) : ''}${c ? ' · ' + nomClient(c) : ''}`);
   if (!dommages.length) d.texte('Aucun dommage enregistré.');
   for (const [i, x] of dommages.entries()) {
@@ -163,19 +153,13 @@ export type DevisDoc = { numero?: number | null; debut: string; fin: string; pri
   client: { nom: string; telephone?: string | null; email?: string | null }; vehicule?: string | null };
 export async function devisPdf(a: AgenceDoc, x: DevisDoc) {
   const num = String(x.numero ?? '').padStart(4, '0');
-  const d = await Doc.creer('Devis ' + num, a.logo);
+  const d = await Doc.creer('Devis ' + num, a.logo, a.couleur);
   d.entete('Devis de location', a, `N° D-${num} · ${date(x.created_at ?? new Date().toISOString())}${x.valide_jusqu ? ' · valable jusqu\u2019au ' + date(x.valide_jusqu) : ''}`);
-  d.section('Pour');
-  d.texte(x.client.nom, { gras: true, apres: 0 });
-  if (x.client.telephone) d.texte(x.client.telephone, { apres: 0 });
-  if (x.client.email) d.texte(x.client.email, { apres: 0 });
-  d.y -= 8;
+  d.boites({ ...loueur(a), titre: 'Émetteur' }, { titre: 'Pour', lignes: [x.client.nom, x.client.telephone, x.client.email] });
   const jours = joursEntre(x.debut, x.fin);
   d.tableau(['Désignation', 'Durée', 'Montant TTC'],
     [[`Location${x.vehicule ? ' ' + x.vehicule : ''} du ${dateHeure(x.debut)} au ${dateHeure(x.fin)}`, `${jours} j`, euros(x.prix_total)]], [0.66, 0.14, 0.2]);
-  d.trait();
-  const t = `Total TTC   ${euros(x.prix_total)}`;
-  d.place(20); d.page.drawText(t, { x: 595.28 - 48 - d.largeur(t, 12, true), y: d.y - 12, size: 12, font: d.fb }); d.y -= 26;
+  d.totaux([['Total TTC', euros(x.prix_total)]]);
   d.infos([['Kilomètres inclus', x.km_inclus != null ? km(x.km_inclus) : 'Illimités'], ['Kilomètre supplémentaire', x.prix_km_sup != null ? euros(x.prix_km_sup) + ' / km' : '—'],
     ['Dépôt de garantie', euros(x.caution)], ['', '']]);
   if (x.note) { d.section('Précisions'); d.texte(x.note, { taille: 10 }); }
@@ -196,7 +180,7 @@ export type BilanDoc = {
 };
 export async function bilanPdf(a: AgenceDoc, b: BilanDoc) {
   const v = b.vehicule;
-  const d = await Doc.creer('Bilan ' + v.immatriculation, a.logo);
+  const d = await Doc.creer('Bilan ' + v.immatriculation, a.logo, a.couleur);
   d.entete(`Bilan du véhicule ${v.immatriculation}`, a, `${[v.marque, v.modele].filter(Boolean).join(' ')} · édité le ${date(new Date().toISOString())}`);
   d.section('Résumé');
   d.infos(b.chiffres, 3);
@@ -215,11 +199,11 @@ export async function bilanPdf(a: AgenceDoc, b: BilanDoc) {
 
 // ---------------------------------------------------------------------------
 export async function attestationPdf(a: AgenceDoc, v: VehiculeDoc, personne: string, fourriere: string) {
-  const d = await Doc.creer('Bon de pouvoir ' + v.immatriculation, a.logo);
-  d.entete('Bon de pouvoir', a, 'Récupération d’un véhicule en fourrière');
+  const d = await Doc.creer('Bon de pouvoir ' + v.immatriculation, a.logo, a.couleur);
+  d.entete('Bon de pouvoir / procuration', a, 'Récupération d’un véhicule en fourrière (mainlevée)');
   d.y -= 10;
   const gerant = a.gerant_nom || '[nom du gérant]';
-  d.texte(`Je soussigné ${gerant}, représentant la société ${a.nom}${a.siret ? ' (SIRET ' + a.siret + ')' : ''}${a.adresse ? ', ' + a.adresse : ''}, autorise ${personne} à récupérer en mon nom le véhicule suivant :`, { taille: 11.5, apres: 12 });
+  d.texte(`Je soussigné ${gerant}, représentant la société ${a.nom}${a.forme_juridique ? ' ' + a.forme_juridique : ''}${a.siret ? ' (SIRET ' + a.siret + ')' : ''}${a.adresse ? ', ' + a.adresse : ''}, autorise ${personne} à récupérer en mon nom le véhicule suivant :`, { taille: 11.5, apres: 12 });
   d.infos([['Immatriculation', v.immatriculation], ['Véhicule', [v.marque, v.modele].filter(Boolean).join(' ') || '—'],
     ['Fourrière', fourriere || '—'], ['Fait le', date(new Date().toISOString())]]);
   d.y -= 6;

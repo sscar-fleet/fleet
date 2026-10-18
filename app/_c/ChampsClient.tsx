@@ -1,5 +1,6 @@
 // Champs d'une fiche client (création et modification)
 import Scanner from './Scanner';
+import ChampAdresse from './ChampAdresse';
 
 export default function ChampsClient({ c = {} as any, obligatoire = true, agenceId }: { c?: any; obligatoire?: boolean; agenceId?: string }) {
   return (
@@ -14,7 +15,7 @@ export default function ChampsClient({ c = {} as any, obligatoire = true, agence
       <label>Prénom<input name="prenom" defaultValue={c.prenom ?? ''} autoComplete="off" /></label>
       <label>Téléphone<input name="telephone" type="tel" defaultValue={c.telephone ?? ''} autoComplete="off" /></label>
       <label>E-mail<input name="email" type="email" defaultValue={c.email ?? ''} autoComplete="off" /></label>
-      <label className="pleine">Adresse<input name="adresse" defaultValue={c.adresse ?? ''} autoComplete="off" /></label>
+      <ChampAdresse defaut={c.adresse ?? ''} />
       <label>Date de naissance<input name="date_naissance" type="date" defaultValue={c.date_naissance ?? ''} /></label>
       <label>N° de permis<input name="numero_permis" defaultValue={c.numero_permis ?? ''} autoComplete="off" /></label>
       <label>Permis obtenu le<input name="date_permis" type="date" defaultValue={c.date_permis ?? ''} /></label>
