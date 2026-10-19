@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Image, Linking, Pressable, Text, View } from 'react-native';
 import { useCouleurs } from '@/lib/theme';
 
-export type Point = { id: string; lat: number; lng: number; couleur: string; titre?: string; onPress?: () => void };
+export type Point = { id: string; lat: number; lng: number; couleur: string; titre?: string; logo?: string | null; onPress?: () => void };
 const TUILE = 256;
 const versPixel = (lat: number, lng: number, z: number) => {
   const n = TUILE * 2 ** z; const s = Math.sin((lat * Math.PI) / 180);
@@ -42,10 +42,16 @@ export default function MiniCarte({ points, hauteur = 190, zoomMax = 16, onPress
           style={{ position: 'absolute', left: t.x * TUILE - x0, top: t.y * TUILE - y0, width: TUILE, height: TUILE }} />
       ))}
       {largeur > 0 && px.map((p) => (
-        <Pressable key={p.id} disabled={!p.onPress} onPress={p.onPress} style={{ position: 'absolute', left: p.x - x0 - 15, top: p.y - y0 - 15, alignItems: 'center' }}>
-          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: p.couleur + '40', alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: p.couleur, borderWidth: 3, borderColor: '#fff' }} />
-          </View>
+        <Pressable key={p.id} disabled={!p.onPress} onPress={p.onPress} style={{ position: 'absolute', left: p.x - x0 - (p.logo ? 19 : 15), top: p.y - y0 - (p.logo ? 19 : 15), alignItems: 'center' }}>
+          {p.logo ? (
+            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#fff', borderWidth: 3, borderColor: p.couleur, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <Image source={{ uri: p.logo }} style={{ width: 24, height: 24 }} resizeMode="contain" />
+            </View>
+          ) : (
+            <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: p.couleur + '40', alignItems: 'center', justifyContent: 'center' }}>
+              <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: p.couleur, borderWidth: 3, borderColor: '#fff' }} />
+            </View>
+          )}
           {p.titre ? <Text style={{ marginTop: 1, backgroundColor: 'rgba(11,15,18,.82)', color: '#fff', fontSize: 11, fontWeight: '800', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' }}>{p.titre}</Text> : null}
         </Pressable>
       ))}

@@ -7,6 +7,7 @@ import { Recherche } from '@/composants/champs';
 import LogoMarque from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import MiniCarte from '@/composants/MiniCarte';
+import { logoMarque } from '@/lib/logoMarque';
 import { chargerVehicules } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useCouleurs } from '@/lib/theme';
@@ -29,7 +30,7 @@ export default function Flotte() {
     && (!cherche || `${v.immatriculation}${v.marque ?? ''}${v.modele ?? ''}`.toLowerCase().replace(/[\s-]/g, '').includes(cherche)));
   const couleurStatut: Record<string, string> = { disponible: c.vert, loue: c.accent, maintenance: c.orange, hors_service: c.rouge };
   const points = tous.map((v) => ({ v, e: gps.parVehicule[v.id] })).filter((x) => x.e?.lat != null && x.e?.lng != null)
-    .map((x) => ({ id: x.v.id, lat: x.e!.lat!, lng: x.e!.lng!, couleur: couleurGps(x.e!, c), titre: x.v.immatriculation }));
+    .map((x) => ({ id: x.v.id, lat: x.e!.lat!, lng: x.e!.lng!, couleur: couleurGps(x.e!, c), titre: x.v.immatriculation, logo: logoMarque(x.v.marque, x.v.modele) }));
 
   return (
     <Ecran titre="Flotte" sousTitre={`${nb('disponible')} libre${nb('disponible') > 1 ? 's' : ''} · ${nb('loue')} dehors · ${tous.length} au total`} rafraichir={recharger} enChargement={enChargement && !!donnees}
