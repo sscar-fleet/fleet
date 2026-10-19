@@ -1,12 +1,13 @@
 // Nouvelle location en 4 gestes : quand → quelle voiture (seules les libres sont proposées) → quel client → prix.
 // Tout se fait par des choix ; on ne tape que le strict nécessaire. Marche sans réseau.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Ligne, Texte, Titre, Vide, Chargement, Etapes, Etiquette, Rangee } from '@/composants/ui';
 import { Champ, Puce, Puces, Recherche } from '@/composants/champs';
 import LogoMarque from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
+import Calendrier from '@/composants/Calendrier';
 import Fenetre from '@/composants/Fenetre';
 import Icone from '@/composants/Icone';
 import { useToast } from '@/composants/Toast';
@@ -33,7 +34,12 @@ function depart(choix: string) {
   const [j, h] = choix.split('-').map(Number); // « 1-9 » = demain 9 h
   d.setDate(d.getDate() + j); d.setHours(h, 0, 0, 0); return d;
 }
-const joursProches = Array.from({ length: 21 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() + i); d.setHours(0, 0, 0, 0); return d; });
+const HEURES = Array.from({ length: 33 }, (_, i) => [6 + Math.floor(i / 2), i % 2 ? 30 : 0] as const); // 6:00 → 22:00
+// Dates tapées en JJ/MM/AAAA, les barres s'ajoutent toutes seules
+const saisieDate = (t: string) => { const d = t.replace(/\D/g, '').slice(0, 8); return [d.slice(0, 2), d.slice(2, 4), d.slice(4)].filter(Boolean).join('/'); };
+const versIso = (t: string) => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t); return m ? `${m[3]}-${m[2]}-${m[1]}` : null; };
+const versJj = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+const hh = (h: number, m: number) => `${h}:${String(m).padStart(2, '0')}`;
 
 export default function NouvelleLocation() {
   const c = useCouleurs();
@@ -47,14 +53,14 @@ export default function NouvelleLocation() {
   const [vehicule, setVehicule] = useState<VehiculeLigne>();
   const [client, setClient] = useState<ClientLigne>();
   const [nouveau, setNouveau] = useState(false);
-  const [nc, setNc] = useState({ prenom: '', nom: '', telephone: '' });
+  const [nc, setNc] = useState({ prenom: '', nom: '', telephone: '', email: '', naissance: '', numeroPermis: '', datePermis: '' });
   const [permis, setPermis] = useState<string>();
   const [lecture, setLecture] = useState(false);
   const [q, setQ] = useState('');
   const [qv, setQv] = useState('');
-  const [quand, setQuand] = useState<string>('maintenant');
-  const [autre, setAutre] = useState<{ jour: number; heure: number } | null>(null);
-  const [jours, setJours] = useState(1);
+  const [rapide, setRapide] = useState<string | null>('maintenant');
+  const [debut, setDebut] = useState(() => depart('maintenant'));
+  const [fin, setFin] = useState(() => new Date(depart('maintenant').getTime() + 864e5));
   const [prix, setPrix] = useState('');
   const [prixTouche, setPrixTouche] = useState(false);
   const [caution, setCaution] = useState('');
@@ -70,11 +76,16 @@ export default function NouvelleLocation() {
     chargerClients().then((r) => { setClients(r.donnees); if (params.client) setClient(r.donnees.find((x) => x.id === params.client)); }).catch(() => setClients([]));
   }, [params.vehicule, params.client]);
 
-  const debut = useMemo(() => {
-    if (!autre) return depart(quand);
-    const d = new Date(joursProches[autre.jour]); d.setHours(autre.heure, 0, 0, 0); return d;
-  }, [quand, autre]);
-  const fin = useMemo(() => new Date(debut.getTime() + jours * 864e5), [debut, jours]);
+  const jours = Math.max(1, Math.ceil((fin.getTime() - debut.getTime()) / 864e5 - 0.01));
+  const changerDebut = (d: Date) => { const duree = Math.max(3600e3, fin.getTime() - debut.getTime()); setDebut(d); setFin(new Date(d.getTime() + duree)); };
+  const fixerJours = (j: number) => setFin(new Date(debut.getTime() + j * 864e5));
+  const heureDe = (d: Date, h: number, m: number) => { const x = new Date(d); x.setHours(h, m, 0, 0); return x; };
+  const [kmAutre, setKmAutre] = useState('');
+  // Les heures défilent toutes seules jusqu'à l'heure choisie
+  const refDepart = useRef<any>(null), refRetour = useRef<any>(null);
+  const position = (d: Date) => Math.max(0, ((d.getHours() - 6) * 2 + (d.getMinutes() >= 30 ? 1 : 0)) * 78 - 120);
+  useEffect(() => { refDepart.current?.scrollTo({ x: position(debut), animated: true }); }, [debut.getHours(), debut.getMinutes(), etape]); // eslint-disable-line
+  useEffect(() => { refRetour.current?.scrollTo({ x: position(fin), animated: true }); }, [fin.getHours(), fin.getMinutes(), etape]); // eslint-disable-line
 
   // Pourquoi une voiture n'est pas libre sur ces dates
   const indispo = (v: VehiculeLigne): string | null => {
@@ -99,16 +110,17 @@ export default function NouvelleLocation() {
   const clientPret = !!client || (nouveau && !!nc.nom.trim() && !!nc.telephone.trim());
   const nomChoisi = client ? nomClient(client) : `${nc.prenom} ${nc.nom}`.trim();
 
-  async function scannerPermis() {
-    const p = await prendrePhoto({ pourIa: true, qualite: 0.7 });
+  async function scannerPermis(galerie = false) {
+    const p = await prendrePhoto({ pourIa: true, qualite: 0.7, galerie });
     if (!p) return;
     setPermis(p.uri);
     if (!p.dataUrl) return;
     setLecture(true);
     try {
       const ch = await lirePapier(p.dataUrl, 'permis');
-      setNc((x) => ({ ...x, nom: String(ch.nom ?? x.nom ?? ''), prenom: String(ch.prenom ?? x.prenom ?? '') }));
-      toast('Permis lu : vérifiez le nom');
+      setNc((x) => ({ ...x, nom: String(ch.nom ?? x.nom), prenom: String(ch.prenom ?? x.prenom), numeroPermis: String(ch.numero_permis ?? x.numeroPermis),
+        naissance: ch.date_naissance ? versJj(String(ch.date_naissance)) : x.naissance, datePermis: ch.date_permis ? versJj(String(ch.date_permis)) : x.datePermis }));
+      toast('Permis lu : vérifiez les informations');
     } catch (e: any) { toast(e.message ?? 'Lecture impossible, remplissez à la main', 'info'); }
     setLecture(false);
   }
@@ -124,18 +136,19 @@ export default function NouvelleLocation() {
     let clientObj: any = client;
     if (!clientId) {
       clientId = nouvelId();
-      const champs: Record<string, unknown> = { id: clientId, agence_id: profil.agence_id, nom: nc.nom.trim().toUpperCase(), prenom: nc.prenom.trim() || null, telephone: nc.telephone.trim() || null };
+      const champs: Record<string, unknown> = { id: clientId, agence_id: profil.agence_id, nom: nc.nom.trim().toUpperCase(), prenom: nc.prenom.trim() || null, telephone: nc.telephone.trim() || null,
+        email: nc.email.trim() || null, date_naissance: versIso(nc.naissance), date_permis: versIso(nc.datePermis), ...(nc.numeroPermis.trim() ? { numero_permis: nc.numeroPermis.trim().toUpperCase() } : {}) };
       await mettreEnFile({ genre: 'ajout', table: 'clients', champs });
       if (permis) {
         const chemin = `${profil.agence_id}/clients/${clientId}/permis-${Date.now()}.jpg`;
         await mettreEnFile({ genre: 'fichier', chemin, uri: permis, type: 'image/jpeg', ensuite: { genre: 'maj', table: 'clients', id: clientId, champs: { permis_path: chemin } } });
       }
-      clientObj = { ...champs, email: null, permis_path: permis ? 'x' : null, piece_identite_path: null, liste_noire: false };
+      clientObj = { ...champs, permis_path: permis ? 'x' : null, piece_identite_path: null, liste_noire: false };
     }
     const id = nouvelId();
     const jeton = distance ? nouvelId() : null;
     const loc = { id, agence_id: profil.agence_id, vehicule_id: vehicule.id, client_id: clientId, debut: debut.toISOString(), fin_prevue: fin.toISOString(),
-      prix_total: prix ? Number(prix.replace(',', '.')) : null, caution_montant: caution ? Number(caution) : null,
+      prix_total: prix ? Number(prix.replace(',', '.')) : null, caution_montant: caution !== '' ? Number(caution) : null,
       km_inclus: kmInclus ? Number(kmInclus) : null, km_depart: vehicule.km ?? null, ...(jeton ? { jeton_signature: jeton } : {}) };
     await mettreEnFile({ genre: 'ajout', table: 'locations', champs: loc });
     // La fiche s'affiche tout de suite, même avant l'envoi
@@ -161,7 +174,7 @@ export default function NouvelleLocation() {
         </View>
         <Carte style={{ paddingVertical: 4 }}>
           <Rangee icone="calendrier" couleur={c.accent} titre={`${jour(debut.toISOString())} ${heure(debut.toISOString())}`} sous={`Retour ${jour(fin.toISOString())} ${heure(fin.toISOString())}`} />
-          <Rangee fin icone="euro" couleur={c.accent} titre={prix ? euros(Number(prix.replace(',', '.'))) : 'Prix à définir'} sous={caution ? `Caution ${euros(Number(caution))}` : 'Sans caution'} />
+          <Rangee fin icone="euro" couleur={c.accent} titre={prix ? euros(Number(prix.replace(',', '.'))) : 'Prix à définir'} sous={caution && caution !== '0' ? `Caution ${euros(Number(caution))}` : 'Sans caution'} />
         </Carte>
         {cree.jeton && <>
           <Titre>Gagnez du temps au comptoir</Titre>
@@ -178,7 +191,7 @@ export default function NouvelleLocation() {
   const suivant = etape === 0 ? <GrosBouton titre="Suivant : la voiture" sousTitre={`${jour(debut.toISOString())} ${heure(debut.toISOString())} → ${jour(fin.toISOString())} ${heure(fin.toISOString())}`} onPress={() => setEtape(1)} />
     : etape === 1 ? <GrosBouton titre="Suivant : le client" desactive={!vehicule} onPress={() => setEtape(2)} />
     : etape === 2 ? <GrosBouton titre="Suivant : le prix" desactive={!clientPret} onPress={() => setEtape(3)} />
-    : <GrosBouton icone="ok" titre="Créer la location" sousTitre={prix ? euros(Number(prix.replace(',', '.'))) : undefined} onPress={() => (caution ? creer() : setQuestion('caution'))} />;
+    : <GrosBouton icone="ok" titre="Créer la location" sousTitre={prix ? euros(Number(prix.replace(',', '.'))) : undefined} onPress={() => (caution !== '' ? creer() : setQuestion('caution'))} />;
 
   return (
     <Ecran fermer titre="Nouvelle location" bas={suivant}>
@@ -200,28 +213,35 @@ export default function NouvelleLocation() {
 
       {etape === 0 && <>
         <Titre>Départ</Titre>
-        <Puces>
-          {RAPIDES.map(([k, t]) => <Puce key={k} titre={t} actif={!autre && quand === k} onPress={() => { setAutre(null); setQuand(k); }} />)}
-          <Puce titre="Autre date" actif={!!autre} onPress={() => setAutre(autre ?? { jour: 1, heure: 10 })} />
-        </Puces>
-        {autre && <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {joursProches.map((d, i) => (
-              <Pressable key={i} onPress={() => setAutre({ ...autre, jour: i })}
-                style={{ width: 62, paddingVertical: 10, borderRadius: 14, alignItems: 'center', backgroundColor: autre.jour === i ? c.accent : c.panneau2, borderWidth: 1, borderColor: autre.jour === i ? c.accent : c.bord }}>
-                <Text style={{ color: autre.jour === i ? c.surAccent : c.gris, fontSize: 12, fontWeight: '800' }}>{i === 0 ? 'AUJ.' : i === 1 ? 'DEM.' : d.toLocaleDateString('fr-FR', { weekday: 'short' }).toUpperCase()}</Text>
-                <Text style={{ color: autre.jour === i ? c.surAccent : c.texte, fontSize: 20, fontWeight: '800' }}>{d.getDate()}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <Puces>{[8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20].map((h) => <Puce key={h} titre={`${h} h`} actif={autre.heure === h} onPress={() => setAutre({ ...autre, heure: h })} />)}</Puces>
-        </>}
+        <Puces>{RAPIDES.map(([k, t]) => <Puce key={k} titre={t} actif={rapide === k} onPress={() => { setRapide(k); changerDebut(depart(k)); }} />)}</Puces>
+        <Calendrier debut={debut} fin={fin} onChange={(d, f) => { setRapide(null); setDebut(d); setFin(f); }} />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <View style={{ flex: 1, backgroundColor: c.accent + '14', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: c.accent + '44' }}>
+            <Text style={{ color: c.accent, fontSize: 12, fontWeight: '800' }}>DÉPART</Text>
+            <Text style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{jour(debut.toISOString())}</Text>
+            <Text style={{ color: c.texte, fontSize: 24, fontWeight: '900' }}>{heure(debut.toISOString())}</Text>
+          </View>
+          <View style={{ flex: 1, backgroundColor: c.vert + '14', borderRadius: 16, padding: 12, borderWidth: 1, borderColor: c.vert + '44' }}>
+            <Text style={{ color: c.vert, fontSize: 12, fontWeight: '800' }}>RETOUR</Text>
+            <Text style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{jour(fin.toISOString())}</Text>
+            <Text style={{ color: c.texte, fontSize: 24, fontWeight: '900' }}>{heure(fin.toISOString())}</Text>
+          </View>
+        </View>
+        <Titre>Heure de départ</Titre>
+        <ScrollView ref={refDepart} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {HEURES.map(([h, m]) => <Puce key={hh(h, m)} titre={hh(h, m)} actif={debut.getHours() === h && debut.getMinutes() === m} onPress={() => { setRapide(null); changerDebut(heureDe(debut, h, m)); }} />)}
+        </ScrollView>
+        <Titre>Heure de retour</Titre>
+        <ScrollView ref={refRetour} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {HEURES.map(([h, m]) => <Puce key={hh(h, m)} titre={hh(h, m)} couleur={c.vert} actif={fin.getHours() === h && fin.getMinutes() === m}
+            onPress={() => { const f = heureDe(fin, h, m); setFin(f > debut ? f : new Date(f.getTime() + 864e5)); }} />)}
+        </ScrollView>
         <Titre>Durée</Titre>
-        <Puces>{DUREES.map(([j, t]) => <Puce key={j} titre={t} actif={jours === j} onPress={() => setJours(j)} />)}</Puces>
+        <Puces>{DUREES.map(([j, t]) => <Puce key={j} titre={t} actif={jours === j && Math.abs(fin.getTime() - debut.getTime() - j * 864e5) < 60000} onPress={() => fixerJours(j)} />)}</Puces>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'center', marginTop: 4 }}>
-          <Pressable onPress={() => setJours(Math.max(1, jours - 1))} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.texte, fontSize: 26, fontWeight: '700' }}>−</Text></Pressable>
+          <Pressable onPress={() => fixerJours(Math.max(1, jours - 1))} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.texte, fontSize: 26, fontWeight: '700' }}>−</Text></Pressable>
           <Text style={{ color: c.texte, fontSize: 28, fontWeight: '800', minWidth: 110, textAlign: 'center' }}>{jours} jour{jours > 1 ? 's' : ''}</Text>
-          <Pressable onPress={() => setJours(jours + 1)} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.texte, fontSize: 26, fontWeight: '700' }}>+</Text></Pressable>
+          <Pressable onPress={() => fixerJours(jours + 1)} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.texte, fontSize: 26, fontWeight: '700' }}>+</Text></Pressable>
         </View>
       </>}
 
@@ -266,18 +286,33 @@ export default function NouvelleLocation() {
             </Carte>
           )) : <Vide icone="client" titre="Aucun client trouvé" texte="Touchez « + Nouveau client »." />}
         </> : <>
-          <Pressable onPress={scannerPermis} style={{ borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: permis ? c.vert : c.accent, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: (permis ? c.vert : c.accent) + '12' }}>
-            <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: (permis ? c.vert : c.accent) + '26', alignItems: 'center', justifyContent: 'center' }}>
-              {lecture ? <ActivityIndicator color={c.accent} /> : <Icone nom={permis ? 'ok' : 'carteId'} couleur={permis ? c.vert : c.accent} taille={26} />}
+          <View style={{ borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: permis ? c.vert : c.accent, padding: 14, gap: 12, backgroundColor: (permis ? c.vert : c.accent) + '10' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: (permis ? c.vert : c.accent) + '26', alignItems: 'center', justifyContent: 'center' }}>
+                {lecture ? <ActivityIndicator color={c.accent} /> : <Icone nom={permis ? 'ok' : 'carteId'} couleur={permis ? c.vert : c.accent} taille={24} />}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.texte, fontWeight: '800', fontSize: 17 }}>{lecture ? 'Lecture du permis…' : permis ? 'Permis enregistré' : 'Permis de conduire'}</Text>
+                <Text style={{ color: c.gris, fontSize: 14 }}>{permis ? 'Vérifiez les champs remplis ci-dessous' : 'Photo ou image : les champs se remplissent tout seuls'}</Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.texte, fontWeight: '800', fontSize: 17 }}>{lecture ? 'Lecture du permis…' : permis ? 'Permis photographié' : 'Scanner le permis'}</Text>
-              <Text style={{ color: c.gris, fontSize: 14 }}>{permis ? 'Touchez pour reprendre la photo' : 'Le nom et le prénom se remplissent tout seuls'}</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <GrosBouton petit secondaire icone="photo" titre="Photo" style={{ flex: 1 }} onPress={() => scannerPermis(false)} />
+              <GrosBouton petit secondaire icone="doc" titre="Importer" style={{ flex: 1 }} onPress={() => scannerPermis(true)} />
             </View>
-          </Pressable>
+          </View>
+          <Texte gris taille={14}>Ou remplissez à la main :</Texte>
           <Champ libelle="Prénom" valeur={nc.prenom} onChange={(t) => setNc({ ...nc, prenom: t })} />
           <Champ libelle="Nom" valeur={nc.nom} onChange={(t) => setNc({ ...nc, nom: t })} majuscules />
           <Champ libelle="Téléphone (pour WhatsApp)" valeur={nc.telephone} onChange={(t) => setNc({ ...nc, telephone: t })} clavier="phone-pad" placeholder="06 12 34 56 78" />
+          <Champ libelle="E-mail (facultatif)" valeur={nc.email} onChange={(t) => setNc({ ...nc, email: t.trim() })} clavier="email-address" placeholder="nom@exemple.fr" />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}><Champ libelle="Né(e) le" valeur={nc.naissance} onChange={(t) => setNc({ ...nc, naissance: saisieDate(t) })} clavier="number-pad" placeholder="JJ/MM/AAAA" /></View>
+            <View style={{ flex: 1 }}><Champ libelle="Permis obtenu le" valeur={nc.datePermis} onChange={(t) => setNc({ ...nc, datePermis: saisieDate(t) })} clavier="number-pad" placeholder="JJ/MM/AAAA" /></View>
+          </View>
+          <Champ libelle="N° de permis (facultatif)" valeur={nc.numeroPermis} onChange={(t) => setNc({ ...nc, numeroPermis: t })} majuscules />
+          {nc.datePermis.length === 10 && versIso(nc.datePermis) && (Date.now() - new Date(versIso(nc.datePermis)!).getTime()) < 3 * 365.25 * 864e5
+            ? <Etiquette titre="Permis de moins de 3 ans (jeune conducteur)" couleur={c.orange} icone="alerte" /> : null}
         </>}
       </>}
 
@@ -286,10 +321,11 @@ export default function NouvelleLocation() {
         <Champ valeur={prix} onChange={(t) => { setPrixTouche(true); setPrix(t); }} clavier="decimal-pad" placeholder={prixAuto == null ? 'Prix par jour non renseigné sur la voiture' : ''} />
         {vehicule?.prix_jour ? <Texte gris taille={14}>{jours} j × {euros(vehicule.prix_jour)} = {euros(prixAuto)}{prixTouche && Number(prix) !== prixAuto ? ' · prix modifié' : ''}</Texte> : null}
         <Titre>Caution</Titre>
-        <Puces>{['300', '500', '800', '1000', '1500', '2500'].map((m) => <Puce key={m} titre={`${Number(m).toLocaleString('fr-FR')} €`} actif={caution === m} onPress={() => setCaution(caution === m ? '' : m)} />)}</Puces>
+        <Puces>{['0', '300', '500', '800', '1000', '1500', '2500'].map((m) => <Puce key={m} titre={m === '0' ? 'Sans caution' : `${Number(m).toLocaleString('fr-FR')} €`} actif={caution === m} onPress={() => setCaution(caution === m ? '' : m)} />)}</Puces>
         <Champ valeur={caution} onChange={(t) => setCaution(t.replace(/\D/g, ''))} clavier="number-pad" placeholder="Autre montant" />
         <Titre>Kilomètres inclus</Titre>
-        <Puces>{[['', 'Illimités'], ['200', '200 km'], ['300', '300 km'], ['500', '500 km'], ['1000', '1 000 km']].map(([k, t]) => <Puce key={t} titre={t} actif={kmInclus === k} onPress={() => setKmInclus(k)} />)}</Puces>
+        <Puces>{[['', 'Illimités'], ['200', '200 km'], ['300', '300 km'], ['500', '500 km'], ['1000', '1 000 km']].map(([k, t]) => <Puce key={t} titre={t} actif={kmInclus === k && !kmAutre} onPress={() => { setKmAutre(''); setKmInclus(k); }} />)}</Puces>
+        <Champ valeur={kmAutre} onChange={(t) => { const v = t.replace(/\D/g, ''); setKmAutre(v); setKmInclus(v); }} clavier="number-pad" placeholder="Autre : nombre de km inclus" />
       </>}
 
       <Fenetre visible={question === 'caution'} question="Aucune caution n'est remplie" detail="Êtes-vous sûr de continuer sans caution ?"

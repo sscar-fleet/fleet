@@ -210,17 +210,31 @@ export function Barre({ part, couleur, hauteur = 6 }: { part: number; couleur?: 
   );
 }
 
-// Étapes numérotées (assistant d'état des lieux, nouvelle location)
+// Étapes numérotées (assistant d'état des lieux, nouvelle location) : pastilles reliées, coche quand c'est fait
 export function Etapes({ etapes, etape, onChoix }: { etapes: readonly string[]; etape: number; onChoix?: (i: number) => void }) {
   const c = useCouleurs();
   return (
-    <View style={{ flexDirection: 'row', gap: 6 }}>
-      {etapes.map((e, i) => (
-        <Pressable key={e} disabled={!onChoix || i > etape} onPress={() => onChoix?.(i)} style={{ flex: 1, gap: 6 }}>
-          <View style={{ height: 5, borderRadius: 3, backgroundColor: i < etape ? c.accent : i === etape ? c.accent : c.bord, opacity: i < etape ? 0.55 : 1 }} />
-          <Text numberOfLines={1} style={{ color: i === etape ? c.texte : c.gris, fontSize: 12, fontWeight: '800' }}>{e}</Text>
-        </Pressable>
-      ))}
+    <View style={{ backgroundColor: c.panneau, borderRadius: T.rayon, borderWidth: 1, borderColor: c.bord, paddingVertical: 14, paddingHorizontal: 6 }}>
+      <View style={{ flexDirection: 'row' }}>
+        {etapes.map((e, i) => {
+          const fait = i < etape, actuelle = i === etape;
+          return (
+            <Pressable key={e} disabled={!onChoix || i > etape} onPress={() => { vibrer(); onChoix?.(i); }} style={{ flex: 1, alignItems: 'center', gap: 7 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i === 0 ? 'transparent' : i <= etape ? c.accent : c.bord }} />
+                <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: actuelle ? c.accent : fait ? c.accent + '26' : c.panneau2, borderWidth: actuelle ? 0 : 1.5, borderColor: fait ? c.accent : c.bord,
+                  ...(actuelle && Platform.OS === 'web' ? ({ boxShadow: `0 0 0 5px ${c.accent}33` } as object) : {}) }}>
+                  {fait ? <Icone nom="ok" couleur={c.accent} taille={17} epaisseur={3} />
+                    : <Text style={{ color: actuelle ? c.surAccent : c.gris, fontWeight: '900', fontSize: 15 }}>{i + 1}</Text>}
+                </View>
+                <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: i === etapes.length - 1 ? 'transparent' : i < etape ? c.accent : c.bord }} />
+              </View>
+              <Text numberOfLines={1} style={{ color: actuelle ? c.texte : fait ? c.accent : c.gris, fontSize: 13, fontWeight: actuelle ? '800' : '700' }}>{e}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
