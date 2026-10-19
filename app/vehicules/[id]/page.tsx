@@ -14,6 +14,8 @@ import Depot from '../../_c/Depot';
 import Onglets from '../../_c/Onglets';
 import BoutonPdf from '../../_c/BoutonPdf';
 import { donneesAgence } from '@/lib/donnees';
+import SuiviGps from '../../_c/SuiviGps';
+import { suiviAgence } from '@/lib/telematique';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +59,10 @@ export default async function FicheVehicule({ params }: { params: { id: string }
   const resultat = ca - coutEntretien - totalDepenses - coutDegats - coutVehicule;
 
   const agence = await donneesAgence(supabase, profil.agence_id);
+  const [{ data: traceur }, suivi] = await Promise.all([
+    v.traceur_id ? supabase.from('traceurs').select('*').eq('id', v.traceur_id).maybeSingle() : Promise.resolve({ data: null }),
+    suiviAgence(supabase),
+  ]);
   const dommagesDoc = (dommages ?? []).filter((d: any) => d.statut !== 'annule').map((d: any) => ({
     ...d, photo_zone: liens[d.photo_zone_path] ?? null, photo_gros_plan: liens[d.photo_gros_plan_path] ?? null,
   }));
@@ -99,6 +105,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
               : <div className="logo-fiche"><LogoMarque marque={v.marque} modele={v.modele} className="logo-marque grand" /></div>}
             <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : 'Logo de la marque · ajoutez votre propre photo dans Papiers si vous le souhaitez'}</span>
           </section>
+          {v.statut !== 'sorti' && <SuiviGps v={v} traceur={traceur} suivi={suivi} />}
       <section className="chiffres">
         <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>
         <div><span>Jours loués</span><b>{joursLoues}</b></div>

@@ -6,6 +6,8 @@ import { redirect } from 'next/navigation';
 import { utilisateurCourant, verifier } from '@/lib/agence';
 import { texte, nombre, immat, depuisParis, joursEntre, JOUR } from '@/lib/format';
 import { chercherPhotoModele } from '@/lib/photoModele';
+import { imeiDeLAgence } from '@/lib/telematique';
+import { commandeMoteur } from '@/lib/whatsgps';
 
 const rafraichir = () => revalidatePath('/', 'layout');
 
@@ -87,6 +89,7 @@ async function _majVehicule(id: string, formData: FormData) {
   }).eq('id', id);
   verifier(error, 'Modification du véhicule');
   rafraichir();
+  await recalerTraceur(supabase, id, nombre(formData.get('km')));
 }
 
 async function _statutVehicule(id: string, statut: string) {
@@ -447,6 +450,7 @@ async function _terminerEdl(edl_id: string) {
     verifier((await supabase.from('locations').update({ statut: 'en_cours', km_depart: e.km, carburant_depart: e.carburant }).eq('id', e.location_id)).error);
     await supabase.from('vehicules').update({ statut: 'loue', km: e.km }).eq('id', l.vehicule_id);
     await journal(e.location_id, l.vehicule_id, 'Départ', `${e.km} km`);
+    await recalerTraceur(supabase, l.vehicule_id, e.km);
   } else {
     if (l.km_depart !== null && e.km < l.km_depart) throw new Error('Le kilométrage de retour est inférieur à celui du départ.');
     verifier((await supabase.from('etats_des_lieux').update({ statut: 'a_comparer' }).eq('id', edl_id)).error);
@@ -454,6 +458,7 @@ async function _terminerEdl(edl_id: string) {
     verifier((await supabase.from('locations').update({ statut: 'terminee', km_retour: e.km, carburant_retour: e.carburant, fin_reelle: maintenant }).eq('id', e.location_id)).error);
     await supabase.from('vehicules').update({ statut: 'disponible', km: e.km }).eq('id', l.vehicule_id);
     await journal(e.location_id, l.vehicule_id, 'Retour', `${e.km} km`);
+    await recalerTraceur(supabase, l.vehicule_id, e.km);
   }
   rafraichir();
   redirect(e.type === 'retour' ? `/locations/${e.location_id}/comparaison` : `/locations/${e.location_id}`);
@@ -677,6 +682,72 @@ async function _documentAgence(champ: string, chemin: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Suivi GPS (traceurs Seeworld / WhatsGPS)
+
+// Recale le kilométrage : compteur du véhicule et chiffre du traceur au même moment (sans bloquer si le GPS ne répond pas)
+async function recalerTraceur(supabase: any, vehicule_id: string, kmCompteur: number | null) {
+  if (kmCompteur == null) return;
+  try {
+    const { data: v } = await supabase.from('vehicules').select('traceur_id, traceurs(imei)').eq('id', vehicule_id).maybeSingle();
+    const imei = (v as any)?.traceurs?.imei;
+    if (!v?.traceur_id || !imei) return;
+    const e = await imeiDeLAgence(supabase, imei);
+    if (e.kmTraceur == null) return;
+    await supabase.from('traceurs').update({ km_compteur_ref: kmCompteur, km_traceur_ref: e.kmTraceur, ref_le: new Date().toISOString() }).eq('id', v.traceur_id);
+  } catch { /* le suivi GPS ne doit jamais bloquer un état des lieux */ }
+}
+
+async function _relierTraceur(vehicule_id: string, formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const imei = texte(formData.get('imei'))?.replace(/\s/g, '');
+  if (!imei) throw new Error('Choisissez le boîtier à relier.');
+  const e = await imeiDeLAgence(supabase, imei);
+  const { data: v } = await supabase.from('vehicules').select('km, immatriculation').eq('id', vehicule_id).single();
+  const kmCompteur = nombre(formData.get('km')) ?? v?.km ?? null;
+  const ref = kmCompteur != null && e.kmTraceur != null
+    ? { km_compteur_ref: kmCompteur, km_traceur_ref: e.kmTraceur, ref_le: new Date().toISOString() } : {};
+  const { data: existe } = await supabase.from('traceurs').select('id').eq('imei', imei).maybeSingle();
+  let traceur_id = existe?.id;
+  if (traceur_id) verifier((await supabase.from('traceurs').update(ref).eq('id', traceur_id)).error);
+  else {
+    const { data, error } = await supabase.from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld', ...ref }).select('id').single();
+    verifier(error, 'Boîtier');
+    traceur_id = data!.id;
+  }
+  await supabase.from('vehicules').update({ traceur_id: null }).eq('traceur_id', traceur_id).neq('id', vehicule_id);
+  verifier((await supabase.from('vehicules').update({ traceur_id, ...(kmCompteur != null ? { km: kmCompteur } : {}) }).eq('id', vehicule_id)).error);
+  await journal(null, vehicule_id, 'Traceur GPS relié', `IMEI ${imei}`);
+  rafraichir();
+}
+
+async function _delierTraceur(vehicule_id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ traceur_id: null }).eq('id', vehicule_id)).error);
+  await journal(null, vehicule_id, 'Traceur GPS retiré');
+  rafraichir();
+}
+
+async function _moteur(vehicule_id: string, couper: boolean) {
+  const { supabase, profil } = await utilisateurCourant();
+  const { data: v } = await supabase.from('vehicules').select('traceur_id, traceurs(imei)').eq('id', vehicule_id).single();
+  const imei = (v as any)?.traceurs?.imei;
+  if (!imei) throw new Error('Aucun traceur relié à ce véhicule.');
+  await imeiDeLAgence(supabase, imei);
+  const r = await commandeMoteur(imei, couper);
+  await supabase.from('traceurs').update({ moteur_coupe: couper }).eq('id', v!.traceur_id);
+  await journal(null, vehicule_id, couper ? 'Moteur coupé à distance' : 'Moteur remis en route',
+    `${profil.nom}${r.enLigne ? '' : ' · boîtier hors ligne, la commande partira à sa reconnexion'}`);
+  rafraichir();
+  if (!r.enLigne) throw new Error(`Commande enregistrée, mais le boîtier est hors ligne : elle s'appliquera dès qu'il se reconnecte.`);
+}
+
+async function _reporterKm(vehicule_id: string, kmCompteur: number) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ km: Math.round(kmCompteur) }).eq('id', vehicule_id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
 export const ajouterVehicule = proteger(_ajouterVehicule);
 export const majVehicule = proteger(_majVehicule);
 export const statutVehicule = proteger(_statutVehicule);
@@ -724,3 +795,7 @@ export const sortirVehicule = proteger(_sortirVehicule);
 export const photoModele = proteger(_photoModele);
 export const remettreVehicule = proteger(_remettreVehicule);
 export const documentAgence = proteger(_documentAgence);
+export const relierTraceur = proteger(_relierTraceur);
+export const delierTraceur = proteger(_delierTraceur);
+export const moteur = proteger(_moteur);
+export const reporterKm = proteger(_reporterKm);

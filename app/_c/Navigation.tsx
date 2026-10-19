@@ -6,7 +6,7 @@ const principaux: [string, string, string][] = [
   ['/', 'Accueil', '⌂'], ['/planning', 'Planning', '▦'], ['/locations', 'Locations', '⇄'], ['/vehicules', 'Véhicules', '🚗'], ['/clients', 'Clients', '👤'],
 ];
 const autres: [string, string][] = [
-  ['/devis', 'Devis'], ['/amendes', 'Amendes'], ['/entretiens', 'Maintenance'], ['/pilotage', 'Pilotage (argent)'], ['/parametres', 'Réglages'],
+  ['/carte', 'Carte GPS'], ['/devis', 'Devis'], ['/amendes', 'Amendes'], ['/entretiens', 'Maintenance'], ['/pilotage', 'Pilotage (argent)'], ['/parametres', 'Réglages'],
 ];
 
 export default function Navigation({ gerant = true }: { gerant?: boolean }) {

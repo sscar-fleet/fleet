@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { utilisateurCourant } from '@/lib/agence';
 import { chargerLocation } from '@/lib/location';
+import { suiviAgence, kmEstime } from '@/lib/telematique';
 import { photosGuidees, checklistEdl, typeDommage, graviteDommage, statutEdl, km, dateHeure, euros, libellePosition } from '@/lib/format';
 import * as A from '../../../../actions';
 import Cadre from '../../../../_c/Cadre';
@@ -30,7 +31,13 @@ export default async function EtatDesLieux({ params }: { params: { id: string; t
   const suivante = photosGuidees.find((p) => !photo(p.position))?.position;
   const libres = e.photos.filter((p: any) => p.position === 'libre');
   const dommages = d.dommages.filter((x: any) => x.edl_id === e.id);
-  const kmDefaut = e.km ?? (type === 'depart' ? l.km_depart ?? v.km : null);
+  // Kilométrage proposé par le traceur GPS quand rien n'est encore saisi (à vérifier au compteur)
+  let kmGps: number | null = null;
+  if (e.km == null && v.traceur_id) {
+    const [{ data: traceur }, suivi] = await Promise.all([supabase.from('traceurs').select('*').eq('id', v.traceur_id).maybeSingle(), suiviAgence(supabase)]);
+    if (traceur) kmGps = kmEstime(traceur, suivi.etats.get(String(traceur.imei)));
+  }
+  const kmDefaut = e.km ?? kmGps ?? (type === 'depart' ? l.km_depart ?? v.km : null);
 
   return (
     <Cadre retour={{ lien: `/locations/${l.id}`, texte: `Location N° ${l.numero}` }} tables={['photos_edl', 'etats_des_lieux', 'dommages']}
@@ -68,6 +75,7 @@ export default async function EtatDesLieux({ params }: { params: { id: string; t
               kmDepart={type === 'retour' ? (ref?.km ?? l.km_depart) : null} kmInclus={type === 'retour' ? l.km_inclus : null} />
             <Envoyer>Enregistrer le compteur</Envoyer>
           </Formulaire>
+          {kmGps != null && e.km == null && <p className="gris" style={{ fontSize: 13 }}>Kilométrage proposé par le traceur GPS : vérifiez-le au compteur avant d&apos;enregistrer.</p>}
           {type === 'retour' && ref && <p className="gris" style={{ fontSize: 13 }}>Au départ : {km(ref.km)}, carburant {ref.carburant ?? '—'} %.{l.km_inclus != null ? ` Forfait : ${km(l.km_inclus)}.` : ''}</p>}
         </section>
 

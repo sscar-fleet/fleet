@@ -167,7 +167,16 @@ export default async function FicheLocation({ params }: { params: { id: string }
         </details>
         {l.statut === 'reservee' && <Formulaire action={A.annulerLocation.bind(null, l.id)} succes="Réservation annulée" confirmer="Annuler cette réservation ?">
           <Envoyer className="bouton danger">Annuler la réservation</Envoyer></Formulaire>}
-        <p className="gris" style={{ fontSize: 13.5 }}>Blocage du moteur : disponible quand le véhicule aura un traceur relié.</p>
+        {v.traceur_id ? <div className="ligne" style={{ flexWrap: 'wrap' }}>
+          <Formulaire action={A.moteur.bind(null, v.id, true)} succes="Coupure envoyée"
+            confirmer={`Couper le moteur de ${v.immatriculation} ? Le véhicule ne pourra plus redémarrer.`}>
+            <Envoyer className="bouton danger">Couper le moteur</Envoyer>
+          </Formulaire>
+          <Formulaire action={A.moteur.bind(null, v.id, false)} succes="Moteur remis en route" confirmer={`Remettre en route le moteur de ${v.immatriculation} ?`}>
+            <Envoyer className="bouton">Remettre en route</Envoyer>
+          </Formulaire>
+          <a className="bouton" href={`/vehicules/${v.id}`}>Voir sur la carte</a>
+        </div> : <p className="gris" style={{ fontSize: 13.5 }}>Blocage du moteur : reliez un traceur GPS depuis la fiche du véhicule.</p>}
       </> : <p className="gris">Location {statutLocation[l.statut].toLowerCase()} : plus rien à modifier.</p>}
       <Formulaire action={A.noteLocation.bind(null, l.id)} className="grille" style={{ marginTop: 8 }} succes="Note enregistrée">
         <label className="pleine">Note<input name="note" defaultValue={l.note ?? ''} /></label>

@@ -398,3 +398,15 @@ input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 1; }
 .logo-fiche { display: grid; place-items: center; padding: 24px; background: #fff; border-radius: 12px; }
 .logo-marque.grand { width: 180px; height: 110px; object-fit: contain; display: block; }
 .apercu-modele img { object-fit: contain !important; background: #fff; padding: 8px; }
+
+/* Suivi GPS */
+.carte-gps { width: 100%; border-radius: 12px; overflow: hidden; border: 1px solid var(--bord); background: var(--panneau2); z-index: 0; position: relative; }
+.carte-gps .leaflet-popup-content { font-size: 14px; line-height: 1.4; }
+.carte-gps .leaflet-popup-content a { color: #0ea896; font-weight: 600; }
+.repere-gps { position: relative; }
+.repere-gps span { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+.repere-gps b { position: absolute; left: 14px; top: -11px; white-space: nowrap; background: #0b0f12; color: #fff; font: 600 12px/1 system-ui, sans-serif; padding: 5px 7px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.pastille.gps-roule { background: color-mix(in srgb, var(--vert) 18%, transparent); color: var(--vert); }
+.pastille.gps-arret { background: color-mix(in srgb, var(--turquoise) 16%, transparent); color: var(--turquoise); }
+.pastille.gps-coupe { background: color-mix(in srgb, var(--rouge) 18%, transparent); color: var(--rouge); }
+.pastille.gps-hors_ligne { background: color-mix(in srgb, var(--gris) 18%, transparent); color: var(--gris); }
