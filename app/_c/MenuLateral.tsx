@@ -27,7 +27,7 @@ function Icone({ nom }: { nom: Ico }) {
 
 const GROUPES: { titre: string; liens: [string, string, Ico][] }[] = [
   { titre: 'Au quotidien', liens: [['/', 'Accueil', 'accueil'], ['/planning', 'Planning', 'planning'], ['/locations', 'Locations', 'locations'], ['/vehicules', 'Véhicules', 'vehicules'], ['/clients', 'Clients', 'clients']] },
-  { titre: 'Suivi', liens: [['/carte', 'Carte GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/entretiens', 'Maintenance', 'entretiens']] },
+  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/entretiens', 'Maintenance', 'entretiens']] },
   { titre: 'Gestion', liens: [['/pilotage', 'Pilotage', 'pilotage'], ['/devis', 'Devis', 'devis'], ['/parametres', 'Réglages', 'reglages']] },
 ];
 
