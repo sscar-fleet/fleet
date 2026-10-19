@@ -59,8 +59,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false }: { lignes:
       if (!carte.current) {
         carte.current = L.map(boite.current, { zoomControl: false, attributionControl: true }).setView([48.8566, 2.3522], 11);
         L.control.zoom({ position: 'bottomright' }).addTo(carte.current);
-        const sombre = document.documentElement.dataset.theme !== 'clair';
-        L.tileLayer(`https://{s}.basemaps.cartocdn.com/${sombre ? 'dark_all' : 'rastertiles/voyager'}/{z}/{x}/{y}{r}.png`, { maxZoom: 19, attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(carte.current);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, className: 'suivi-tuiles', attribution: '&copy; OpenStreetMap' }).addTo(carte.current);
         calque.current = L.layerGroup().addTo(carte.current);
       }
       calque.current.clearLayers(); reperes.current = {};
