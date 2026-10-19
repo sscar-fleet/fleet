@@ -413,3 +413,31 @@ input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 1; }
 
 /* Immatriculations en majuscules, sans tirets à taper */
 input[name="immatriculation"] { text-transform: uppercase; }
+
+/* Page publique de signature du contrat (vue par le client du loueur, toujours en clair) */
+.signer { min-height: 100vh; background: #f3f5f7; color: #0b1215; color-scheme: light; display: grid; place-items: start center; padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 32px max(16px, env(safe-area-inset-left)); }
+.signer-carte { width: 100%; max-width: 560px; background: #fff; border: 1px solid #d9e0e5; border-radius: 16px; padding: 22px; display: grid; gap: 14px; border-top: 5px solid var(--accent, #0ea896); }
+.signer h1 { font-size: 22px; margin: 0; }
+.signer-agence { margin: 0; font-weight: 700; color: #0b1215; text-transform: uppercase; letter-spacing: .06em; font-size: 13px; }
+.signer-client { margin: 0; color: #2a3840; }
+.signer-infos { display: grid; gap: 0; margin: 0; border: 1px solid #e3e9ec; border-radius: 12px; overflow: hidden; }
+.signer-infos div { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid #eef2f4; }
+.signer-infos div:last-child { border-bottom: 0; }
+.signer-infos dt { color: #56656e; }
+.signer-infos dd { margin: 0; font-weight: 600; text-align: right; }
+.signer-conditions summary { cursor: pointer; font-weight: 600; color: #2a3840; }
+.signer-conditions p { white-space: pre-wrap; font-size: 13px; color: #2a3840; max-height: 260px; overflow: auto; }
+.signer-zone { display: grid; gap: 10px; }
+.signer-case { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }
+.signer-case input { width: 22px; height: 22px; flex: none; margin-top: 1px; }
+.signer-consigne { margin: 0; color: #56656e; font-size: 14px; }
+.signer-canvas { width: 100%; height: 180px; border: 2px dashed #b9c5cc; border-radius: 12px; background: #fff; }
+.signer-boutons { display: flex; gap: 10px; }
+.signer-boutons button { flex: 1; min-height: 52px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; border: 1px solid #d9e0e5; }
+.signer-secondaire { background: #fff; color: #0b1215; }
+.signer-principal { background: #0b1215; color: #fff; border-color: transparent !important; }
+.signer-boutons button:disabled { opacity: .45; cursor: default; }
+.signer-ok { margin: 0; padding: 14px; border-radius: 12px; background: #e8f7f1; color: #136c4a; font-weight: 600; }
+.signer-erreur { margin: 0; color: #dc2626; }
+.signer-aide { margin: 0; color: #56656e; font-size: 13px; }
+.signature-distance { display: grid; gap: 6px; margin-top: 12px; padding: 12px; border: 1px dashed var(--bord); border-radius: 12px; }

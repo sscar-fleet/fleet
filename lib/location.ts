@@ -20,7 +20,7 @@ export async function chargerLocation(supabase: any, agenceId: string, id: strin
   const vehicule = { immatriculation: v.immatriculation, marque: v.marque, modele: v.modele, carburant: v.carburant };
   const client = { nom: c.nom, prenom: c.prenom, telephone: c.telephone, email: c.email, adresse: c.adresse,
     date_naissance: c.date_naissance, date_permis: c.date_permis, numero_permis: c.numero_permis };
-  const location = { ...l, vehicules: undefined, clients: undefined, etats_des_lieux: undefined, signature: liens[l.signature_contrat_path] ?? null };
+  const location = { ...l, vehicules: undefined, clients: undefined, etats_des_lieux: undefined, signature: liens[l.signature_contrat_path] ?? l.signature_distance ?? null };
   const dommagesDoc = (dommages ?? []).map((d: any) => ({ ...d, photo_zone: liens[d.photo_zone_path] ?? null, photo_gros_plan: liens[d.photo_gros_plan_path] ?? null }));
   const edlDoc = (type: 'depart' | 'retour') => {
     const e = edls.find((x) => x.type === type);

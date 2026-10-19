@@ -70,7 +70,7 @@ export default async function Parametres() {
         </section>
       </div>
       <section className="carte" style={{ marginTop: 16 }}>
-        <h2>Accès ({utilisateurs?.length ?? 0} sur {a.acces_inclus} inclus)</h2>
+        <h2>Accès ({utilisateurs?.length ?? 0}) <span className="gris" style={{ fontWeight: 400, fontSize: 14 }}>· illimités</span></h2>
         {utilisateurs?.map((u: any) => (
           <div key={u.id} className="fichier">
             <span>{u.nom}{u.email ? <span className="gris"> · {u.email}</span> : null}</span>

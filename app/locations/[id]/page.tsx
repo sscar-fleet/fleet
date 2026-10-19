@@ -12,6 +12,8 @@ import Envoyer from '../../_c/Envoyer';
 import Fichier from '../../_c/Fichier';
 import Signature from '../../_c/Signature';
 import BoutonPdf from '../../_c/BoutonPdf';
+import Copier from '../../_c/Copier';
+import { headers } from 'next/headers';
 import Onglets from '../../_c/Onglets';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,11 @@ export default async function FicheLocation({ params }: { params: { id: string }
   const jours = joursEntre(l.debut, l.fin_reelle ?? l.fin_prevue);
   const ouverts = d.dommages.filter((x: any) => x.statut === 'ouvert').length;
   const base = { agence: d.agence, location: d.location, vehicule: d.vehicule, client: d.client };
+  // Lien de signature à distance, envoyé au client par WhatsApp ou e-mail
+  const hd = headers();
+  const lienSignature = l.jeton_signature ? `${hd.get('x-forwarded-proto') ?? 'https'}://${hd.get('host')}/signer/${l.jeton_signature}` : null;
+  const signe = !!(l.signature_contrat_path || l.signature_distance);
+  const msgSignature = `Bonjour ${c.prenom ?? ''}, voici votre contrat de location ${d.agence.nom} à vérifier et signer depuis votre téléphone : ${lienSignature}`;
   const nomFichier = (t: string) => `${t}-${String(l.numero).padStart(5, '0')}-${v.immatriculation}.pdf`;
   const kmParcourus = l.km_retour != null && l.km_depart != null ? l.km_retour - l.km_depart : null;
 
@@ -135,8 +142,21 @@ export default async function FicheLocation({ params }: { params: { id: string }
   const documents = (
     <section className="carte">
       <h2>Contrat et facture</h2>
-      <Signature agenceId={profil.agence_id} dossier={`locations/${l.id}`} lien={d.location.signature} libelle="Le client signe le contrat ici"
-        action={A.signatureContrat.bind(null, l.id)} />
+      {l.signature_distance && !l.signature_contrat_path
+        ? <div className="fichier"><span>Contrat signé à distance{l.signe_distance_le ? ` le ${dateHeure(l.signe_distance_le)}` : ''}</span><img src={l.signature_distance} alt="Signature du client" style={{ height: 48, background: '#fff', borderRadius: 6 }} /></div>
+        : <Signature agenceId={profil.agence_id} dossier={`locations/${l.id}`} lien={d.location.signature} libelle="Le client signe le contrat ici"
+            action={A.signatureContrat.bind(null, l.id)} />}
+      {!signe && lienSignature && (l.statut === 'reservee' || l.statut === 'en_cours') && (
+        <div className="signature-distance">
+          <b>Ou faites-le signer à distance</b>
+          <span className="gris">Le client reçoit un lien, vérifie sa location et signe sur son téléphone.</span>
+          <div className="ligne" style={{ flexWrap: 'wrap' }}>
+            {c.telephone && <a className="bouton petit principal" target="_blank" rel="noreferrer" href={lienWhatsApp(c.telephone, msgSignature)}>Envoyer par WhatsApp</a>}
+            {c.email && <a className="bouton petit" href={`mailto:${c.email}?subject=${encodeURIComponent(`Votre contrat de location ${d.agence.nom}`)}&body=${encodeURIComponent(msgSignature)}`}>Envoyer par e-mail</a>}
+            <Copier texte={lienSignature} />
+          </div>
+        </div>
+      )}
       <div className="ligne" style={{ marginTop: 14 }}>
         <BoutonPdf genre="contrat" nom={nomFichier('contrat')} libelle="Contrat PDF" donnees={base} />
         {d.agence.facture_auto ? <BoutonPdf genre="facture" nom={nomFichier('facture')} libelle="Facture PDF" donnees={base} /> : <span className="gris">Facture désactivée dans Réglages</span>}
