@@ -14,6 +14,7 @@ export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any |
     return (
       <section className="carte">
         <h2>Suivi GPS</h2>
+        {suivi.actif && suivi.demo && <p className="gris" style={{ marginTop: 0 }}>Aperçu avec des boîtiers fictifs, en attendant les clés WhatsGPS.</p>}
         {!suivi.actif ? <p className="gris" style={{ margin: 0 }}>{suivi.raison}</p>
           : !suivi.disponibles.length ? <p className="gris" style={{ margin: 0 }}>Tous les boîtiers de votre compte sont déjà reliés à un véhicule.</p>
           : (
@@ -40,6 +41,7 @@ export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any |
         {etat && <span className={`pastille gps-${etat}`}>{libelle[etat]}</span>}
       </div>
       {!suivi.actif && <p className="gris">{suivi.raison}</p>}
+      {suivi.actif && suivi.demo && <p className="gris" style={{ marginTop: 0 }}>Aperçu : position et kilométrage fictifs, la coupure moteur ne fait rien.</p>}
       {suivi.actif && !e && <p className="gris">Le boîtier IMEI {traceur.imei} ne répond pas sur le compte de suivi.</p>}
       {e?.lat != null && e.lng != null && (
         <CarteGps hauteur={260} points={[{ id: v.id, lat: e.lat, lng: e.lng, titre: v.immatriculation, detail: depuis(e.le), etat: etat ?? 'arret' }]} />

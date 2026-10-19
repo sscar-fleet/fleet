@@ -21,6 +21,30 @@ export type EtatTraceur = {
   alerte: string | null;
 };
 
+// Tant que les clés ne sont pas là, une flotte fictive permet de voir le rendu (positions autour de Paris)
+export const whatsgpsDemo = () => !whatsgpsConfigure();
+const lieuxDemo: [number, number, string][] = [
+  [48.8432, 2.2946, 'Paris 15e'], [48.8920, 2.2380, 'La Défense'], [48.7262, 2.3652, 'Orly'],
+  [48.9245, 2.3602, 'Saint-Denis'], [48.8350, 2.2410, 'Boulogne'], [48.8476, 2.4390, 'Vincennes'],
+];
+function etatsDemo(): EtatTraceur[] {
+  const t = Date.now() / 1000;
+  return lieuxDemo.map(([lat, lng], i) => {
+    const roule = i % 3 === 0;
+    const derive = roule ? 0.004 : 0.0003;
+    return {
+      imei: `86000000000000${i + 1}`, carId: i + 1,
+      lat: lat + Math.sin(t / 90 + i) * derive, lng: lng + Math.cos(t / 90 + i) * derive,
+      vitesse: roule ? 35 + Math.round(Math.abs(Math.sin(t / 30 + i)) * 40) : 0,
+      contact: roule || i === 1, enLigne: i !== 5, enMouvement: roule,
+      le: new Date(Date.now() - (i === 5 ? 3 * 3600_000 : 20_000)).toISOString(),
+      signal: new Date().toISOString(),
+      kmTraceur: 12_000 + i * 3_100 + Math.round((t - 1_792_000_000) / 3600),
+      alerte: i === 4 ? 'Vibration détectée' : null,
+    };
+  });
+}
+
 export const whatsgpsConfigure = () =>
   !!(process.env.WHATSGPS_APP_KEY && process.env.WHATSGPS_SECRET_KEY && process.env.WHATSGPS_COMPTE && process.env.WHATSGPS_MOT_DE_PASSE);
 
@@ -111,6 +135,7 @@ function etat(d: any): EtatTraceur {
 
 // Toute la flotte d'un compte WhatsGPS en un seul appel. compteId vide = compte principal.
 export async function etatsDuCompte(compteId?: number | string | null): Promise<EtatTraceur[]> {
+  if (whatsgpsDemo()) return etatsDemo();
   const cle = String(compteId ?? 'principal');
   const m = memoire.get(cle);
   if (m && Date.now() - m.quand < 15_000) return m.etats;
@@ -123,6 +148,7 @@ export async function etatsDuCompte(compteId?: number | string | null): Promise<
 
 // Coupure (couper = true) ou remise en route du moteur. Renvoie si le boîtier était en ligne.
 export async function commandeMoteur(imei: string, couper: boolean): Promise<{ enLigne: boolean; numero: string | null }> {
+  if (whatsgpsDemo()) return { enLigne: true, numero: 'demo' };
   const data = await appel('/remoteControl/controlPoil.do', { corps: { imei, on: couper ? 1 : 0 } });
   memoire.clear();
   return { enLigne: data?.online !== false, numero: data?.serNO ?? null };

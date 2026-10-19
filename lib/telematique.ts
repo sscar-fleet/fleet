@@ -1,10 +1,10 @@
 // Suivi GPS à l'échelle de l'agence : seuls les traceurs du compte de l'agence sont visibles.
-import { etatsDuCompte, whatsgpsConfigure, type EtatTraceur } from './whatsgps';
+import { etatsDuCompte, whatsgpsDemo, type EtatTraceur } from './whatsgps';
 
 export type { EtatTraceur };
 export type Suivi =
   | { actif: false; raison: string; etats: Map<string, EtatTraceur>; disponibles: EtatTraceur[] }
-  | { actif: true; raison?: undefined; etats: Map<string, EtatTraceur>; disponibles: EtatTraceur[] };
+  | { actif: true; raison?: undefined; demo: boolean; etats: Map<string, EtatTraceur>; disponibles: EtatTraceur[] };
 
 const vide = (raison: string): Suivi => ({ actif: false, raison, etats: new Map(), disponibles: [] });
 
@@ -13,7 +13,6 @@ export async function suiviAgence(supabase: any): Promise<Suivi> {
   const { data: compte, error } = await supabase.from('telematique').select('fournisseur, compte_externe_id').maybeSingle();
   if (error) return vide('Suivi GPS en cours d’installation.');
   if (!compte) return vide('Le suivi GPS n’est pas activé pour votre agence. Demandez-le à SS CAR SYSTEM.');
-  if (!whatsgpsConfigure()) return vide('Le suivi GPS sera actif dès que les clés WhatsGPS seront ajoutées.');
   try {
     const [tous, { data: traceurs }] = await Promise.all([
       etatsDuCompte(compte.compte_externe_id),
@@ -22,7 +21,7 @@ export async function suiviAgence(supabase: any): Promise<Suivi> {
     const relies = new Set((traceurs ?? []).map((t: any) => String(t.imei)));
     const etats = new Map<string, EtatTraceur>();
     tous.forEach((e) => { if (relies.has(e.imei)) etats.set(e.imei, e); });
-    return { actif: true, etats, disponibles: tous.filter((e) => !relies.has(e.imei)) };
+    return { actif: true, demo: whatsgpsDemo(), etats, disponibles: tous.filter((e) => !relies.has(e.imei)) };
   } catch (e: any) {
     return vide(e?.message || 'Suivi GPS momentanément indisponible.');
   }

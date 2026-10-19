@@ -30,6 +30,7 @@ export default async function CarteFlotte() {
   return (
     <Cadre titre="Carte GPS" tables={['vehicules']}>
       {!suivi.actif && <div className="alerte-bandeau">{suivi.raison}</div>}
+      {suivi.actif && suivi.demo && <div className="alerte-bandeau">Aperçu : positions fictives en attendant les clés WhatsGPS. Reliez un boîtier « démo » depuis la fiche d&apos;un véhicule.</div>}
       {suivi.actif && <CarteGps points={points} hauteur={460} />}
       <section className="carte" style={{ marginTop: 16 }}>
         <h2>Véhicules suivis ({lignes.length - sansTraceur})</h2>
