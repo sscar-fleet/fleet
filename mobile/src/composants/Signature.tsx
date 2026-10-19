@@ -1,0 +1,52 @@
+// Le client signe avec le doigt. L'image est produite pour le PDF.
+import { useRef, useState } from 'react';
+import { PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+import { useCouleurs } from '@/lib/theme';
+
+const H = 220;
+
+export default function Signature({ onChange }: { onChange: (traits: string[], largeur: number) => void }) {
+  const c = useCouleurs();
+  const [traits, setTraits] = useState<string[]>([]);
+  const courant = useRef('');
+  const largeur = useRef(320);
+  const maj = (t: string[]) => { setTraits(t); onChange(t, largeur.current); };
+
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (e) => { const { locationX: x, locationY: y } = e.nativeEvent; courant.current = `M${x.toFixed(1)} ${y.toFixed(1)}`; setTraits((t) => [...t, courant.current]); },
+    onPanResponderMove: (e) => {
+      const { locationX: x, locationY: y } = e.nativeEvent;
+      courant.current += ` L${x.toFixed(1)} ${y.toFixed(1)}`;
+      setTraits((t) => [...t.slice(0, -1), courant.current]);
+    },
+    onPanResponderRelease: () => { setTraits((t) => { onChange(t, largeur.current); return t; }); },
+  })).current;
+
+  return (
+    <View style={{ gap: 8 }}>
+      <View onLayout={(e) => { largeur.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}
+        style={{ height: H, borderRadius: 16, backgroundColor: '#fff', borderWidth: 2, borderColor: traits.length ? c.accent : c.bord, overflow: 'hidden', ...((Platform.OS === 'web' ? { touchAction: 'none', userSelect: 'none', cursor: 'crosshair' } : {}) as object) }}>
+        <Svg width="100%" height={H} pointerEvents="none">
+          {traits.map((d, i) => <Path key={i} d={d} stroke="#0b1215" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />)}
+        </Svg>
+        {!traits.length && <Text pointerEvents="none" style={{ position: 'absolute', alignSelf: 'center', top: H / 2 - 12, color: '#8a99a3', fontSize: 17 }}>Le client signe ici avec le doigt</Text>}
+      </View>
+      {traits.length > 0 && <Pressable onPress={() => maj([])} hitSlop={10}><Text style={{ color: c.gris, fontSize: 15 }}>Effacer et recommencer</Text></Pressable>}
+    </View>
+  );
+}
+
+// Transforme les traits en image PNG (navigateur). Sur téléphone natif : prochaine étape (capture de vue).
+export async function signatureEnImage(traits: string[], largeur: number): Promise<string | null> {
+  if (Platform.OS !== 'web' || !traits.length) return null;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${largeur}" height="${H}" viewBox="0 0 ${largeur} ${H}">${traits.map((d) => `<path d="${d}" stroke="#0b1215" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`;
+  const img = new (globalThis as any).Image();
+  await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
+  const canvas = (globalThis as any).document.createElement('canvas');
+  canvas.width = largeur * 2; canvas.height = H * 2;
+  const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}

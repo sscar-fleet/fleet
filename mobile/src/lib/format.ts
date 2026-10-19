@@ -8,3 +8,9 @@ export const nomVehicule = (v?: { marque: string | null; modele: string | null; 
 export const estAujourdhui = (d: string) => new Date(d).toDateString() === new Date().toDateString();
 export const enRetard = (d: string) => new Date(d).getTime() < Date.now();
 export const statutAmende: Record<string, string> = { a_designer: 'À désigner', infos_manquantes: 'Infos manquantes', designee: 'Désignée', refusee: 'Refusée', payee: 'Payée' };
+export const statutVehicule: Record<string, string> = { disponible: 'Disponible', loue: 'Loué', maintenance: 'Maintenance', hors_service: 'Hors service', sorti: 'Sorti' };
+export const km = (n?: number | null) => (n == null ? '—' : `${n.toLocaleString(fr)} km`);
+export const dateCourte = (d?: string | null) => (d ? new Date(d).toLocaleDateString(fr, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
+// Échéance : rouge si dépassée, orange à moins de 30 jours
+export const echeance = (d?: string | null) => { if (!d) return ''; const r = new Date(d).getTime() - Date.now(); return r < 0 ? 'depasse' : r < 30 * 864e5 ? 'proche' : ''; };
+export const telInternational = (t?: string | null) => (t ?? '').replace(/[^\d+]/g, '').replace(/^0/, '33').replace(/^\+/, '');

@@ -1,7 +1,7 @@
 // Le reste, en court : compte, synchro, position des véhicules (quand les traceurs seront branchés)
 import { useCallback, useState } from 'react';
 import { Linking } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Texte, Titre } from '@/composants/ui';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/session';
@@ -21,6 +21,9 @@ export default function Plus() {
         <Texte gras>{profil?.nom ?? session?.user.email}</Texte>
         <Texte gris>{profil?.agence} · {profil?.role === 'gerant' ? 'Gérant' : 'Employé'}</Texte>
       </Carte>
+
+      <GrosBouton secondaire titre="Clients" onPress={() => router.push('/clients')} />
+      <GrosBouton secondaire titre="Nouvelle location" onPress={() => router.push('/nouvelle')} />
 
       <Titre>Envoi des données</Titre>
       <Carte>

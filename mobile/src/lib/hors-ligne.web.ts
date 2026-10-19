@@ -13,6 +13,10 @@ export async function garder(cle: string, valeur: unknown) { ecrireJson('fleet-c
 export async function relire<T>(cle: string) { return lireJson<{ valeur: T; majLe: string } | null>('fleet-cache-' + cle, null); }
 
 export async function enLigne() { return typeof navigator === 'undefined' ? true : navigator.onLine; }
+// Erreur de données (refus de la base) : on met de côté au lieu de bloquer la file
+const estRefus = (e: unknown) => !!(e && typeof e === 'object' && ('code' in e || 'statusCode' in e));
+export let dernierRefus = '';
+
 export async function enAttente() { return lireJson<Operation[]>('fleet-file', []).length; }
 
 export async function mettreEnFile(op: Operation) {
@@ -38,7 +42,7 @@ export async function envoyerFile() {
   try {
     let file = lireJson<Operation[]>('fleet-file', []);
     while (file.length) {
-      try { await executer(file[0]); } catch { break; }
+      try { await executer(file[0]); } catch (e) { if (!estRefus(e)) break; dernierRefus = (e as any).message ?? 'refusé'; }
       file = file.slice(1); ecrireJson('fleet-file', file);
     }
   } finally { enCours = false; }

@@ -11,6 +11,7 @@ function Navigation() {
   const { session, pret } = useSession();
   const c = useCouleurs();
   useEffect(() => { if (session) envoyerFile().catch(() => {}); }, [session]);
+  const entete = { headerShown: true, title: '', headerBackTitle: 'Retour', headerTintColor: c.accent, headerStyle: { backgroundColor: c.fond }, headerShadowVisible: false };
   if (!pret) return <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center' }}><Chargement /></View>;
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.fond } }}>
@@ -19,8 +20,13 @@ function Navigation() {
       </Stack.Protected>
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(onglets)" />
-        <Stack.Screen name="location/[id]" options={{ headerShown: true, title: '', headerBackTitle: 'Retour', headerTintColor: c.accent, headerStyle: { backgroundColor: c.fond } }} />
+        <Stack.Screen name="location/[id]" options={entete} />
         <Stack.Screen name="edl/[id]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="nouvelle" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="amende" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="vehicule/[id]" options={entete} />
+        <Stack.Screen name="client/[id]" options={entete} />
+        <Stack.Screen name="clients" options={entete} />
       </Stack.Protected>
     </Stack>
   );

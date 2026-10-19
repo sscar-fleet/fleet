@@ -21,7 +21,7 @@ export default function Aujourdhui() {
   return (
     <Ecran titre={`Bonjour${profil?.nom ? ' ' + profil.nom.split(' ')[0] : ''}`} sousTitre={`${date} · ${profil?.agence ?? ''}`} rafraichir={recharger} enChargement={enChargement && !!donnees} haut={<Logo largeur={110} />}
       bas={prochain ? <GrosBouton titre={prochain.genre === 'depart' ? `Faire partir ${prochain.l.vehicules?.immatriculation ?? ''}` : `Récupérer ${prochain.l.vehicules?.immatriculation ?? ''}`}
-        onPress={() => router.push({ pathname: '/location/[id]', params: { id: prochain.l.id } })} /> : undefined}>
+        onPress={() => router.push({ pathname: '/location/[id]', params: { id: prochain.l.id } })} /> : <GrosBouton titre="+ Nouvelle location" onPress={() => router.push('/nouvelle')} />}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       {!donnees && !erreur && <Chargement />}
       {erreur && !donnees && <Vide titre="Impossible de charger la journée" texte={erreur} />}

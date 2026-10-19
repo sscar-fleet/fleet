@@ -38,6 +38,10 @@ export async function mettreEnFile(op: Operation) {
   await d.runAsync('insert into file (op) values (?)', JSON.stringify(op));
   envoyerFile().catch(() => {});
 }
+// Erreur de données (refus de la base) : on met de côté au lieu de bloquer la file
+const estRefus = (e: unknown) => !!(e && typeof e === 'object' && ('code' in e || 'statusCode' in e));
+export let dernierRefus = '';
+
 export async function enAttente() {
   const d = await db();
   return (await d.getFirstAsync<{ n: number }>('select count(*) as n from file'))?.n ?? 0;
@@ -74,9 +78,10 @@ export async function envoyerFile() {
       try {
         await executer(JSON.parse(l.op));
         await d.runAsync('delete from file where id = ?', l.id);
-      } catch {
+      } catch (e) {
+        if (estRefus(e)) { dernierRefus = (e as any).message ?? 'refusé'; await d.runAsync('delete from file where id = ?', l.id); continue; }
         await d.runAsync('update file set essais = essais + 1 where id = ?', l.id);
-        break; // on garde l'ordre : on réessaiera au prochain retour du réseau
+        break; // coupure réseau : on garde l'ordre et on réessaiera au retour du réseau
       }
     }
   } finally {

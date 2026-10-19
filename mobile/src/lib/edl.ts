@@ -1,6 +1,7 @@
 // État des lieux fait sur le téléphone, même sans réseau : tout part dans la file d'attente
 import { supabase } from './supabase';
 import { enLigne, mettreEnFile } from './hors-ligne';
+import { nouvelId } from './id';
 
 export const POSITIONS = [
   { position: 'face_avant', libelle: 'Face avant' },
@@ -18,9 +19,6 @@ export const POSITIONS = [
 
 export const VOYANTS = { moteur: 'Moteur', huile: 'Huile', batterie: 'Batterie', freins: 'Freins', airbag: 'Airbag', pneus: 'Pression des pneus', temperature: 'Température', abs: 'ABS / ESP', entretien: 'Entretien', autre: 'Autre' };
 
-const uuid = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-  const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-});
 
 // Retrouve l'état des lieux déjà commencé (sur le site ou ici), sinon en prépare un nouveau
 export async function ouvrirEdl(locationId: string, type: 'depart' | 'retour', agenceId: string, auteur: string) {
@@ -28,7 +26,7 @@ export async function ouvrirEdl(locationId: string, type: 'depart' | 'retour', a
     const { data } = await supabase.from('etats_des_lieux').select('id').eq('location_id', locationId).eq('type', type).maybeSingle();
     if (data) return data.id as string;
   }
-  const id = uuid();
+  const id = nouvelId();
   await mettreEnFile({ genre: 'ajout', table: 'etats_des_lieux', champs: { id, agence_id: agenceId, location_id: locationId, type, created_by: auteur } });
   return id;
 }
@@ -54,4 +52,11 @@ export async function terminerEdl(p: {
     await mettreEnFile({ genre: 'maj', table: 'locations', id: p.locationId, champs: { statut: 'terminee', km_retour: p.km, carburant_retour: p.carburant, fin_reelle: maintenant } });
     await mettreEnFile({ genre: 'maj', table: 'vehicules', id: p.vehiculeId, champs: { statut: 'disponible', km: p.km } });
   }
+}
+
+// Signature du client : image envoyée dans le stockage puis rattachée à l'état des lieux
+export async function ajouterSignature(edlId: string, agenceId: string, uri: string) {
+  const chemin = `${agenceId}/edl/${edlId}/signature-${Date.now()}.png`;
+  await mettreEnFile({ genre: 'fichier', chemin, uri, type: 'image/png',
+    ensuite: { genre: 'maj', table: 'etats_des_lieux', id: edlId, champs: { signature_path: chemin } } });
 }

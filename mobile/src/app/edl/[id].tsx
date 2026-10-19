@@ -10,10 +10,11 @@ import { Ecran, GrosBouton, Ligne, Texte, Titre } from '@/composants/ui';
 import { useCouleurs, T } from '@/lib/theme';
 import { useSession } from '@/lib/session';
 import { relire } from '@/lib/hors-ligne';
-import { POSITIONS, VOYANTS, ouvrirEdl, ajouterPhoto, terminerEdl } from '@/lib/edl';
+import { POSITIONS, VOYANTS, ouvrirEdl, ajouterPhoto, terminerEdl, ajouterSignature } from '@/lib/edl';
+import Signature, { signatureEnImage } from '@/composants/Signature';
 import type { LocationLigne } from '@/lib/donnees';
 
-const ETAPES = ['Photos', 'Compteur', 'Vérifications'] as const;
+const ETAPES = ['Photos', 'Compteur', 'Vérifications', 'Signature'] as const;
 
 export default function EtatDesLieux() {
   const c = useCouleurs();
@@ -25,6 +26,7 @@ export default function EtatDesLieux() {
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [km, setKm] = useState('');
   const [carburant, setCarburant] = useState(4); // sur 8
+  const [signature, setSignature] = useState<{ traits: string[]; largeur: number }>({ traits: [], largeur: 320 });
   const [checklist, setChecklist] = useState<Record<string, boolean | string>>({ proprete: true });
 
   useEffect(() => {
@@ -45,7 +47,9 @@ export default function EtatDesLieux() {
   }
 
   async function terminer() {
-    if (!edlId || !vehiculeId) return;
+    if (!edlId || !vehiculeId || !profil) return;
+    const image = await signatureEnImage(signature.traits, signature.largeur).catch(() => null);
+    if (image) await ajouterSignature(edlId, profil.agence_id, image);
     let pos: Location.LocationObject | null = null;
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
@@ -64,10 +68,11 @@ export default function EtatDesLieux() {
     ? (suivante ? <GrosBouton titre={`Photo : ${suivante.libelle}`} onPress={() => photographier(suivante.position)} />
       : <GrosBouton titre="Suivant : compteur" onPress={() => setEtape(1)} />)
     : etape === 1 ? <GrosBouton titre="Suivant : vérifications" desactive={!km} onPress={() => setEtape(2)} />
+    : etape === 2 ? <GrosBouton titre="Suivant : signature du client" onPress={() => setEtape(3)} />
     : <GrosBouton titre={type === 'depart' ? 'Terminer et faire partir' : 'Terminer le retour'} onPress={terminer} />;
 
   return (
-    <Ecran titre={type === 'depart' ? 'État des lieux de départ' : 'État des lieux de retour'} sousTitre={`Étape ${etape + 1} sur 3 · ${ETAPES[etape]}`} bas={bas}>
+    <Ecran titre={type === 'depart' ? 'État des lieux de départ' : 'État des lieux de retour'} sousTitre={`Étape ${etape + 1} sur 4 · ${ETAPES[etape]}`} bas={bas}>
       <Ligne>
         {ETAPES.map((e, i) => (
           <Pressable key={e} onPress={() => setEtape(i)} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: i <= etape ? c.accent : c.bord }} />
@@ -120,7 +125,12 @@ export default function EtatDesLieux() {
             ))}
           </View>
         </> : null}
-        <Texte gris>La signature du client et la comparaison automatique des photos par l'IA arrivent à l'étape suivante.</Texte>
+      </>}
+
+      {etape === 3 && <>
+        <Texte gris>Le client vérifie le kilométrage ({km || '—'} km) et le carburant ({Math.round((carburant / 8) * 100)} %), puis signe.</Texte>
+        <Signature onChange={(traits, largeur) => setSignature({ traits, largeur })} />
+        <Texte gris taille={14}>Bientôt : l'IA comparera les photos du départ et du retour pour signaler les nouveaux dégâts.</Texte>
       </>}
     </Ecran>
   );

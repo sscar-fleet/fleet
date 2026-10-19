@@ -18,3 +18,13 @@ export const demoAmendes = [
   { id: 'a1', date_infraction: dans(-12, 15), type: 'Excès de vitesse', montant: 135, statut: 'a_designer', lieu: 'Paris 15e', vehicules: { immatriculation: 'IJ789KL' }, clients: { nom: 'Exemple', prenom: 'Yanis' } },
   { id: 'a2', date_infraction: dans(-20, 11), type: 'Stationnement', montant: 35, statut: 'designee', lieu: 'Boulogne', vehicules: { immatriculation: 'AB123CD' }, clients: { nom: 'Exemple', prenom: 'Inès' } },
 ];
+
+export const demoVehicules = [
+  { id: 'v1', immatriculation: 'AB123CD', marque: 'Peugeot', modele: '208', statut: 'disponible', km: 42350, prix_jour: 45, assurance_echeance: dans(60, 0).slice(0, 10), ct_echeance: dans(200, 0).slice(0, 10) },
+  { id: 'v2', immatriculation: 'EF456GH', marque: 'Renault', modele: 'Clio V', statut: 'disponible', km: 61200, prix_jour: 50, assurance_echeance: dans(17, 0).slice(0, 10), ct_echeance: dans(300, 0).slice(0, 10) },
+  { id: 'v3', immatriculation: 'IJ789KL', marque: 'Citroën', modele: 'C3', statut: 'loue', km: 23000, prix_jour: 40, assurance_echeance: dans(120, 0).slice(0, 10), ct_echeance: dans(6, 0).slice(0, 10) },
+  { id: 'v4', immatriculation: 'MN012OP', marque: 'Dacia', modele: 'Sandero', statut: 'loue', km: 88000, prix_jour: 35, assurance_echeance: null, ct_echeance: null },
+  { id: 'v5', immatriculation: 'QR345ST', marque: 'Toyota', modele: 'Yaris', statut: 'maintenance', km: 51000, prix_jour: 48, assurance_echeance: null, ct_echeance: null },
+];
+export const demoClients = [cl('c1', 'Karim', 'Exemple', false), cl('c2', 'Inès', 'Exemple'), cl('c3', 'Yanis', 'Exemple'), cl('c4', 'Sarah', 'Exemple')]
+  .map((c) => ({ ...c, adresse: '8 bd Voltaire, 75011 Paris', date_permis: '2019-05-12' }));
