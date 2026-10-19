@@ -98,3 +98,11 @@ export async function lienPdfEdl(locationId: string, type: 'depart' | 'retour', 
   const r = await api<{ lien: string | null }>('mobile/edl-pdf', { location_id: locationId, type });
   return r.lien;
 }
+
+// Contrat, facture ou état des lieux en PDF (fabriqué sur le serveur, lien valable 30 jours)
+export async function lienDocument(locationId: string, genre: 'contrat' | 'facture' | 'edl_depart' | 'edl_retour'): Promise<string | null> {
+  if (DEMO) { await new Promise((r) => setTimeout(r, 900)); return 'https://exemple.fr/document.pdf'; }
+  if (genre.startsWith('edl')) return lienPdfEdl(locationId, genre === 'edl_depart' ? 'depart' : 'retour');
+  const { api } = await import('./site');
+  return (await api<{ lien: string | null }>('mobile/document', { location_id: locationId, genre })).lien;
+}

@@ -19,7 +19,7 @@ import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
 import { mettreEnFile, enAttente, envoyerFile } from '@/lib/hors-ligne';
 import { prendrePhoto } from '@/lib/photo';
-import { prolonger, lienPdfEdl } from '@/lib/edl';
+import { prolonger, lienDocument } from '@/lib/edl';
 import { useGps, libelleGps, couleurGps, depuis, itineraire, commanderMoteur } from '@/lib/gps';
 import { signatureDistance } from '@/lib/capacites';
 import { urlSite } from '@/lib/site';
@@ -42,6 +42,7 @@ export default function FicheLocation() {
   const [envoiMoteur, setEnvoiMoteur] = useState(false);
   const [feuilleFin, setFeuilleFin] = useState<Date | null>(null);
   const [attente, setAttente] = useState(0);
+  const [docEnCours, setDocEnCours] = useState<string | null>(null);
   useEffect(() => { const lire = () => enAttente().then(setAttente).catch(() => {}); lire(); const t = setInterval(lire, 3000); return () => clearInterval(t); }, []);
   const [occupations, setOccupations] = useState<LocationLigne[]>([]);
   useEffect(() => { chargerLocations().then((r) => setOccupations(r.donnees)).catch(() => {}); }, []);
@@ -116,11 +117,24 @@ export default function FicheLocation() {
     toast('Retour validé : la voiture est disponible');
     setTimeout(recharger, 2500);
   }
-  async function ouvrirPdf(type: 'depart' | 'retour') {
-    toast('Préparation du PDF…', 'info');
-    try { const lien = await lienPdfEdl(l.id, type); if (lien) Linking.openURL(lien); else toast('Photos encore en cours d’envoi, réessayez dans un instant', 'alerte'); }
-    catch (e: any) { toast(e?.message ?? 'PDF impossible', 'alerte'); }
+  // Ouvrir le PDF, ou l'envoyer au client par WhatsApp avec le lien
+  const NOMS_DOC = { contrat: 'votre contrat de location', facture: 'votre facture', edl_depart: 'l’état des lieux de départ (photos, kilométrage, carburant)', edl_retour: 'l’état des lieux de retour (photos, kilométrage, carburant)' } as const;
+  async function documentPdf(genre: keyof typeof NOMS_DOC, envoyer: boolean) {
+    setDocEnCours(genre + (envoyer ? '-envoi' : ''));
+    try {
+      const lien = await lienDocument(l.id, genre);
+      if (!lien) toast('Photos encore en cours d’envoi, réessayez dans un instant', 'alerte');
+      else if (envoyer) ouvrirWhatsApp(tel, `Bonjour ${cl?.prenom ?? ''}, voici ${NOMS_DOC[genre]} pour la ${nomVehicule(v)} : ${lien}`);
+      else Linking.openURL(lien);
+    } catch (e: any) { toast(e?.message ?? 'PDF impossible', 'alerte'); }
+    setDocEnCours(null);
   }
+  const DocActions = ({ genre }: { genre: keyof typeof NOMS_DOC }) => (
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      <BoutonRond icone={docEnCours === genre ? 'sync' : 'doc'} label="Ouvrir le PDF" onPress={() => documentPdf(genre, false)} />
+      {tel ? <BoutonRond icone={docEnCours === genre + '-envoi' ? 'sync' : 'whatsapp'} label="Envoyer au client" couleur={c.vert} onPress={() => documentPdf(genre, true)} /> : null}
+    </View>
+  );
   const lancerEdl = (type: 'depart' | 'retour') => router.push({ pathname: '/edl/[id]', params: { id: l.id, type } });
 
   const bas = reservee && edlDepart
@@ -236,9 +250,17 @@ export default function FicheLocation() {
         <Rangee icone="bouclier" couleur={c.accent} titre="Caution" sous={l.caution_montant ? CAUTION[l.caution_statut] ?? l.caution_statut : undefined} droite={l.caution_montant ? euros(l.caution_montant) : 'Aucune'} />
         <Rangee icone="jauge" couleur={c.accent} titre="Kilomètres" sous={l.km_inclus && l.prix_km_sup ? `${euros(l.prix_km_sup)} le km en plus` : undefined} droite={l.km_inclus ? km(l.km_inclus) : 'Illimités'} />
         {l.km_depart != null && <Rangee icone="depart" couleur={c.accent} titre="Compteur au départ" droite={km(l.km_depart)} />}
-        <Rangee fin={!edlDepart && !edlRetour} icone="signature" couleur={contratSigne ? c.vert : c.gris} titre="Signature" droite={contratSigne ? 'Signé' : 'Pas encore'} />
-        {edlDepart && <Rangee fin={!edlRetour} icone="doc" couleur={c.bleu} titre="État des lieux de départ" sous="PDF avec les photos" onPress={() => ouvrirPdf('depart')} />}
-        {edlRetour && <Rangee fin icone="doc" couleur={c.bleu} titre="État des lieux de retour" sous="PDF avec les photos" onPress={() => ouvrirPdf('retour')} />}
+        <Rangee fin icone="signature" couleur={contratSigne ? c.vert : c.gris} titre="Signature" droite={contratSigne ? 'Signé' : 'Pas encore'} />
+      </Carte>
+
+      <Titre>Documents</Titre>
+      <Carte style={{ paddingVertical: 4 }}>
+        <Rangee icone="doc" couleur={c.accent} titre="Contrat de location" sous={contratSigne ? 'Signé · PDF' : 'PDF'} chevron={false}
+          droite={<DocActions genre="contrat" />} />
+        {edlDepart && <Rangee icone="photo" couleur={c.bleu} titre="État des lieux de départ" sous="Photos, compteur, carburant" chevron={false} droite={<DocActions genre="edl_depart" />} />}
+        {edlRetour && <Rangee icone="photo" couleur={c.bleu} titre="État des lieux de retour" sous="Photos, compteur, carburant" chevron={false} droite={<DocActions genre="edl_retour" />} />}
+        {finie && <Rangee icone="euro" couleur={c.vert} titre="Facture" sous="PDF" chevron={false} droite={<DocActions genre="facture" />} />}
+        <View style={{ height: 2 }} />
       </Carte>
 
       <Titre>Client</Titre>
