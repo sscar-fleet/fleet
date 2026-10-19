@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ecran, Carte, GrosBouton, Ligne, Texte, Titre, Chargement, BandeauHorsLigne } from '@/composants/ui';
 import CarteLocation from '@/composants/CarteLocation';
 import { chargerClient } from '@/lib/donnees';
+import { api } from '@/lib/site';
+import { DEMO } from '@/lib/demo';
 import { useDonnees } from '@/lib/useDonnees';
 import { mettreEnFile } from '@/lib/hors-ligne';
 import { useSession } from '@/lib/session';
@@ -49,6 +51,10 @@ export default function FicheClient() {
       </Ligne>
 
       <Titre>Papiers</Titre>
+      <GrosBouton icone="photo" titre="Scanner les papiers" sousTitre="Cadre guidé, rendu comme un vrai scan" onPress={async () => {
+        if (DEMO) return;
+        try { const r = await api<{ lien: string }>('scans', { client_id: x.id }); Linking.openURL(r.lien); } catch (e: any) { alert(e.message); }
+      }} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
         {PAPIERS.map(([champ, lib]) => {
           const ok = !!(x as any)[champ];

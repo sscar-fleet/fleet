@@ -1,3 +1,4 @@
+import ScanOrdinateur from '@/app/_c/ScanOrdinateur';
 import PapiersClient, { cheminsPapiers } from '@/app/_c/PapiersClient';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
@@ -59,6 +60,7 @@ export default async function FicheClient({ params }: { params: { id: string } }
         { cle: 'papiers', titre: 'Papiers', contenu: <>
         <section className="carte">
           <h2>Papiers</h2>
+          <ScanOrdinateur clientId={c.id} />
           <PapiersClient c={c} agenceId={profil.agence_id} liens={liens} />
           <p className="gris" style={{ fontSize: 13 }}>Sur le téléphone, « Photo » ouvre directement l&apos;appareil photo.</p>
           <Formulaire action={A.listeNoire.bind(null, c.id, !c.liste_noire)} style={{ marginTop: 10 }} succes={c.liste_noire ? 'Retiré de la liste noire' : 'Ajouté à la liste noire'} confirmer={c.liste_noire ? undefined : 'Mettre ce client en liste noire ?'}>

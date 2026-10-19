@@ -1,11 +1,13 @@
 // Champs d'une fiche client (création et modification)
 import Scanner from './Scanner';
 import ChampAdresse from './ChampAdresse';
+import ScanOrdinateur from './ScanOrdinateur';
 
 export default function ChampsClient({ c = {} as any, obligatoire = true, agenceId }: { c?: any; obligatoire?: boolean; agenceId?: string }) {
   return (
     <>
       {agenceId && <>
+        <ScanOrdinateur clientId={c.id} />
         <Scanner genre="permis" agenceId={agenceId} champChemin="permis_path" libelle="Permis recto : remplissage automatique" />
         <Scanner genre="permis" agenceId={agenceId} champChemin="permis_verso_path" libelle="Permis verso" />
         <Scanner genre="identite" agenceId={agenceId} champChemin="piece_identite_path" libelle="Pièce d'identité recto" />
