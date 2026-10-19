@@ -17,9 +17,9 @@ import { chargerLocation, chargerLocations, voyantsDepart, type LocationLigne } 
 import { useDonnees } from '@/lib/useDonnees';
 import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
-import { mettreEnFile } from '@/lib/hors-ligne';
+import { mettreEnFile, enAttente, envoyerFile } from '@/lib/hors-ligne';
 import { prendrePhoto } from '@/lib/photo';
-import { prolonger } from '@/lib/edl';
+import { prolonger, lienPdfEdl } from '@/lib/edl';
 import { useGps, libelleGps, couleurGps, depuis, itineraire, commanderMoteur } from '@/lib/gps';
 import { signatureDistance } from '@/lib/capacites';
 import { urlSite } from '@/lib/site';
@@ -41,6 +41,8 @@ export default function FicheLocation() {
   const [question, setQuestion] = useState<null | 'moteur' | 'manque' | { prevenir: { fin: string; prix: number | null } }>(null);
   const [envoiMoteur, setEnvoiMoteur] = useState(false);
   const [feuilleFin, setFeuilleFin] = useState<Date | null>(null);
+  const [attente, setAttente] = useState(0);
+  useEffect(() => { const lire = () => enAttente().then(setAttente).catch(() => {}); lire(); const t = setInterval(lire, 3000); return () => clearInterval(t); }, []);
   const [occupations, setOccupations] = useState<LocationLigne[]>([]);
   useEffect(() => { chargerLocations().then((r) => setOccupations(r.donnees)).catch(() => {}); }, []);
   useEffect(() => { signatureDistance().then(setDistance); }, []);
@@ -51,7 +53,6 @@ export default function FicheLocation() {
   const v = l.vehicules;
   const tel = cl?.telephone;
   const reservee = l.statut === 'reservee', enCours = l.statut === 'en_cours', finie = l.statut === 'terminee' || l.statut === 'annulee';
-  const edlFait = (type: string) => l.etats_des_lieux.some((e) => e.type === type && e.statut !== 'en_attente');
   const retard = enCours && enRetard(l.fin_prevue);
   const etatGps = v ? gps.parVehicule[v.id] : undefined;
   const contratSigne = !!(l.signature_contrat_path || l.signe_distance_le);
@@ -96,10 +97,42 @@ export default function FicheLocation() {
   const conflitFin = feuilleFin && suivante && feuilleFin > new Date(suivante.debut);
   const joursEnPlus = feuilleFin ? Math.max(0, Math.ceil((feuilleFin.getTime() - new Date(l.fin_prevue).getTime()) / 864e5 - 0.01)) : 0;
   const lienSignature = l.jeton_signature ? urlSite(`/signer/${l.jeton_signature}`) : null;
+  // État des lieux fini mais location pas encore à jour (envoi interrompu) : on termine d'un geste
+  const edlDepart = l.etats_des_lieux.find((e) => e.type === 'depart' && e.statut !== 'en_attente');
+  const edlRetour = l.etats_des_lieux.find((e) => e.type === 'retour' && e.statut !== 'en_attente');
+  async function validerDepart() {
+    if (!edlDepart || !v) return;
+    await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { statut: 'en_cours', km_depart: edlDepart.km ?? l.km_depart, carburant_depart: edlDepart.carburant ?? null } });
+    await mettreEnFile({ genre: 'maj', table: 'vehicules', id: v.id, champs: { statut: 'loue', ...(edlDepart.km != null ? { km: edlDepart.km } : {}) } });
+    setLocal((x) => ({ ...x, statut: 'en_cours', km_depart: edlDepart.km ?? l.km_depart }));
+    toast('Départ validé : la location est en cours');
+    setTimeout(recharger, 2500);
+  }
+  async function validerRetour() {
+    if (!edlRetour || !v) return;
+    await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { statut: 'terminee', km_retour: edlRetour.km ?? null, carburant_retour: edlRetour.carburant ?? null, fin_reelle: new Date().toISOString() } });
+    await mettreEnFile({ genre: 'maj', table: 'vehicules', id: v.id, champs: { statut: 'disponible', ...(edlRetour.km != null ? { km: edlRetour.km } : {}) } });
+    setLocal((x) => ({ ...x, statut: 'terminee' }));
+    toast('Retour validé : la voiture est disponible');
+    setTimeout(recharger, 2500);
+  }
+  async function ouvrirPdf(type: 'depart' | 'retour') {
+    toast('Préparation du PDF…', 'info');
+    try { const lien = await lienPdfEdl(l.id, type); if (lien) Linking.openURL(lien); else toast('Photos encore en cours d’envoi, réessayez dans un instant', 'alerte'); }
+    catch (e: any) { toast(e?.message ?? 'PDF impossible', 'alerte'); }
+  }
   const lancerEdl = (type: 'depart' | 'retour') => router.push({ pathname: '/edl/[id]', params: { id: l.id, type } });
 
-  const bas = reservee
-    ? <GrosBouton icone="photo" titre={edlFait('depart') ? 'Départ en cours d’envoi…' : 'État des lieux de départ'} desactive={edlFait('depart')}
+  const bas = reservee && edlDepart
+    ? (attente > 0
+      ? <GrosBouton icone="sync" titre="Envoi en cours…" sousTitre={`${attente} élément${attente > 1 ? 's' : ''} à envoyer · touchez pour relancer`} onPress={() => envoyerFile().then(() => enAttente().then(setAttente))} />
+      : <GrosBouton icone="ok" titre="Valider le départ" sousTitre={`État des lieux fait${edlDepart.km != null ? ` · ${km(edlDepart.km)}` : ''}`} onPress={validerDepart} />)
+    : enCours && edlRetour
+    ? (attente > 0
+      ? <GrosBouton icone="sync" titre="Envoi en cours…" sousTitre={`${attente} élément${attente > 1 ? 's' : ''} à envoyer · touchez pour relancer`} onPress={() => envoyerFile().then(() => enAttente().then(setAttente))} />
+      : <GrosBouton icone="ok" titre="Valider le retour" sousTitre={`État des lieux fait${edlRetour.km != null ? ` · ${km(edlRetour.km)}` : ''}`} onPress={validerRetour} />)
+    : reservee
+    ? <GrosBouton icone="photo" titre="État des lieux de départ"
         sousTitre={manque.length ? `${manque.length} point${manque.length > 1 ? 's' : ''} à régler` : 'Tout est prêt'}
         onPress={() => (manque.length ? setQuestion('manque') : lancerEdl('depart'))} />
     : enCours ? <GrosBouton icone="arrivee" titre="État des lieux de retour" sousTitre={retard ? `En retard ${relatif(l.fin_prevue).replace('depuis ', '')}` : `Prévu ${jour(l.fin_prevue)} ${heure(l.fin_prevue)}`} onPress={() => lancerEdl('retour')} />
@@ -203,7 +236,9 @@ export default function FicheLocation() {
         <Rangee icone="bouclier" couleur={c.accent} titre="Caution" sous={l.caution_montant ? CAUTION[l.caution_statut] ?? l.caution_statut : undefined} droite={l.caution_montant ? euros(l.caution_montant) : 'Aucune'} />
         <Rangee icone="jauge" couleur={c.accent} titre="Kilomètres" sous={l.km_inclus && l.prix_km_sup ? `${euros(l.prix_km_sup)} le km en plus` : undefined} droite={l.km_inclus ? km(l.km_inclus) : 'Illimités'} />
         {l.km_depart != null && <Rangee icone="depart" couleur={c.accent} titre="Compteur au départ" droite={km(l.km_depart)} />}
-        <Rangee fin icone="signature" couleur={contratSigne ? c.vert : c.gris} titre="Signature" droite={contratSigne ? 'Signé' : 'Pas encore'} />
+        <Rangee fin={!edlDepart && !edlRetour} icone="signature" couleur={contratSigne ? c.vert : c.gris} titre="Signature" droite={contratSigne ? 'Signé' : 'Pas encore'} />
+        {edlDepart && <Rangee fin={!edlRetour} icone="doc" couleur={c.bleu} titre="État des lieux de départ" sous="PDF avec les photos" onPress={() => ouvrirPdf('depart')} />}
+        {edlRetour && <Rangee fin icone="doc" couleur={c.bleu} titre="État des lieux de retour" sous="PDF avec les photos" onPress={() => ouvrirPdf('retour')} />}
       </Carte>
 
       <Titre>Client</Titre>

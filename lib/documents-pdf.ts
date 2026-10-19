@@ -115,6 +115,13 @@ export async function edlPdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c: Cl
     ['Lieu (GPS)', e.latitude != null ? `${e.latitude.toFixed(5)}, ${e.longitude?.toFixed(5)}` : 'Non disponible'],
     ['Kilométrage', km(e.km)], ['Carburant', e.carburant != null ? e.carburant + ' %' : '—'],
   ]);
+  // Photo du compteur en grand : kilométrage et carburant lisibles, c'est la preuve en cas de désaccord
+  const compteur = e.photos.filter((p) => p.position === 'compteur').pop();
+  if (compteur?.url) {
+    d.section('Compteur (kilométrage et carburant)');
+    const h = await d.image(compteur.url, 300, 190);
+    if (h) d.y -= h + 10;
+  }
   d.section('Vérifications');
   d.infos(checklistEdl.map((x) => [x.libelle, e.checklist?.[x.cle] ? (x.cle === 'voyant' && (e.checklist as any)?.voyant_type ? `Oui : ${voyantsPdf[(e.checklist as any).voyant_type] ?? (e.checklist as any).voyant_type}` : 'Oui') : 'Non'] as [string, string]), 3);
   if (dommages.length) {

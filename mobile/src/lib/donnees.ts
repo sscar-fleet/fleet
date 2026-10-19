@@ -10,10 +10,10 @@ export type LocationLigne = {
   vehicules: { id: string; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null; prix_jour: number | null } | null;
   clients: { id: string; nom: string; prenom: string | null; telephone: string | null; email: string | null;
     permis_path: string | null; piece_identite_path: string | null; liste_noire: boolean } | null;
-  etats_des_lieux: { type: string; statut: string }[];
+  etats_des_lieux: { type: string; statut: string; km?: number | null; carburant?: number | null }[];
 };
 
-const CHAMPS = 'id, numero, debut, fin_prevue, statut, caution_statut, caution_montant, prix_total, km_depart, km_inclus, prix_km_sup, carburant_depart, signature_contrat_path, vehicules(id, immatriculation, marque, modele, statut, km, prix_jour), clients(id, nom, prenom, telephone, email, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut)';
+const CHAMPS = 'id, numero, debut, fin_prevue, statut, caution_statut, caution_montant, prix_total, km_depart, km_inclus, prix_km_sup, carburant_depart, signature_contrat_path, vehicules(id, immatriculation, marque, modele, statut, km, prix_jour), clients(id, nom, prenom, telephone, email, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut, km, carburant)';
 
 export async function avecCache<T>(cle: string, lire: () => Promise<T>): Promise<{ donnees: T; horsLigne: boolean; majLe?: string }> {
   if (DEMO) return { donnees: demo(cle) as T, horsLigne: false };

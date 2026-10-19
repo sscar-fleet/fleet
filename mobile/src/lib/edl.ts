@@ -81,3 +81,20 @@ export async function ajouterSignature(edlId: string, agenceId: string, uri: str
     ensuite: { genre: 'maj', table: 'etats_des_lieux', id: edlId, champs: { signature_path: chemin } } });
   if (contratDe) await mettreEnFile({ genre: 'maj', table: 'locations', id: contratDe, champs: { signature_contrat_path: chemin } });
 }
+
+// PDF de l'état des lieux (photos, compteur, carburant), fabriqué sur le serveur une fois tout envoyé
+export async function lienPdfEdl(locationId: string, type: 'depart' | 'retour', surAttente?: (n: number) => void): Promise<string | null> {
+  if (DEMO) { await new Promise((r) => setTimeout(r, 1200)); return 'https://exemple.fr/etat-des-lieux.pdf'; }
+  const { enAttente, envoyerFile } = await import('./hors-ligne');
+  for (let i = 0; i < 45; i++) {
+    const n = await enAttente();
+    surAttente?.(n);
+    if (!n) break;
+    await envoyerFile().catch(() => {});
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (await enAttente()) return null;
+  const { api } = await import('./site');
+  const r = await api<{ lien: string | null }>('mobile/edl-pdf', { location_id: locationId, type });
+  return r.lien;
+}

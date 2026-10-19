@@ -1,5 +1,5 @@
 // Le client signe avec le doigt. L'image est produite pour le PDF.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useCouleurs } from '@/lib/theme';
@@ -12,6 +12,17 @@ export default function Signature({ onChange }: { onChange: (traits: string[], l
   const courant = useRef('');
   const largeur = useRef(320);
   const maj = (t: string[]) => { setTraits(t); onChange(t, largeur.current); };
+  const zone = useRef<any>(null);
+  // Navigateur (iPhone) : la page ne doit pas défiler pendant que le client signe
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const el = zone.current as unknown as HTMLElement | null;
+    if (!el?.addEventListener) return;
+    const bloquer = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener('touchstart', bloquer, { passive: false });
+    el.addEventListener('touchmove', bloquer, { passive: false });
+    return () => { el.removeEventListener('touchstart', bloquer); el.removeEventListener('touchmove', bloquer); };
+  }, []);
 
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -27,8 +38,8 @@ export default function Signature({ onChange }: { onChange: (traits: string[], l
 
   return (
     <View style={{ gap: 8 }}>
-      <View onLayout={(e) => { largeur.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}
-        style={{ height: H, borderRadius: 16, backgroundColor: '#fff', borderWidth: 2, borderColor: traits.length ? c.accent : c.bord, overflow: 'hidden', ...((Platform.OS === 'web' ? { touchAction: 'none', userSelect: 'none', cursor: 'crosshair' } : {}) as object) }}>
+      <View ref={zone} onLayout={(e) => { largeur.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}
+        style={{ height: H, borderRadius: 16, backgroundColor: '#fff', borderWidth: 2, borderColor: traits.length ? c.accent : c.bord, overflow: 'hidden', ...((Platform.OS === 'web' ? { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', overscrollBehavior: 'contain', cursor: 'crosshair' } : {}) as object) }}>
         <Svg width="100%" height={H} pointerEvents="none">
           {traits.map((d, i) => <Path key={i} d={d} stroke="#0b1215" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />)}
         </Svg>

@@ -11,10 +11,11 @@ import Feuille from '@/composants/Feuille';
 import Fenetre from '@/composants/Fenetre';
 import Icone from '@/composants/Icone';
 import Plaque from '@/composants/Plaque';
+import GuideAngle from '@/composants/GuideAngle';
 import { useToast } from '@/composants/Toast';
 import { useCouleurs, T } from '@/lib/theme';
 import { useSession } from '@/lib/session';
-import { POSITIONS, VOYANTS, TYPES_DEGAT, ouvrirEdl, ajouterPhoto, terminerEdl, ajouterSignature, ajouterDegat } from '@/lib/edl';
+import { POSITIONS, VOYANTS, TYPES_DEGAT, ouvrirEdl, ajouterPhoto, terminerEdl, ajouterSignature, ajouterDegat, lienPdfEdl } from '@/lib/edl';
 import { chargerLocation, photosDepart, type LocationFiche } from '@/lib/donnees';
 import { chargerGps } from '@/lib/gps';
 import { prendrePhoto } from '@/lib/photo';
@@ -49,6 +50,7 @@ export default function EtatDesLieux() {
   const [question, setQuestion] = useState<null | 'sansSignature' | 'kmBas' | 'quitter'>(null);
   const [fini, setFini] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  const [recap, setRecap] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profil) return;
@@ -101,11 +103,24 @@ export default function EtatDesLieux() {
     setEnvoi(false); setFini(true);
   }
 
+  // Récapitulatif WhatsApp avec le lien du PDF (photos, compteur, carburant)
+  async function envoyerRecap() {
+    if (!l?.clients?.telephone) return;
+    const carb = Math.round((carburant / 8) * 100);
+    setRecap('Préparation du PDF…');
+    let lien: string | null = null;
+    try { lien = await lienPdfEdl(l.id, type, (n) => setRecap(n ? `Envoi des photos (${n} restant${n > 1 ? 's' : ''})…` : 'Préparation du PDF…')); }
+    catch (e: any) { toast(e?.message ?? 'PDF impossible pour le moment', 'alerte'); }
+    if (!lien) toast('PDF pas encore prêt : message envoyé sans le lien', 'alerte');
+    setRecap(null);
+    ouvrirWhatsApp(l.clients.telephone, retour ? msg.recapRetour(l, kmNum, kmFaits, supplement, carb, lien) : msg.recapDepart(l, kmNum, carb, lien));
+  }
+
   // --- Écran de fin : tout est parti (ou en file d'attente)
   if (fini && l) return (
     <Ecran titre={retour ? 'Voiture rendue' : 'Bonne route !'} sousTitre={`${nomClient(l.clients)} · ${nomVehicule(l.vehicules)}`}
       bas={<>
-        {l.clients?.telephone ? <GrosBouton icone="whatsapp" titre="Envoyer le récapitulatif au client" onPress={() => ouvrirWhatsApp(l.clients!.telephone, retour ? msg.recapRetour(l, kmNum, kmFaits, supplement) : msg.recapDepart(l, kmNum))} /> : null}
+        {l.clients?.telephone ? <GrosBouton icone="whatsapp" desactive={!!recap} titre={recap ?? 'Envoyer le récapitulatif et le PDF'} sousTitre={recap ? undefined : 'Photos, kilométrage et carburant'} onPress={envoyerRecap} /> : null}
         <GrosBouton secondaire titre="Retour à la journée" onPress={() => router.dismissTo('/')} />
       </>}>
       <View style={{ alignItems: 'center', paddingVertical: 20, gap: 12 }}>
@@ -143,6 +158,16 @@ export default function EtatDesLieux() {
           <Texte gris taille={15}>{prises}/{POSITIONS.length} photos{nbDegats ? ` · ${nbDegats} dégât${nbDegats > 1 ? 's' : ''}` : ''}</Texte>
           {prises < POSITIONS.length && prises > 0 && <Pressable onPress={() => setEtape(1)}><Text style={{ color: c.gris, fontWeight: '700' }}>Passer</Text></Pressable>}
         </Ligne>
+        {suivante && (
+          <Carte style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <GuideAngle position={suivante.position} couleur={c.accent} trait={c.gris} taille={96} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Texte gris taille={13}>PROCHAINE PHOTO</Texte>
+              <Texte gras taille={19}>{suivante.libelle}</Texte>
+              <Texte gris taille={14}>{suivante.position === 'compteur' ? 'Moteur allumé : kilométrage et jauge de carburant bien lisibles.' : suivante.position.startsWith('roue') ? 'Approchez-vous : la jante et le pneu entiers.' : 'Placez-vous à l’endroit indiqué, la voiture entière dans l’image.'}</Texte>
+            </View>
+          </Carte>
+        )}
         {retour && Object.keys(refs).length > 0 && <Texte gris taille={14}>La photo du départ apparaît en petit dans chaque case : comparez d’un coup d’œil.</Texte>}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {POSITIONS.map((p) => {
@@ -153,7 +178,7 @@ export default function EtatDesLieux() {
               <Pressable key={p.position} onPress={() => (prise ? setOuverte(p.position) : photographier(p.position))}
                 style={{ width: '48.5%', aspectRatio: 4 / 3, borderRadius: 16, overflow: 'hidden', backgroundColor: c.panneau, borderWidth: 2, borderColor: degat ? c.rouge : prise ? c.vert : prochaine ? c.accent : c.bord, justifyContent: 'flex-end' }}>
                 {prise ? <Image source={{ uri: prise }} style={{ position: 'absolute', width: '100%', height: '100%' }} />
-                  : <View style={{ position: 'absolute', top: 0, bottom: 28, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}><Icone nom="photo" couleur={prochaine ? c.accent : c.gris} taille={30} /></View>}
+                  : <View style={{ position: 'absolute', top: 0, bottom: 28, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}><GuideAngle position={p.position} couleur={prochaine ? c.accent : c.texte2} trait={c.gris} taille={74} /></View>}
                 {refs[p.position] ? <Image source={{ uri: refs[p.position] }} style={{ position: 'absolute', top: 6, right: 6, width: '38%', aspectRatio: 4 / 3, borderRadius: 8, borderWidth: 2, borderColor: '#fff' }} /> : null}
                 {prise && <View style={{ position: 'absolute', top: 6, left: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: degat ? c.rouge : c.vert, alignItems: 'center', justifyContent: 'center' }}>
                   <Icone nom={degat ? 'alerte' : 'ok'} couleur="#fff" taille={14} epaisseur={3} /></View>}
