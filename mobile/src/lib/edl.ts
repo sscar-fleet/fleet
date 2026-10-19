@@ -2,6 +2,7 @@
 import { supabase } from './supabase';
 import { enLigne, mettreEnFile } from './hors-ligne';
 import { nouvelId } from './id';
+import { DEMO } from './demo';
 
 export const POSITIONS = [
   { position: 'face_avant', libelle: 'Face avant' },
@@ -17,11 +18,12 @@ export const POSITIONS = [
   { position: 'compteur', libelle: 'Compteur, moteur allumé' },
 ] as const;
 
-export const VOYANTS = { moteur: 'Moteur', huile: 'Huile', batterie: 'Batterie', freins: 'Freins', airbag: 'Airbag', pneus: 'Pression des pneus', temperature: 'Température', abs: 'ABS / ESP', entretien: 'Entretien', autre: 'Autre' };
+export const VOYANTS: Record<string, string> = { moteur: 'Moteur', huile: 'Huile', batterie: 'Batterie', freins: 'Freins', airbag: 'Airbag', pneus: 'Pression des pneus', temperature: 'Température', abs: 'ABS / ESP', entretien: 'Entretien', autre: 'Autre' };
 
 
 // Retrouve l'état des lieux déjà commencé (sur le site ou ici), sinon en prépare un nouveau
 export async function ouvrirEdl(locationId: string, type: 'depart' | 'retour', agenceId: string, auteur: string) {
+  if (DEMO) return nouvelId();
   if (await enLigne()) {
     const { data } = await supabase.from('etats_des_lieux').select('id').eq('location_id', locationId).eq('type', type).maybeSingle();
     if (data) return data.id as string;
@@ -35,6 +37,22 @@ export async function ajouterPhoto(edlId: string, agenceId: string, position: st
   const chemin = `${agenceId}/edl/${edlId}/${position}-${Date.now()}.jpg`;
   await mettreEnFile({ genre: 'fichier', chemin, uri, type: 'image/jpeg',
     ensuite: { genre: 'ajout', table: 'photos_edl', champs: { agence_id: agenceId, edl_id: edlId, position, path: chemin } } });
+  return chemin;
+}
+
+// Dégât repéré pendant l'état des lieux : il part dans la liste des dommages du véhicule
+export const TYPES_DEGAT = { rayure: 'Rayure', bosse: 'Bosse', impact: 'Impact', jante: 'Jante', autre: 'Autre' } as const;
+export async function ajouterDegat(p: { agenceId: string; vehiculeId: string; locationId: string; edlId: string; zone: string; type: keyof typeof TYPES_DEGAT; gravite: 'leger' | 'moyen' | 'grave'; photo?: string }) {
+  await mettreEnFile({ genre: 'ajout', table: 'dommages', champs: {
+    agence_id: p.agenceId, vehicule_id: p.vehiculeId, location_id: p.locationId, edl_id: p.edlId, zone: p.zone, type: p.type, gravite: p.gravite, photo_zone_path: p.photo ?? null } });
+}
+
+// Prolonger une location en cours : nouvelle date de retour, prix ajusté au tarif du jour
+export async function prolonger(l: { id: string; fin_prevue: string; prix_total: number | null; vehicules: { prix_jour: number | null } | null }, jours: number) {
+  const fin = new Date(new Date(l.fin_prevue).getTime() + jours * 864e5).toISOString();
+  const prix = l.vehicules?.prix_jour && l.prix_total != null ? Number(l.prix_total) + Number(l.vehicules.prix_jour) * jours : l.prix_total;
+  await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { fin_prevue: fin, prix_total: prix } });
+  return { fin, prix };
 }
 
 export async function terminerEdl(p: {
@@ -55,8 +73,10 @@ export async function terminerEdl(p: {
 }
 
 // Signature du client : image envoyée dans le stockage puis rattachée à l'état des lieux
-export async function ajouterSignature(edlId: string, agenceId: string, uri: string) {
+// Au départ, la même signature vaut signature du contrat s'il n'était pas encore signé
+export async function ajouterSignature(edlId: string, agenceId: string, uri: string, contratDe?: string) {
   const chemin = `${agenceId}/edl/${edlId}/signature-${Date.now()}.png`;
   await mettreEnFile({ genre: 'fichier', chemin, uri, type: 'image/png',
     ensuite: { genre: 'maj', table: 'etats_des_lieux', id: edlId, champs: { signature_path: chemin } } });
+  if (contratDe) await mettreEnFile({ genre: 'maj', table: 'locations', id: contratDe, champs: { signature_contrat_path: chemin } });
 }

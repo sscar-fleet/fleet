@@ -1,104 +1,257 @@
 // Briques d'écran : tout est gros, lisible et se touche au pouce
-import { ActivityIndicator, Pressable, ScrollView, Text, View, RefreshControl, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View, RefreshControl, Platform, type ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReactNode } from 'react';
 import { useCouleurs, T } from '@/lib/theme';
+import Icone, { type NomIcone } from './Icone';
 
-export function Ecran({ titre, sousTitre, children, rafraichir, enChargement = false, bas, haut }: {
-  titre: string; sousTitre?: string; children: ReactNode; rafraichir?: () => void; enChargement?: boolean; bas?: ReactNode; haut?: ReactNode;
+const vibrer = (fort = false) => { (fort ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium) : Haptics.selectionAsync()).catch(() => {}); };
+const ombre = Platform.OS === 'web' ? ({ boxShadow: '0 -12px 24px rgba(0,0,0,.18)' } as object) : {};
+
+export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChargement = false, bas, haut, retour = false, fermer = false, actions }: {
+  titre: string; sousTitre?: string; surTitre?: ReactNode; children: ReactNode; rafraichir?: () => void; enChargement?: boolean; bas?: ReactNode; haut?: ReactNode;
+  retour?: boolean; fermer?: boolean; actions?: ReactNode;
 }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: c.fond }}>
-      <ScrollView
-        contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 12, paddingBottom: (bas ? 110 : 32), gap: 12 }}
+      <ScrollView keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 10, paddingBottom: bas ? 130 + marges.bottom : 40, gap: 12, maxWidth: 720, width: '100%', alignSelf: 'center' }}
         refreshControl={rafraichir ? <RefreshControl refreshing={enChargement} onRefresh={rafraichir} tintColor={c.accent} /> : undefined}>
+        {(retour || fermer || actions) && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
+            {retour || fermer ? (
+              <Pressable accessibilityLabel={fermer ? 'Fermer' : 'Retour'} hitSlop={12}
+                onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+                style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+                <Icone nom={fermer ? 'fermer' : 'retour'} couleur={c.texte} taille={22} />
+              </Pressable>
+            ) : <View />}
+            <View style={{ flexDirection: 'row', gap: 8 }}>{actions}</View>
+          </View>
+        )}
         {haut}
-        <View style={{ marginBottom: 6 }}>
-          <Text style={{ color: c.texte, fontSize: T.titre, fontWeight: '800' }}>{titre}</Text>
-          {sousTitre ? <Text style={{ color: c.gris, fontSize: T.petit, marginTop: 2 }}>{sousTitre}</Text> : null}
+        <View style={{ marginBottom: 4 }}>
+          {surTitre}
+          <Text style={{ color: c.texte, fontSize: T.titre, fontWeight: '800', letterSpacing: -0.5 }}>{titre}</Text>
+          {sousTitre ? <Text style={{ color: c.gris, fontSize: 15, marginTop: 3 }}>{sousTitre}</Text> : null}
         </View>
         {children}
       </ScrollView>
-      {bas ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: T.marge, paddingBottom: marges.bottom + 10, backgroundColor: c.fond }}>{bas}</View> : null}
+      {bas ? (
+        <View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: T.marge, paddingTop: 12, paddingBottom: marges.bottom + 12, backgroundColor: c.fond, borderTopWidth: 1, borderTopColor: c.bord }, ombre]}>
+          <View style={{ maxWidth: 720, width: '100%', alignSelf: 'center', gap: 8 }}>{bas}</View>
+        </View>
+      ) : null}
     </View>
   );
 }
 
-// Le bouton principal : un seul par écran, il dit quoi faire ensuite
-export function GrosBouton({ titre, onPress, secondaire = false, desactive = false, style }: {
-  titre: string; onPress: () => void; secondaire?: boolean; desactive?: boolean; style?: ViewStyle;
-}) {
+// Bouton rond en haut d'écran
+export function BoutonRond({ icone, onPress, label, couleur, taille = 44 }: { icone: NomIcone; onPress: () => void; label: string; couleur?: string; taille?: number }) {
   const c = useCouleurs();
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={desactive}
-      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); onPress(); }}
-      style={({ pressed }) => [{
-        minHeight: secondaire ? T.cible + 4 : T.bouton, borderRadius: T.rayon, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18,
-        backgroundColor: secondaire ? c.panneau2 : c.accent, opacity: desactive ? 0.6 : pressed ? 0.85 : 1,
-        borderWidth: secondaire ? 1 : 0, borderColor: c.bord,
-      }, style]}>
-      <Text style={{ color: secondaire ? c.texte : c.surAccent, fontSize: secondaire ? 16 : 18, fontWeight: '800' }}>{titre}</Text>
+    <Pressable accessibilityLabel={label} hitSlop={8} onPress={() => { vibrer(); onPress(); }}
+      style={({ pressed }) => ({ width: taille, height: taille, borderRadius: taille / 2, backgroundColor: couleur ? couleur + '1f' : c.panneau2, borderWidth: couleur ? 1 : 0, borderColor: (couleur ?? '') + '44', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+      <Icone nom={icone} couleur={couleur ?? c.texte} taille={taille > 50 ? 24 : 21} />
     </Pressable>
   );
 }
 
-export function Carte({ children, onPress, accent }: { children: ReactNode; onPress?: () => void; accent?: string }) {
+// Le bouton principal : un seul par écran, il dit quoi faire ensuite
+export function GrosBouton({ titre, onPress, secondaire = false, danger = false, desactive = false, style, icone, sousTitre, petit = false }: {
+  titre: string; onPress: () => void; secondaire?: boolean; danger?: boolean; desactive?: boolean; style?: ViewStyle; icone?: NomIcone; sousTitre?: string; petit?: boolean;
+}) {
   const c = useCouleurs();
-  const style: ViewStyle = { backgroundColor: c.panneau, borderRadius: T.rayon, padding: 16, gap: 6, borderWidth: 1, borderColor: c.bord, borderLeftWidth: accent ? 5 : 1, borderLeftColor: accent ?? c.bord };
-  if (!onPress) return <View style={style}>{children}</View>;
-  return <Pressable onPress={onPress} style={({ pressed }) => [style, { opacity: pressed ? 0.8 : 1 }]}>{children}</Pressable>;
+  const fond = danger ? c.rouge : secondaire ? c.panneau2 : c.accent;
+  const texte = danger ? '#fff' : secondaire ? c.texte : c.surAccent;
+  return (
+    <Pressable accessibilityRole="button" disabled={desactive} onPress={() => { vibrer(true); onPress(); }}
+      style={({ pressed }) => [{
+        minHeight: petit ? T.cible : secondaire ? T.cible + 6 : T.bouton, borderRadius: T.rayon, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18,
+        backgroundColor: fond, opacity: desactive ? 0.45 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.985 : 1 }],
+        borderWidth: secondaire ? 1 : 0, borderColor: c.bord, flexDirection: 'row', gap: 10,
+      }, style]}>
+      {icone ? <Icone nom={icone} couleur={texte} taille={petit ? 19 : 22} /> : null}
+      <View style={{ alignItems: icone ? 'flex-start' : 'center', flexShrink: 1 }}>
+        <Text numberOfLines={1} style={{ color: texte, fontSize: petit ? 15 : secondaire ? 16 : 18, fontWeight: '800' }}>{titre}</Text>
+        {sousTitre ? <Text numberOfLines={1} style={{ color: texte, opacity: 0.75, fontSize: 13, fontWeight: '600' }}>{sousTitre}</Text> : null}
+      </View>
+    </Pressable>
+  );
+}
+
+export function Carte({ children, onPress, accent, style }: { children: ReactNode; onPress?: () => void; accent?: string; style?: ViewStyle }) {
+  const c = useCouleurs();
+  const base: ViewStyle = { backgroundColor: c.panneau, borderRadius: T.rayon, padding: 16, gap: 6, borderWidth: 1, borderColor: c.bord, overflow: 'hidden' };
+  const barre = accent ? <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent }} /> : null;
+  if (!onPress) return <View style={[base, style]}>{barre}{children}</View>;
+  return (
+    <Pressable onPress={() => { vibrer(); onPress(); }} style={({ pressed }) => [base, { opacity: pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.99 : 1 }] }, style]}>
+      {barre}{children}
+    </Pressable>
+  );
 }
 
 export function Ligne({ children, style }: { children: ReactNode; style?: ViewStyle }) {
   return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }, style]}>{children}</View>;
 }
 
-export function Texte({ children, gris = false, gras = false, taille = T.texte, couleur }: { children: ReactNode; gris?: boolean; gras?: boolean; taille?: number; couleur?: string }) {
+export function Texte({ children, gris = false, gras = false, taille = T.texte, couleur, lignes, centre = false }: {
+  children: ReactNode; gris?: boolean; gras?: boolean; taille?: number; couleur?: string; lignes?: number; centre?: boolean;
+}) {
   const c = useCouleurs();
-  return <Text style={{ color: couleur ?? (gris ? c.gris : c.texte), fontSize: taille, fontWeight: gras ? '700' : '400' }}>{children}</Text>;
+  return <Text numberOfLines={lignes} style={{ color: couleur ?? (gris ? c.gris : c.texte), fontSize: taille, fontWeight: gras ? '700' : '400', textAlign: centre ? 'center' : undefined, lineHeight: taille * 1.32 }}>{children}</Text>;
 }
 
-export function Pastille({ ok, titre }: { ok: boolean; titre: string }) {
+export function Pastille({ ok, titre, couleur }: { ok: boolean; titre: string; couleur?: string }) {
   const c = useCouleurs();
-  const coul = ok ? c.vert : c.orange;
+  return <Etiquette titre={titre} couleur={couleur ?? (ok ? c.vert : c.orange)} icone={ok ? 'ok' : undefined} />;
+}
+
+export function Etiquette({ titre, couleur, icone, plein = false }: { titre: string; couleur: string; icone?: NomIcone; plein?: boolean }) {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: coul + '22' }}>
-      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: coul }} />
-      <Text style={{ color: coul, fontSize: 13, fontWeight: '700' }}>{titre}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99, backgroundColor: plein ? couleur : couleur + '22', alignSelf: 'flex-start' }}>
+      {icone ? <Icone nom={icone} couleur={plein ? '#fff' : couleur} taille={13} epaisseur={2.6} /> : <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: plein ? '#fff' : couleur }} />}
+      <Text style={{ color: plein ? '#fff' : couleur, fontSize: 13, fontWeight: '800' }}>{titre}</Text>
     </View>
   );
 }
 
-export function Titre({ children }: { children: ReactNode }) {
-  const c = useCouleurs();
-  return <Text style={{ color: c.gris, fontSize: 13, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', marginTop: 10 }}>{children}</Text>;
-}
-
-export function Vide({ titre, texte }: { titre: string; texte?: string }) {
+export function Titre({ children, action, onAction }: { children: ReactNode; action?: string; onAction?: () => void }) {
   const c = useCouleurs();
   return (
-    <View style={{ alignItems: 'center', padding: 28, gap: 6 }}>
-      <Text style={{ color: c.texte, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>{titre}</Text>
-      {texte ? <Text style={{ color: c.gris, fontSize: 15, textAlign: 'center' }}>{texte}</Text> : null}
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 12 }}>
+      <Text style={{ color: c.gris, fontSize: 13, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase' }}>{children}</Text>
+      {action && onAction ? <Pressable hitSlop={10} onPress={onAction}><Text style={{ color: c.accent, fontSize: 14, fontWeight: '800' }}>{action}</Text></Pressable> : null}
+    </View>
+  );
+}
+
+// Chiffre clé qu'on touche pour filtrer
+export function Tuile({ valeur, libelle, couleur, icone, onPress, alerte = false }: { valeur: number | string; libelle: string; couleur: string; icone: NomIcone; onPress?: () => void; alerte?: boolean }) {
+  const c = useCouleurs();
+  return (
+    <Pressable onPress={() => { vibrer(); onPress?.(); }} disabled={!onPress}
+      style={({ pressed }) => ({ flex: 1, minWidth: '46%', backgroundColor: alerte ? couleur + '1c' : c.panneau, borderRadius: T.rayon, padding: 14, gap: 8, borderWidth: 1, borderColor: alerte ? couleur + '66' : c.bord, opacity: pressed ? 0.85 : 1 })}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: couleur + '22', alignItems: 'center', justifyContent: 'center' }}><Icone nom={icone} couleur={couleur} taille={19} /></View>
+        <Text style={{ color: alerte ? couleur : c.texte, fontSize: 30, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{valeur}</Text>
+      </View>
+      <Text style={{ color: c.texte2, fontSize: 14, fontWeight: '700' }}>{libelle}</Text>
+    </Pressable>
+  );
+}
+
+// Raccourci rond avec son nom dessous
+export function Action({ icone, titre, onPress, couleur, desactive = false }: { icone: NomIcone; titre: string; onPress: () => void; couleur?: string; desactive?: boolean }) {
+  const c = useCouleurs();
+  const coul = couleur ?? c.accent;
+  return (
+    <Pressable disabled={desactive} onPress={() => { vibrer(); onPress(); }} style={({ pressed }) => ({ flex: 1, alignItems: 'center', gap: 7, opacity: desactive ? 0.4 : pressed ? 0.7 : 1, minWidth: 64 })}>
+      <View style={{ width: 56, height: 56, borderRadius: 20, backgroundColor: coul + '1f', borderWidth: 1, borderColor: coul + '44', alignItems: 'center', justifyContent: 'center' }}>
+        <Icone nom={icone} couleur={coul} taille={24} />
+      </View>
+      <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 12.5, fontWeight: '700' }}>{titre}</Text>
+    </Pressable>
+  );
+}
+
+// Ligne de liste : icône, titre, détail, valeur à droite
+export function Rangee({ icone, couleur, titre, sous, droite, onPress, fin = false, chevron = !!onPress }: {
+  icone?: NomIcone; couleur?: string; titre: string; sous?: string; droite?: ReactNode; onPress?: () => void; fin?: boolean; chevron?: boolean;
+}) {
+  const c = useCouleurs();
+  const coul = couleur ?? c.gris;
+  const contenu = (
+    <>
+      {icone ? <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: coul + '1f', alignItems: 'center', justifyContent: 'center' }}><Icone nom={icone} couleur={coul} taille={20} /></View> : null}
+      <View style={{ flex: 1, gap: 1 }}>
+        <Text style={{ color: c.texte, fontSize: 16, fontWeight: '700' }}>{titre}</Text>
+        {sous ? <Text style={{ color: c.gris, fontSize: 14 }}>{sous}</Text> : null}
+      </View>
+      {typeof droite === 'string' ? <Text style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{droite}</Text> : droite}
+      {chevron ? <Icone nom="chevron" couleur={c.gris} taille={18} /> : null}
+    </>
+  );
+  const style: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 58, paddingVertical: 8, borderBottomWidth: fin ? 0 : 1, borderBottomColor: c.bord };
+  if (!onPress) return <View style={style}>{contenu}</View>;
+  return <Pressable onPress={() => { vibrer(); onPress(); }} style={({ pressed }) => [style, { opacity: pressed ? 0.7 : 1 }]}>{contenu}</Pressable>;
+}
+
+// Choix exclusif en barre (En cours · À venir · En retard)
+export function Segments<K extends string>({ options, valeur, onChange }: { options: { cle: K; titre: string; n?: number; couleur?: string }[]; valeur: K; onChange: (k: K) => void }) {
+  const c = useCouleurs();
+  return (
+    <View style={{ flexDirection: 'row', backgroundColor: c.panneau2, borderRadius: 14, padding: 4, gap: 4 }}>
+      {options.map((o) => {
+        const actif = o.cle === valeur;
+        return (
+          <Pressable key={o.cle} onPress={() => { vibrer(); onChange(o.cle); }}
+            style={{ flex: 1, minHeight: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: actif ? c.panneau : 'transparent', flexDirection: 'row', gap: 6, borderWidth: actif ? 1 : 0, borderColor: c.bord }}>
+            <Text style={{ color: actif ? c.texte : c.gris, fontWeight: '800', fontSize: 14 }}>{o.titre}</Text>
+            {o.n != null ? <Text style={{ color: o.couleur && o.n ? o.couleur : actif ? c.accent : c.gris, fontWeight: '800', fontSize: 14 }}>{o.n}</Text> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export function Barre({ part, couleur, hauteur = 6 }: { part: number; couleur?: string; hauteur?: number }) {
+  const c = useCouleurs();
+  return (
+    <View style={{ height: hauteur, borderRadius: hauteur, backgroundColor: c.panneau2, overflow: 'hidden' }}>
+      <View style={{ width: `${Math.max(0, Math.min(1, part)) * 100}%`, height: '100%', backgroundColor: couleur ?? c.accent, borderRadius: hauteur }} />
+    </View>
+  );
+}
+
+// Étapes numérotées (assistant d'état des lieux, nouvelle location)
+export function Etapes({ etapes, etape, onChoix }: { etapes: readonly string[]; etape: number; onChoix?: (i: number) => void }) {
+  const c = useCouleurs();
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {etapes.map((e, i) => (
+        <Pressable key={e} disabled={!onChoix || i > etape} onPress={() => onChoix?.(i)} style={{ flex: 1, gap: 6 }}>
+          <View style={{ height: 5, borderRadius: 3, backgroundColor: i < etape ? c.accent : i === etape ? c.accent : c.bord, opacity: i < etape ? 0.55 : 1 }} />
+          <Text numberOfLines={1} style={{ color: i === etape ? c.texte : c.gris, fontSize: 12, fontWeight: '800' }}>{e}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+export function Vide({ titre, texte, icone }: { titre: string; texte?: string; icone?: NomIcone }) {
+  const c = useCouleurs();
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: 26, paddingHorizontal: 20, gap: 8, borderRadius: T.rayon, borderWidth: 1, borderStyle: 'dashed', borderColor: c.bord }}>
+      {icone ? <Icone nom={icone} couleur={c.gris} taille={28} /> : null}
+      <Text style={{ color: c.texte2, fontSize: 16, fontWeight: '700', textAlign: 'center' }}>{titre}</Text>
+      {texte ? <Text style={{ color: c.gris, fontSize: 14, textAlign: 'center', lineHeight: 20 }}>{texte}</Text> : null}
     </View>
   );
 }
 
 export function Chargement() {
   const c = useCouleurs();
-  return <View style={{ padding: 40 }}><ActivityIndicator color={c.accent} size="large" /></View>;
+  return (
+    <View style={{ gap: 12 }}>
+      {[0, 1, 2].map((i) => <View key={i} style={{ height: 96, borderRadius: T.rayon, backgroundColor: c.panneau, opacity: 1 - i * 0.25, borderWidth: 1, borderColor: c.bord }} />)}
+      <ActivityIndicator color={c.accent} />
+    </View>
+  );
 }
 
 export function BandeauHorsLigne({ majLe }: { majLe?: string }) {
   const c = useCouleurs();
   return (
-    <View style={{ backgroundColor: c.orange + '22', borderRadius: 12, padding: 12 }}>
-      <Text style={{ color: c.orange, fontWeight: '700' }}>Pas de réseau : affichage de la dernière version{majLe ? ` (${new Date(majLe.replace(' ', 'T') + 'Z').toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})` : ''}. Vous pouvez continuer, tout sera envoyé au retour du réseau.</Text>
+    <View style={{ backgroundColor: c.orange + '1c', borderRadius: 14, padding: 12, flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+      <Icone nom="nuage" couleur={c.orange} taille={22} />
+      <Text style={{ color: c.orange, fontWeight: '700', flex: 1, lineHeight: 20 }}>Pas de réseau. Affichage de {majLe ? `${new Date(majLe.replace(' ', 'T') + 'Z').toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}` : 'la dernière version'}. Continuez : tout part au retour du réseau.</Text>
     </View>
   );
 }

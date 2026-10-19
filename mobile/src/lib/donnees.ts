@@ -6,15 +6,16 @@ import { DEMO, demoLocations, demoAmendes, demoVehicules, demoClients } from './
 export type LocationLigne = {
   id: string; numero: number | null; debut: string; fin_prevue: string; statut: string;
   caution_statut: string; caution_montant: number | null; prix_total: number | null;
-  vehicules: { id: string; immatriculation: string; marque: string | null; modele: string | null; statut: string } | null;
+  km_depart: number | null; km_inclus: number | null; prix_km_sup: number | null; carburant_depart: number | null; signature_contrat_path: string | null;
+  vehicules: { id: string; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null; prix_jour: number | null } | null;
   clients: { id: string; nom: string; prenom: string | null; telephone: string | null; email: string | null;
     permis_path: string | null; piece_identite_path: string | null; liste_noire: boolean } | null;
   etats_des_lieux: { type: string; statut: string }[];
 };
 
-const CHAMPS = 'id, numero, debut, fin_prevue, statut, caution_statut, caution_montant, prix_total, vehicules(id, immatriculation, marque, modele, statut), clients(id, nom, prenom, telephone, email, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut)';
+const CHAMPS = 'id, numero, debut, fin_prevue, statut, caution_statut, caution_montant, prix_total, km_depart, km_inclus, prix_km_sup, carburant_depart, signature_contrat_path, vehicules(id, immatriculation, marque, modele, statut, km, prix_jour), clients(id, nom, prenom, telephone, email, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut)';
 
-async function avecCache<T>(cle: string, lire: () => Promise<T>): Promise<{ donnees: T; horsLigne: boolean; majLe?: string }> {
+export async function avecCache<T>(cle: string, lire: () => Promise<T>): Promise<{ donnees: T; horsLigne: boolean; majLe?: string }> {
   if (DEMO) return { donnees: demo(cle) as T, horsLigne: false };
   try {
     const donnees = await lire();
@@ -29,29 +30,33 @@ async function avecCache<T>(cle: string, lire: () => Promise<T>): Promise<{ donn
 
 function demo(cle: string): unknown {
   const ls = demoLocations as unknown as LocationLigne[];
-  if (cle === 'aujourdhui') return { departs: ls.filter((l) => l.statut === 'reservee'), retours: ls.filter((l) => l.statut === 'en_cours') };
+  if (cle === 'aujourdhui') return { departs: ls.filter((l) => l.statut === 'reservee' && l.debut <= finJour(0)), retours: ls.filter((l) => l.statut === 'en_cours' && l.fin_prevue <= finJour(0)),
+    demain: ls.filter((l) => l.statut === 'reservee' && l.debut > finJour(0) && l.debut <= finJour(1)), amendes: demoAmendes.filter((a) => a.statut !== 'designee').length };
   if (cle === 'locations') return ls;
   if (cle === 'amendes') return demoAmendes;
   if (cle === 'vehicules') return demoVehicules;
   if (cle === 'clients') return demoClients;
   if (cle.startsWith('vehicule-')) { const v = demoVehicules.find((x) => 'vehicule-' + x.id === cle); return { vehicule: v, locations: ls.filter((l) => l.vehicules?.id === v?.id) }; }
   if (cle.startsWith('client-')) { const c = demoClients.find((x) => 'client-' + x.id === cle); return { client: c, locations: ls.filter((l) => l.clients?.id === c?.id) }; }
-  if (cle.startsWith('location-')) { const l = ls.find((x) => 'location-' + x.id === cle); if (l) garder(cle, l).catch(() => {}); return l; }
+  if (cle.startsWith('location-')) { const l = ls.find((x) => 'location-' + x.id === cle); if (l) garder(cle, l).catch(() => {}); return l ? { ...l, jeton_signature: 'demo-' + l.id, signe_distance_le: null } : null; }
   return null;
 }
 
-const finJour = () => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.toISOString(); };
+const finJour = (plus = 0) => { const d = new Date(); d.setDate(d.getDate() + plus); d.setHours(23, 59, 59, 999); return d.toISOString(); };
 
+export type Journee = { departs: LocationLigne[]; retours: LocationLigne[]; demain: LocationLigne[]; amendes: number };
 export function chargerAujourdhui() {
-  return avecCache('aujourdhui', async () => {
-    const fin = finJour();
-    const [departs, retours] = await Promise.all([
-      supabase.from('locations').select(CHAMPS).eq('statut', 'reservee').lte('debut', fin).order('debut'),
-      supabase.from('locations').select(CHAMPS).eq('statut', 'en_cours').lte('fin_prevue', fin).order('fin_prevue'),
+  return avecCache<Journee>('aujourdhui', async () => {
+    const [departs, retours, demain, amendes] = await Promise.all([
+      supabase.from('locations').select(CHAMPS).eq('statut', 'reservee').lte('debut', finJour(0)).order('debut'),
+      supabase.from('locations').select(CHAMPS).eq('statut', 'en_cours').lte('fin_prevue', finJour(0)).order('fin_prevue'),
+      supabase.from('locations').select(CHAMPS).eq('statut', 'reservee').gt('debut', finJour(0)).lte('debut', finJour(1)).order('debut'),
+      supabase.from('amendes').select('id', { count: 'exact', head: true }).in('statut', ['a_designer', 'infos_manquantes']),
     ]);
     if (departs.error) throw departs.error;
     if (retours.error) throw retours.error;
-    return { departs: (departs.data ?? []) as unknown as LocationLigne[], retours: (retours.data ?? []) as unknown as LocationLigne[] };
+    return { departs: (departs.data ?? []) as unknown as LocationLigne[], retours: (retours.data ?? []) as unknown as LocationLigne[],
+      demain: (demain.data ?? []) as unknown as LocationLigne[], amendes: amendes.count ?? 0 };
   });
 }
 
@@ -63,12 +68,32 @@ export function chargerLocations() {
   });
 }
 
+export type LocationFiche = LocationLigne & { jeton_signature?: string | null; signe_distance_le?: string | null };
 export function chargerLocation(id: string) {
-  return avecCache('location-' + id, async () => {
-    const { data, error } = await supabase.from('locations').select(CHAMPS + ', km_depart, km_inclus, prix_km_sup').eq('id', id).single();
+  return avecCache<LocationFiche>('location-' + id, async () => {
+    const [{ data, error }, distance] = await Promise.all([
+      supabase.from('locations').select(CHAMPS).eq('id', id).single(),
+      // Colonnes de la signature à distance : absentes tant que la mise à jour n'est pas lancée
+      supabase.from('locations').select('jeton_signature, signe_distance_le').eq('id', id).maybeSingle(),
+    ]);
     if (error) throw error;
-    return data as unknown as LocationLigne & { km_depart: number | null };
+    return { ...(data as unknown as LocationLigne), ...((distance.error ? {} : distance.data) ?? {}) } as LocationFiche;
   });
+}
+
+// Photos de l'état des lieux de départ, pour comparer au retour (lien valable 1 h)
+export async function photosDepart(locationId: string): Promise<Record<string, string>> {
+  if (DEMO) return {};
+  try {
+    const { data: edl } = await supabase.from('etats_des_lieux').select('id').eq('location_id', locationId).eq('type', 'depart').maybeSingle();
+    if (!edl) return {};
+    const { data: photos } = await supabase.from('photos_edl').select('position, path').eq('edl_id', edl.id).order('prise_le');
+    if (!photos?.length) return {};
+    const { data: liens } = await supabase.storage.from('documents').createSignedUrls(photos.map((p) => p.path), 3600);
+    const res: Record<string, string> = {};
+    photos.forEach((p, i) => { const u = liens?.[i]?.signedUrl; if (u) res[p.position] = u; });
+    return res;
+  } catch { return {}; }
 }
 
 export type AmendeLigne = { id: string; date_infraction: string; type: string | null; montant: number | null; statut: string; lieu: string | null;
@@ -85,11 +110,14 @@ export function chargerAmendes() {
 // Tous les voyants verts = départ possible tout de suite
 export function voyantsDepart(l: LocationLigne) {
   return [
-    { ok: !!(l.clients?.permis_path && l.clients?.piece_identite_path) && !l.clients?.liste_noire, titre: 'Client vérifié' },
+    { ok: !!(l.clients?.permis_path && l.clients?.piece_identite_path) && !l.clients?.liste_noire, titre: l.clients?.liste_noire ? 'Liste noire' : 'Papiers' },
     { ok: l.caution_statut === 'prise' || !l.caution_montant, titre: 'Caution' },
-    { ok: l.vehicules?.statut === 'disponible', titre: 'Voiture prête' },
+    { ok: l.vehicules?.statut === 'disponible', titre: 'Voiture' },
   ];
 }
+
+// Deux périodes se chevauchent-elles ?
+export const chevauche = (a1: string | Date, a2: string | Date, b1: string, b2: string) => new Date(a1) < new Date(b2) && new Date(b1) < new Date(a2);
 
 // --- Flotte
 export type VehiculeLigne = { id: string; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null;

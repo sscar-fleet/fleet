@@ -1,33 +1,16 @@
-// L'IA de Fleet. Elle tourne sur le serveur du site (la clé reste là-bas, jamais dans le téléphone) :
-// l'appli envoie une photo ou une phrase, le serveur répond avec des champs remplis.
-import { supabase } from './supabase';
+// L'IA de Fleet tourne sur le serveur du site (la clé reste là-bas, jamais dans le téléphone) :
+// l'appli envoie une photo, le serveur répond avec des champs remplis.
+import { api } from './site';
+import { DEMO } from './demo';
 
-const FLEET = process.env.EXPO_PUBLIC_FLEET_URL ?? 'https://fleet-beryl-seven.vercel.app';
+type Champs = Record<string, string | number | null>;
 
-async function appeler<T>(route: string, corps: unknown): Promise<T> {
-  const { data } = await supabase.auth.getSession();
-  const r = await fetch(`${FLEET}/api/${route}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${data.session?.access_token ?? ''}` },
-    body: JSON.stringify(corps),
-  });
-  const res = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(res.erreur ?? 'L’IA ne répond pas pour le moment.');
-  return res as T;
+export async function lirePapier(image: string, genre: 'permis' | 'identite' | 'carte_grise'): Promise<Champs> {
+  if (DEMO) { await new Promise((r) => setTimeout(r, 1200)); return { nom: 'MARTIN', prenom: 'Lucas', date_naissance: '1994-03-08', numero_permis: '12AB34567', date_permis: '2013-06-20' }; }
+  return (await api<{ champs: Champs }>('lire', { image, genre })).champs;
 }
 
-// 1. Papiers : permis, pièce d'identité, carte grise → champs remplis (déjà en service sur le site)
-export const lirePapier = (image: string, genre: 'permis' | 'identite' | 'carte_grise') =>
-  appeler<{ champs: Record<string, string | null> }>('lire', { image, genre });
-
-// 2. Avis d'amende → immatriculation, date, lieu, montant ; le conducteur est retrouvé tout seul
-export const lireAmende = (image: string) =>
-  appeler<{ champs: Record<string, string | null> }>('lire', { image, genre: 'amende' });
-
-// 3. Dégâts : compare les photos du départ et du retour et signale ce qui a changé
-export const comparerPhotos = (depart: string, retour: string, position: string) =>
-  appeler<{ changement: boolean; description: string; gravite?: 'leger' | 'moyen' | 'grave' }>('comparer', { depart, retour, position });
-
-// 4. Assistant : « Clio pour Karim demain 9h, 3 jours » → location préparée, à confirmer d'un geste
-export const comprendre = (phrase: string) =>
-  appeler<{ action: string; champs: Record<string, unknown>; resume: string }>('assistant', { phrase });
+export async function lireAmende(image: string): Promise<Champs> {
+  if (DEMO) { await new Promise((r) => setTimeout(r, 1200)); const d = new Date(Date.now() - 2 * 864e5); d.setHours(15, 42, 0, 0); const loc = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T15:42`; return { immatriculation: 'IJ789KL', date_infraction: loc, lieu: 'Bd Périphérique, Paris 17e', type: 'Excès de vitesse', montant: 135, numero_avis: '1234567890' }; }
+  return (await api<{ champs: Champs }>('lire', { image, genre: 'amende' })).champs;
+}

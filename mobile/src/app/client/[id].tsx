@@ -24,7 +24,7 @@ export default function FicheClient() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const charger = useCallback(() => chargerClient(id), [id]);
   const { donnees, horsLigne, majLe, recharger } = useDonnees(charger);
-  if (!donnees?.client) return <Ecran titre="Client"><Chargement /></Ecran>;
+  if (!donnees?.client) return <Ecran retour titre="Client"><Chargement /></Ecran>;
   const { client: x, locations } = donnees;
 
   async function photographier(champ: string) {
@@ -39,7 +39,7 @@ export default function FicheClient() {
   }
 
   return (
-    <Ecran titre={nomClient(x)} sousTitre={x.liste_noire ? 'Liste noire' : x.telephone ?? undefined} rafraichir={recharger}
+    <Ecran retour titre={nomClient(x)} sousTitre={x.liste_noire ? 'Liste noire' : x.telephone ?? undefined} rafraichir={recharger}
       bas={<GrosBouton titre="Nouvelle location pour ce client" onPress={() => router.push({ pathname: '/nouvelle', params: { client: x.id } })} />}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       <Ligne>

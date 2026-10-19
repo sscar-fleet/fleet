@@ -14,7 +14,7 @@ export default function Clients() {
   const [q, setQ] = useState('');
   const liste = (donnees ?? []).filter((x) => !q || `${x.prenom ?? ''} ${x.nom} ${x.telephone ?? ''} ${x.email ?? ''}`.toLowerCase().includes(q.toLowerCase()));
   return (
-    <Ecran titre="Clients" sousTitre={`${donnees?.length ?? 0} clients`} rafraichir={recharger} enChargement={enChargement && !!donnees}>
+    <Ecran retour titre="Clients" sousTitre={`${donnees?.length ?? 0} clients`} rafraichir={recharger} enChargement={enChargement && !!donnees}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       <Recherche valeur={q} onChange={setQ} placeholder="Nom, téléphone, e-mail…" />
       {!donnees ? <Chargement /> : liste.length ? liste.slice(0, 100).map((x) => (

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { utilisateurCourant } from '@/lib/agence';
+import { clientApi } from '@/lib/api';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -11,12 +11,14 @@ const consignes: Record<string, string> = {
 {"immatriculation": champ A, "marque": champ D.1, "modele": nom commercial champ D.3, "carburant": champ P.3 traduit en "essence" | "diesel" | "hybride" | "electrique" | "gpl" ou null, "date_premiere_immatriculation": champ B au format AAAA-MM-JJ, "vin": champ E}`,
   permis: `Permis de conduire. Renvoie uniquement ce JSON :
 {"nom": champ 1, "prenom": champ 2, "date_naissance": champ 3 au format AAAA-MM-JJ, "numero_permis": champ 5, "date_permis": date d'obtention de la catégorie B (colonne 10) ou à défaut date de délivrance (4a), format AAAA-MM-JJ}`,
+  amende: `Avis de contravention français (ANTAI). Renvoie uniquement ce JSON :
+{"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_infraction": date et heure de l'infraction au format AAAA-MM-JJTHH:MM, "lieu": lieu de l'infraction, "type": nature de l'infraction en quelques mots (ex. "Excès de vitesse", "Stationnement"), "montant": montant de l'amende forfaitaire en euros (nombre), "numero_avis": numéro de l'avis}`,
   identite: `Pièce d'identité (carte d'identité ou passeport). Renvoie uniquement ce JSON :
 {"nom": nom de famille, "prenom": premier prénom, "date_naissance": format AAAA-MM-JJ, "adresse": adresse si elle figure sur le document sinon null}`,
 };
 
 export async function POST(request: Request) {
-  await utilisateurCourant();
+  if (!(await clientApi(request))) return NextResponse.json({ erreur: 'Connexion expirée.' }, { status: 401 });
   const cle = process.env.ANTHROPIC_API_KEY;
   if (!cle) return NextResponse.json({ erreur: 'La lecture automatique n’est pas encore activée. Remplissez à la main.' }, { status: 503 });
   const { image, genre } = await request.json().catch(() => ({}));

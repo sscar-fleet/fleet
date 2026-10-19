@@ -6,27 +6,29 @@ import { FournisseurSession, useSession } from '@/lib/session';
 import { envoyerFile } from '@/lib/hors-ligne';
 import { useCouleurs } from '@/lib/theme';
 import { Chargement } from '@/composants/ui';
+import { FournisseurToast } from '@/composants/Toast';
 
 function Navigation() {
   const { session, pret } = useSession();
   const c = useCouleurs();
   useEffect(() => { if (session) envoyerFile().catch(() => {}); }, [session]);
-  const entete = { headerShown: true, title: '', headerBackTitle: 'Retour', headerTintColor: c.accent, headerStyle: { backgroundColor: c.fond }, headerShadowVisible: false };
-  if (!pret) return <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center' }}><Chargement /></View>;
+  if (!pret) return <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center', padding: 16 }}><Chargement /></View>;
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.fond } }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.fond }, animation: 'slide_from_right' }}>
       <Stack.Protected guard={!session}>
         <Stack.Screen name="connexion" />
       </Stack.Protected>
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(onglets)" />
-        <Stack.Screen name="location/[id]" options={entete} />
-        <Stack.Screen name="edl/[id]" options={{ presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="nouvelle" options={{ presentation: 'fullScreenModal' }} />
-        <Stack.Screen name="amende" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="vehicule/[id]" options={entete} />
-        <Stack.Screen name="client/[id]" options={entete} />
-        <Stack.Screen name="clients" options={entete} />
+        <Stack.Screen name="location/[id]" />
+        <Stack.Screen name="edl/[id]" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="nouvelle" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="amende" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="vehicule/[id]" />
+        <Stack.Screen name="client/[id]" />
+        <Stack.Screen name="clients" />
+        <Stack.Screen name="carte" />
+        <Stack.Screen name="compte" />
       </Stack.Protected>
     </Stack>
   );
@@ -35,8 +37,10 @@ function Navigation() {
 export default function Racine() {
   return (
     <FournisseurSession>
-      <StatusBar style="auto" />
-      <Navigation />
+      <FournisseurToast>
+        <StatusBar style="auto" />
+        <Navigation />
+      </FournisseurToast>
     </FournisseurSession>
   );
 }

@@ -4,6 +4,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as Network from 'expo-network';
 import { supabase } from './supabase';
+import { DEMO } from './demo';
 
 export type Operation =
   | { genre: 'maj'; table: string; id: string; champs: Record<string, unknown> }
@@ -69,6 +70,7 @@ async function executer(op: Operation): Promise<void> {
 
 let enCours = false;
 export async function envoyerFile() {
+  if (DEMO) return;
   if (enCours || !(await enLigne())) return;
   enCours = true;
   try {
