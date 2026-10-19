@@ -8,9 +8,9 @@ import Icone from './Icone';
 const JOURS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const jourSeul = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
 
-export default function Calendrier({ debut, fin, onChange }: { debut: Date; fin: Date; onChange: (debut: Date, fin: Date) => void }) {
+export default function Calendrier({ debut, fin, onChange, retourSeul = false }: { debut: Date; fin: Date; onChange: (debut: Date, fin: Date) => void; retourSeul?: boolean }) {
   const c = useCouleurs();
-  const [mois, setMois] = useState(() => new Date(debut.getFullYear(), debut.getMonth(), 1));
+  const [mois, setMois] = useState(() => { const r = retourSeul ? fin : debut; return new Date(r.getFullYear(), r.getMonth(), 1); });
   const [attenteRetour, setAttenteRetour] = useState(false);
   const aujourdhui = jourSeul(new Date());
   const premier = (mois.getDay() + 6) % 7; // lundi = 0
@@ -23,7 +23,7 @@ export default function Calendrier({ debut, fin, onChange }: { debut: Date; fin:
   function toucher(jour: Date) {
     Haptics.selectionAsync().catch(() => {});
     const t = jourSeul(jour);
-    if (!attenteRetour || t < d0) {
+    if (!retourSeul && (!attenteRetour || t < d0)) {
       // Nouveau départ : on garde la durée si elle tient, sinon 1 jour
       const nd = avecHeure(jour, debut);
       const duree = Math.max(864e5, fin.getTime() - debut.getTime());
@@ -60,7 +60,7 @@ export default function Calendrier({ debut, fin, onChange }: { debut: Date; fin:
             if (!jour) return <View key={i} style={{ flex: 1, height: 44 }} />;
             const t = jour.getTime();
             const estDebut = t === d0, estFin = t === d1, dedans = t > d0 && t < d1;
-            const ancien = t < aujourdhui;
+            const ancien = t < aujourdhui || (retourSeul && t < d0);
             const borne = estDebut || estFin;
             return (
               <Pressable key={i} disabled={ancien} onPress={() => toucher(jour)} style={{ flex: 1, height: 44, justifyContent: 'center' }}>
@@ -77,7 +77,7 @@ export default function Calendrier({ debut, fin, onChange }: { debut: Date; fin:
         </View>
       ))}
       <Text style={{ color: attenteRetour ? c.accent : c.gris, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>
-        {attenteRetour ? 'Touchez maintenant le jour du retour' : 'Touchez le jour du départ, puis celui du retour'}
+        {retourSeul ? 'Touchez le nouveau jour de retour' : attenteRetour ? 'Touchez maintenant le jour du retour' : 'Touchez le jour du départ, puis celui du retour'}
       </Text>
     </View>
   );

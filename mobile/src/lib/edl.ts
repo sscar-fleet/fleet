@@ -48,8 +48,9 @@ export async function ajouterDegat(p: { agenceId: string; vehiculeId: string; lo
 }
 
 // Prolonger une location en cours : nouvelle date de retour, prix ajusté au tarif du jour
-export async function prolonger(l: { id: string; fin_prevue: string; prix_total: number | null; vehicules: { prix_jour: number | null } | null }, jours: number) {
-  const fin = new Date(new Date(l.fin_prevue).getTime() + jours * 864e5).toISOString();
+export async function prolonger(l: { id: string; fin_prevue: string; prix_total: number | null; vehicules: { prix_jour: number | null } | null }, joursOuFin: number | Date) {
+  const fin = (typeof joursOuFin === 'number' ? new Date(new Date(l.fin_prevue).getTime() + joursOuFin * 864e5) : joursOuFin).toISOString();
+  const jours = Math.max(0, Math.ceil((new Date(fin).getTime() - new Date(l.fin_prevue).getTime()) / 864e5 - 0.01));
   const prix = l.vehicules?.prix_jour && l.prix_total != null ? Number(l.prix_total) + Number(l.vehicules.prix_jour) * jours : l.prix_total;
   await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { fin_prevue: fin, prix_total: prix } });
   return { fin, prix };

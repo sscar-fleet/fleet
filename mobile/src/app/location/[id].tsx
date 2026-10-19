@@ -1,7 +1,7 @@
 // Fiche d'une location : où on en est, ce qui manque (et le bouton pour le régler), la voiture en direct,
 // le client à un geste. Le gros bouton en bas lance l'étape suivante.
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, ScrollView, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, GrosBouton, Carte, Ligne, Texte, Titre, Chargement, BandeauHorsLigne, Rangee, Etiquette, Barre, Action, BoutonRond } from '@/composants/ui';
 import { Puce, Puces } from '@/composants/champs';
@@ -10,8 +10,10 @@ import Plaque from '@/composants/Plaque';
 import Frise from '@/composants/Frise';
 import MiniCarte from '@/composants/MiniCarte';
 import Fenetre from '@/composants/Fenetre';
+import Feuille from '@/composants/Feuille';
+import Calendrier from '@/composants/Calendrier';
 import { useToast } from '@/composants/Toast';
-import { chargerLocation, voyantsDepart } from '@/lib/donnees';
+import { chargerLocation, chargerLocations, voyantsDepart, type LocationLigne } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
@@ -38,6 +40,9 @@ export default function FicheLocation() {
   const [distance, setDistance] = useState(false);
   const [question, setQuestion] = useState<null | 'moteur' | 'manque' | { prevenir: { fin: string; prix: number | null } }>(null);
   const [envoiMoteur, setEnvoiMoteur] = useState(false);
+  const [feuilleFin, setFeuilleFin] = useState<Date | null>(null);
+  const [occupations, setOccupations] = useState<LocationLigne[]>([]);
+  useEffect(() => { chargerLocations().then((r) => setOccupations(r.donnees)).catch(() => {}); }, []);
   useEffect(() => { signatureDistance().then(setDistance); }, []);
 
   if (!donnees) return <Ecran titre="Location" retour><Chargement /></Ecran>;
@@ -68,7 +73,8 @@ export default function FicheLocation() {
     setLocal((x) => ({ ...x, caution_statut: 'prise' }));
     toast(`Caution de ${euros(l.caution_montant)} notée comme prise`);
   }
-  async function allonger(jours: number) {
+  async function allonger(jours: number | Date) {
+    setFeuilleFin(null);
     const r = await prolonger(l, jours);
     setLocal((x) => ({ ...x, fin_prevue: r.fin, prix_total: r.prix }));
     toast(`Prolongée jusqu’au ${jour(r.fin)} ${heure(r.fin)}`);
@@ -85,6 +91,10 @@ export default function FicheLocation() {
     } catch (e: any) { toast(e.message, 'alerte'); }
     setEnvoiMoteur(false);
   }
+  // Réservation suivante de la même voiture : une prolongation ne doit pas la chevaucher
+  const suivante = occupations.filter((o) => o.id !== l.id && o.vehicules?.id === v?.id && o.statut === 'reservee' && o.debut >= l.debut).sort((a, b) => a.debut.localeCompare(b.debut))[0];
+  const conflitFin = feuilleFin && suivante && feuilleFin > new Date(suivante.debut);
+  const joursEnPlus = feuilleFin ? Math.max(0, Math.ceil((feuilleFin.getTime() - new Date(l.fin_prevue).getTime()) / 864e5 - 0.01)) : 0;
   const lienSignature = l.jeton_signature ? urlSite(`/signer/${l.jeton_signature}`) : null;
   const lancerEdl = (type: 'depart' | 'retour') => router.push({ pathname: '/edl/[id]', params: { id: l.id, type } });
 
@@ -179,7 +189,11 @@ export default function FicheLocation() {
 
       {enCours && <>
         <Titre>Prolonger</Titre>
-        <Puces>{[[1, '+1 jour'], [2, '+2 jours'], [3, '+3 jours'], [7, '+1 semaine']].map(([j, t]) => <Puce key={t} titre={String(t)} onPress={() => allonger(Number(j))} />)}</Puces>
+        <Puces>
+          {[[1, '+1 jour'], [2, '+2 jours'], [3, '+3 jours'], [7, '+1 semaine']].map(([j, t]) => <Puce key={t} titre={String(t)} onPress={() => allonger(Number(j))} />)}
+          <Puce titre="Choisir une date" couleur={c.bleu} actif onPress={() => setFeuilleFin(new Date(new Date(l.fin_prevue).getTime() + 864e5))} />
+        </Puces>
+        {suivante && <Texte gris taille={13}>Prochaine réservation de cette voiture : {jour(suivante.debut)} {heure(suivante.debut)} (n° {suivante.numero ?? '—'}).</Texte>}
         {v?.prix_jour ? <Texte gris taille={13}>Prix ajusté automatiquement : {euros(v.prix_jour)} par jour supplémentaire.</Texte> : null}
       </>}
 
@@ -203,6 +217,25 @@ export default function FicheLocation() {
         <Action icone="message" titre="SMS" couleur={c.bleu} onPress={() => ouvrirSms(tel, reservee ? msg.rappelDepart(l) : msg.rappelRetour(l))} />
         {!finie && distance && lienSignature && !contratSigne ? <Action icone="signature" titre="Lien contrat" couleur={c.orange} onPress={() => ouvrirWhatsApp(tel, msg.signature(l, lienSignature))} /> : null}
       </View> : null}
+
+      <Feuille visible={!!feuilleFin} titre="Nouvelle date de retour" onFermer={() => setFeuilleFin(null)}>
+        {feuilleFin && <>
+          <Calendrier retourSeul debut={new Date(l.fin_prevue)} fin={feuilleFin} onChange={(_, f) => setFeuilleFin(f)} />
+          <Titre>Heure de retour</Titre>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+            {Array.from({ length: 33 }, (_, i) => [6 + Math.floor(i / 2), i % 2 ? 30 : 0]).map(([h, m]) => (
+              <Puce key={`${h}${m}`} titre={`${h}:${String(m).padStart(2, '0')}`} couleur={c.vert} actif={feuilleFin.getHours() === h && feuilleFin.getMinutes() === m}
+                onPress={() => { const f = new Date(feuilleFin); f.setHours(h, m, 0, 0); setFeuilleFin(f); }} />
+            ))}
+          </ScrollView>
+          <Carte accent={conflitFin ? c.rouge : c.vert}>
+            <Texte gras>Retour le {jour(feuilleFin.toISOString())} à {heure(feuilleFin.toISOString())}</Texte>
+            <Texte gris taille={15}>{joursEnPlus} jour{joursEnPlus > 1 ? 's' : ''} de plus{v?.prix_jour && l.prix_total != null ? ` · nouveau total ${euros(Number(l.prix_total) + Number(v.prix_jour) * joursEnPlus)}` : ''}</Texte>
+            {conflitFin && suivante ? <Texte gras couleur={c.rouge} taille={15}>Attention : la voiture est réservée à partir du {jour(suivante.debut)} {heure(suivante.debut)} (n° {suivante.numero ?? '—'}).</Texte> : null}
+          </Carte>
+          <GrosBouton icone="prolonger" titre="Prolonger jusqu’à cette date" danger={!!conflitFin} desactive={feuilleFin <= new Date(l.fin_prevue)} onPress={() => allonger(feuilleFin)} />
+        </>}
+      </Feuille>
 
       <Fenetre visible={question === 'moteur'} danger icone="moteur" question={`Couper le moteur de ${v?.immatriculation ?? 'la voiture'} ?`}
         detail="La voiture ne pourra plus redémarrer. La coupure se fait à l’arrêt ou à vitesse lente, selon le boîtier." non="Annuler" oui="Couper le moteur" onNon={() => setQuestion(null)} onOui={moteur} />
