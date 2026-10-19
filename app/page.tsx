@@ -2,6 +2,8 @@ import { papiersComplets } from '@/app/_c/PapiersClient';
 import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR } from '@/lib/format';
 import Cadre from './_c/Cadre';
+import SuiviFlotte, { type LigneSuivi } from './_c/SuiviFlotte';
+import { suiviAgence, kmEstime } from '@/lib/telematique';
 import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
 import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
@@ -31,6 +33,23 @@ export default async function Accueil() {
   ]);
 
   const planning = await chargerPlanning(supabase, versJour(new Date()), 7);
+  // Flotte en direct (mini carte) : seulement si le suivi GPS est actif pour l'agence
+  const suivi = await suiviAgence(supabase);
+  let lignesGps: LigneSuivi[] = [];
+  if (suivi.actif) {
+    const [{ data: vt }, { data: enCours }] = await Promise.all([
+      supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, km, traceurs(*)').neq('statut', 'sorti').not('traceur_id', 'is', null),
+      supabase.from('locations').select('id, vehicule_id, fin_prevue, clients(nom, prenom)').eq('statut', 'en_cours'),
+    ]);
+    lignesGps = (vt ?? []).map((v: any): LigneSuivi => {
+      const t = v.traceurs; const e = t ? suivi.etats.get(String(t.imei)) : undefined;
+      const loc = (enCours ?? []).find((l: any) => l.vehicule_id === v.id) as any;
+      return { id: v.id, immat: v.immatriculation, marque: v.marque, modele: v.modele, statut: v.statut,
+        etat: !e ? 'hors_ligne' : t.moteur_coupe ? 'coupe' : !e.enLigne ? 'hors_ligne' : e.enMouvement ? 'roule' : 'arret',
+        vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null, lat: e?.lat ?? null, lng: e?.lng ?? null, le: e?.le ?? null, km: kmEstime(t, e) ?? v.km,
+        client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null };
+    });
+  }
   // Guide de démarrage pour un nouveau loueur
   const [{ data: ag }, { count: nbClients }, { count: nbLocations }] = await Promise.all([
     supabase.from('agences').select('adresse, gerant_nom, signature_path').eq('id', profil.agence_id).single(),
@@ -68,12 +87,15 @@ export default async function Accueil() {
   });
 
   const amendesUrgentes = (amendes ?? []).filter((a: any) => a.echeance && new Date(a.echeance).getTime() - Date.now() < 3 * JOUR).length;
-  const tuiles = [
-    { titre: 'Départs du jour', valeur: departs?.length ?? 0, lien: '/locations?filtre=departs', classe: 'ok' },
-    { titre: 'Retours du jour', valeur: retours?.length ?? 0, lien: '/locations?filtre=retours', classe: 'ok' },
-    { titre: 'En retard', valeur: retards?.length ?? 0, lien: '/locations?filtre=retard', classe: 'danger' },
-    { titre: 'Alertes', valeur: alertes.length, lien: '#alertes', classe: 'alerte' },
-    { titre: amendesUrgentes ? `Amendes à désigner (${amendesUrgentes} urgentes)` : 'Amendes à désigner', valeur: amendes?.length ?? 0, lien: '/amendes', classe: amendesUrgentes ? 'danger' : 'alerte' },
+  const occupation = totalFlotte ? Math.round((flotte[0].n / totalFlotte) * 100) : 0;
+  const tuiles: { titre: string; valeur: string | number; detail?: string; lien: string; classe: string; actif: boolean }[] = [
+    { titre: 'Départs du jour', valeur: departs?.length ?? 0, lien: '/locations?filtre=departs', classe: 'ok', actif: (departs?.length ?? 0) > 0 },
+    { titre: 'Retours du jour', valeur: retours?.length ?? 0, lien: '/locations?filtre=retours', classe: 'ok', actif: (retours?.length ?? 0) > 0 },
+    { titre: 'En retard', valeur: retards?.length ?? 0, lien: '/locations?filtre=retard', classe: 'danger', actif: (retards?.length ?? 0) > 0 },
+    { titre: 'Occupation', valeur: `${occupation} %`, detail: `${flotte[0].n}/${totalFlotte} loués`, lien: '/vehicules', classe: 'info', actif: true },
+    ...(profil.role === 'gerant' ? [{ titre: 'Encaissé ce mois', valeur: euros(caMois), detail: moisPrec ? `${caMois >= moisPrec.recettes ? '▲' : '▼'} vs ${euros(moisPrec.recettes)}` : undefined, lien: '/pilotage', classe: 'info', actif: true }] : []),
+    { titre: 'Amendes', valeur: amendes?.length ?? 0, detail: amendesUrgentes ? `${amendesUrgentes} urgente${amendesUrgentes > 1 ? 's' : ''}` : 'à désigner', lien: '/amendes', classe: amendesUrgentes ? 'danger' : 'alerte', actif: (amendes?.length ?? 0) > 0 },
+    { titre: 'Alertes', valeur: alertes.length, detail: 'papiers, garage', lien: '#alertes', classe: 'alerte', actif: alertes.length > 0 },
   ];
 
   const nom = (c: any) => [c?.prenom, c?.nom].filter(Boolean).join(' ');
@@ -115,13 +137,23 @@ export default async function Accueil() {
           ))}</ol>
         </section>
       )}
-      <section className="compteurs">
+      <section className="kpis">
         {tuiles.map((t) => (
-          <a key={t.titre} href={t.lien} className={`compteur ${t.valeur > 0 ? t.classe : ''}`}>
-            <span>{t.titre}</span><b>{t.valeur}</b>
+          <a key={t.titre} href={t.lien} className={`kpi ${t.actif ? t.classe : ''}`}>
+            <span className="lib">{t.titre}</span><b>{t.valeur}</b>{t.detail ? <span className="det">{t.detail}</span> : null}
           </a>
         ))}
       </section>
+
+      {lignesGps.length > 0 && (
+        <section className="carte gps-accueil">
+          <div className="titre" style={{ marginBottom: 10 }}>
+            <h2 style={{ margin: 0 }}>Flotte en direct</h2>
+            <a className="bouton petit" href="/carte">Ouvrir le suivi GPS</a>
+          </div>
+          <SuiviFlotte lignes={lignesGps} demo={suivi.actif && suivi.demo} compact />
+        </section>
+      )}
 
       <section className="carte">
         <div className="titre" style={{ marginBottom: 12 }}>
