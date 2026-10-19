@@ -110,7 +110,7 @@ body.form{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}
 .field{display:flex;flex-direction:column;gap:10px;min-width:0}
 .field > .label{margin:0}
 .num{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--teal-soft);color:var(--teal);font-size:12px;margin-right:6px;letter-spacing:0}
-input[type=text],input[type=date],input[type=time]{width:100%;min-width:0;font-size:18px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px;color:var(--ink)}
+input[type=text],input[type=tel],input[type=date],input[type=time]{width:100%;min-width:0;font-size:18px;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:14px 16px;color:var(--ink)}
 input::placeholder{color:var(--dim)}
 input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
 .chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
@@ -118,7 +118,7 @@ input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px var(--tea
 #prestaChips{grid-template-columns:repeat(2,minmax(0,1fr))}
 .chips::-webkit-scrollbar{display:none}
 
-.chip{font-size:16px;font-weight:600;min-height:54px;padding:0 6px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:999px;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-variant-numeric:tabular-nums}
+.chip{font-size:16px;font-weight:600;height:54px;padding:0 6px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:14px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-variant-numeric:tabular-nums}
 .chip.on{background:var(--teal);border-color:var(--teal);color:var(--teal-ink)}
 .other{display:none}
 .other.show{display:block}
@@ -193,6 +193,11 @@ html,body{margin:0}:root{padding-top:env(safe-area-inset-top,0px)}
       <span class="label"><span class="num">4</span>Prestation</span>
       <div class="chips" id="prestaChips"></div>
       <input id="presta" class="other" type="text" autocomplete="off" placeholder="Écris la prestation">
+    </div>
+
+    <div class="field">
+      <span class="label"><span class="num">5</span>Téléphone du client</span>
+      <input id="tel" type="tel" inputmode="tel" autocomplete="off" placeholder="06 12 34 56 78">
     </div>
 
     <div class="recap" id="recap"></div>
@@ -289,11 +294,11 @@ function rdvHtml(r){
   const open = ouvert === r.id;
   return `<div class="rdv${r.fait ? ' done' : ''}" data-open="${esc(r.id)}">
     <div class="h">${esc(r.heure)}</div>
-    <div style="min-width:0"><div class="who">${esc(r.modele || 'Véhicule')}</div><div class="what">${esc(r.presta)}</div></div>
+    <div style="min-width:0"><div class="who">${esc(r.modele || 'Véhicule')}</div><div class="what">${esc(r.presta)}${r.tel ? ' · ' + esc(r.tel) : ''}</div></div>
     <span class="more" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></span>
     ${open ? `<div class="acts">
       <a class="act cal" href="${esc(lienCalendrier(r))}" target="_blank" rel="noopener">Calendrier</a>
-      ${wa ? `<a class="act wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+      ${wa ? `<a class="act wa" href="https://wa.me/${wa}" target="_blank" rel="noopener">WhatsApp</a><a class="act" href="tel:${esc(r.tel.replace(/\s/g, ''))}">Appeler</a>` : ''}
       <button class="act" type="button" data-done="${esc(r.id)}">${r.fait ? 'Pas fait' : 'Fait'}</button>
       <button class="act del" type="button" data-del="${esc(r.id)}">Supprimer</button>
     </div>` : ''}
@@ -333,8 +338,8 @@ function toast(msg, warn){
 
 /* ---------- Formulaire ---------- */
 const PRESTAS = ['Pack Ultime','Pack Guardian','Pack Serenity','Alarme','Traceur GPS','SafeOBD','Anti-démarrage','Démontage','Transfert'];
-const HOURS = ['08:00','09:00','10:00','11:00','12:00','14:00','15:00','16:00','17:00','18:00'];
-const f = { modele: '', date: '', heure: '', presta: '', autreJour: false, autreHeure: false, autrePresta: false };
+const HOURS = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00'];
+const f = { modele: '', date: '', heure: '', presta: '', tel: '', autreJour: false, autreHeure: false, autrePresta: false };
 
 function dayOptions(){
   const out = [];
@@ -352,7 +357,7 @@ function paint(){
   $('heure').classList.toggle('show', f.autreHeure);
   $('presta').classList.toggle('show', f.autrePresta);
   const ok = f.modele && f.date && f.heure && f.presta;
-  $('recap').innerHTML = ok ? `<b>${esc(f.modele)}</b> · ${esc(f.presta)}<br>${esc(dayLabel(f.date).split(' · ')[0])} à <b>${esc(f.heure.replace(':','h'))}</b>, à l'atelier, 2 h`
+  $('recap').innerHTML = ok ? `<b>${esc(f.modele)}</b> · ${esc(f.presta)}<br>${esc(dayLabel(f.date).split(' · ')[0])} à <b>${esc(f.heure.replace(':','h'))}</b>, à l'atelier, 2 h${f.tel ? '<br>' + esc(f.tel) : ''}`
     : 'Choisis le modèle, le jour, l’heure et la prestation.';
   $('save').href = ok ? lienCalendrier(f) : '#';
   $('save').style.opacity = ok ? '1' : '.55';
@@ -361,7 +366,8 @@ $('modele').addEventListener('input', e => { f.modele = e.target.value.trim(); p
 $('date').addEventListener('input', e => { f.date = e.target.value; paint(); });
 $('heure').addEventListener('input', e => { f.heure = e.target.value; paint(); });
 $('presta').addEventListener('input', e => { f.presta = e.target.value.trim(); paint(); });
-['dayChips','hourChips','prestaChips'].forEach(id => $(id).addEventListener('pointerdown', () => { if (document.activeElement === $('modele')) $('modele').blur(); }));
+$('tel').addEventListener('input', e => { f.tel = e.target.value.trim(); paint(); });
+['dayChips','hourChips','prestaChips'].forEach(id => $(id).addEventListener('pointerdown', () => { if (document.activeElement && document.activeElement.tagName === 'INPUT') document.activeElement.blur(); }));
 $('dayChips').addEventListener('click', e => { const b = e.target.closest('[data-day]'); if (!b) return;
   if (b.dataset.day === 'autre') { f.autreJour = true; f.date = $('date').value; paint(); $('date').focus(); } else { f.autreJour = false; f.date = b.dataset.day; paint(); } });
 $('hourChips').addEventListener('click', e => { const b = e.target.closest('[data-hour]'); if (!b) return;
@@ -370,8 +376,8 @@ $('prestaChips').addEventListener('click', e => { const b = e.target.closest('[d
   if (b.dataset.presta === 'autre') { f.autrePresta = true; f.presta = $('presta').value.trim(); paint(); $('presta').focus(); } else { f.autrePresta = false; f.presta = b.dataset.presta; paint(); } });
 
 function openSheet(){
-  Object.assign(f, { modele: '', date: tomorrow(), heure: '10:00', presta: '', autreJour: false, autreHeure: false, autrePresta: false });
-  $('modele').value = ''; $('date').value = ''; $('heure').value = ''; $('presta').value = ''; $('ferr').textContent = '';
+  Object.assign(f, { modele: '', date: tomorrow(), heure: '10:00', presta: '', tel: '', autreJour: false, autreHeure: false, autrePresta: false });
+  $('tel').value = ''; $('modele').value = ''; $('date').value = ''; $('heure').value = ''; $('presta').value = ''; $('ferr').textContent = '';
   paint();
   avant = $('v-tools').hidden ? 'agenda' : 'tools';
   $('v-agenda').hidden = true; $('v-tools').hidden = true;
@@ -392,7 +398,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('sheet'
 $('save').addEventListener('click', e => {
   const miss = [!f.modele && 'le modèle', !f.date && 'le jour', !f.heure && "l'heure", !f.presta && 'la prestation'].filter(Boolean);
   if (miss.length) { e.preventDefault(); $('ferr').textContent = 'Il manque ' + miss.join(', ') + '.'; return; }
-  const r = { modele: f.modele, date: f.date, heure: f.heure, presta: f.presta, tel: '', fait: false, agenda: true, creeLe: new Date().toISOString() };
+  const r = { modele: f.modele, date: f.date, heure: f.heure, presta: f.presta, tel: f.tel, fait: false, agenda: true, creeLe: new Date().toISOString() };
   const quand = dayLabel(r.date).split(' · ')[0] + ' à ' + r.heure.replace(':','h');
   closeSheet();
   if (db) db.collection('rdv').add(r).then(() => toast('Rendez-vous ajouté · ' + quand)).catch(() => toast('Ajouté au calendrier, mais pas dans l’agenda : réessaie.', true));
