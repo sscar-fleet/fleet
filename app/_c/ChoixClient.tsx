@@ -18,6 +18,7 @@ export default function ChoixClient({ clients, defaut }: { clients: Client[]; de
         <option value="">— Nouveau client —</option>
         {clients.map((x) => <option key={x.id} value={x.id}>{x.nom} {x.prenom ?? ''}{x.telephone ? ' · ' + x.telephone : ''}{x.liste_noire ? ' ⚑ LISTE NOIRE' : ''}</option>)}
       </select></label>
+      <input type="hidden" name="_alerte_noire" value={c?.liste_noire ? `${c.prenom ?? ''} ${c.nom} est en liste noire. Continuer quand même ?`.trim() : ''} />
       {c && (
         <div className={`fiche-client ${c.liste_noire ? 'noire' : ''}`}>
           <b>{c.prenom} {c.nom}</b>

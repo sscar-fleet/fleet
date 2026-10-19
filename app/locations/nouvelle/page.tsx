@@ -9,15 +9,17 @@ import Etapes from '../../_c/Etapes';
 import ChampDate from '../../_c/ChampDate';
 import ChoixClient from '../../_c/ChoixClient';
 import AideTarif from '../../_c/AideTarif';
+import DispoVehicules from '../../_c/DispoVehicules';
 
 export const dynamic = 'force-dynamic';
 
 // Nouvelle location en 3 étapes + vérification
 export default async function NouvelleLocation({ searchParams }: { searchParams: { vehicule?: string; client?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
-  const [{ data: vehicules }, { data: clients }] = await Promise.all([
+  const [{ data: vehicules }, { data: clients }, { data: resas }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('clients').select('id, nom, prenom, telephone, email, date_permis, liste_noire, permis_path').order('nom'),
+    supabase.from('locations').select('vehicule_id, debut, fin_prevue, numero').in('statut', ['reservee', 'en_cours']),
   ]);
   const depart = new Date(); depart.setMinutes(0, 0, 0); depart.setHours(depart.getHours() + 1);
   const retour = new Date(depart.getTime() + 24 * 3600 * 1000);
@@ -43,6 +45,7 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
         ]}>
           <section className="carte" data-etape="0">
             <h2>Quelle voiture, et quand ?</h2>
+            <DispoVehicules reservations={(resas ?? []).map((r: any) => ({ vehicule_id: r.vehicule_id, debut: r.debut, fin: r.fin_prevue, numero: r.numero }))} />
             <div className="grille" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
               <label className="pleine">Véhicule<select name="vehicule_id" defaultValue={searchParams.vehicule ?? ''} required>
                 <option value="">Choisir…</option>

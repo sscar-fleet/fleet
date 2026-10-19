@@ -50,6 +50,8 @@ function champAutorise(champ: string, liste: string[]) {
 // ---------------------------------------------------------------------------
 async function _ajouterVehicule(formData: FormData) {
   const { supabase, profil } = await utilisateurCourant();
+  if (!immat(formData.get('immatriculation'))) throw new Error('Indiquez l’immatriculation.');
+  if (!texte(formData.get('marque')) || !texte(formData.get('modele'))) throw new Error('Indiquez la marque et le modèle.');
   const { data, error } = await supabase.from('vehicules').insert({
     agence_id: profil.agence_id,
     immatriculation: immat(formData.get('immatriculation')),

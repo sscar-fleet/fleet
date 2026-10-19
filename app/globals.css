@@ -410,3 +410,6 @@ input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 1; }
 .pastille.gps-arret { background: color-mix(in srgb, var(--turquoise) 16%, transparent); color: var(--turquoise); }
 .pastille.gps-coupe { background: color-mix(in srgb, var(--rouge) 18%, transparent); color: var(--rouge); }
 .pastille.gps-hors_ligne { background: color-mix(in srgb, var(--gris) 18%, transparent); color: var(--gris); }
+
+/* Immatriculations en majuscules, sans tirets à taper */
+input[name="immatriculation"] { text-transform: uppercase; }

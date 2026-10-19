@@ -49,7 +49,7 @@ export default function CompteurEdl({ km, carburant, checklist, kmDepart, kmIncl
       <div className="verifs">
         <label className="case"><input type="checkbox" name="voyant" checked={voyant} onChange={(e) => setVoyant(e.target.checked)} />Un voyant est allumé</label>
         {voyant && (
-          <label className="pleine">Quel voyant ?<select name="voyant_type" defaultValue={checklist?.voyant_type ?? ''} required>
+          <label className="pleine">Quel voyant ? (facultatif)<select name="voyant_type" defaultValue={checklist?.voyant_type ?? ''}>
             <option value="">Choisir…</option>
             {Object.entries(voyants).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select></label>

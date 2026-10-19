@@ -24,7 +24,7 @@ export default async function Entretiens({ searchParams }: { searchParams: { fil
           <label>Véhicule *<select name="vehicule_id" required><option value="">Choisir…</option>
             {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}</option>)}</select></label>
           <label>Type<select name="type">{Object.entries(typesMaintenance).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
-          <label>Raison / détail *<input name="raison" placeholder="Vidange, pneus, prêt à Loc Express…" required /></label>
+          <label>Détail<input name="raison" placeholder="Vidange, pneus, prêt à Loc Express…" /></label>
           <label>Garage ou loueur<input name="garage" /></label>
           <label>Retour prévu<input name="retour_prevu" type="datetime-local" /></label>
           <label>Coût pour moi (€)<input name="cout" type="number" step="0.01" /></label>

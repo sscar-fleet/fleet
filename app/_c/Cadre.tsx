@@ -14,7 +14,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
       <header className="entete">
         <a href="/" className="logo"><Logo /></a>
         <form action="/recherche" className="recherche" role="search">
-          <input name="q" type="search" placeholder="Rechercher : 208, Martin, AB-123…" aria-label="Rechercher" />
+          <input name="q" type="search" placeholder="Rechercher : 208, Martin, AB123…" aria-label="Rechercher" />
         </form>
         <span className="droite">
           <span className="agence">{profil.nom}<br /><span className="gris">{profil.agences?.nom}</span></span>

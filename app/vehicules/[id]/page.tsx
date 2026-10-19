@@ -119,8 +119,8 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           <h2>Informations</h2>
           <Formulaire action={A.majVehicule.bind(null, v.id)} className="grille">
             <label>Immatriculation<input name="immatriculation" defaultValue={v.immatriculation} required /></label>
-            <label>Marque<input name="marque" defaultValue={v.marque ?? ''} /></label>
-            <label>Modèle<input name="modele" defaultValue={v.modele ?? ''} /></label>
+            <label>Marque<input name="marque" defaultValue={v.marque ?? ''} required /></label>
+            <label>Modèle<input name="modele" defaultValue={v.modele ?? ''} required /></label>
             <label>Carburant<select name="carburant" defaultValue={v.carburant ?? ''}><option value="">—</option>
               {Object.entries(carburants).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
             <label>Kilométrage<input name="km" type="number" min={0} defaultValue={v.km ?? ''} /></label>
@@ -209,7 +209,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           <Formulaire vider action={A.ajouterEntretien} className="grille">
             <input type="hidden" name="vehicule_id" value={v.id} />
             <label>Type<select name="type">{Object.entries(typesMaintenance).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
-            <label>Raison / détail<input name="raison" placeholder="Vidange, pneus, prêt à Loc Express…" required /></label>
+            <label>Détail<input name="raison" placeholder="Vidange, pneus, prêt à Loc Express…" /></label>
             <label>Garage ou loueur<input name="garage" /></label>
             <label>Retour prévu<input name="retour_prevu" type="datetime-local" /></label>
             <label>Km<input name="km" type="number" defaultValue={v.km ?? ''} /></label>

@@ -117,7 +117,8 @@ export default async function EtatDesLieux({ params }: { params: { id: string; t
       </section>
 
       {e.statut === 'en_attente' ? (
-        <Formulaire action={A.terminerEdl.bind(null, e.id)} className="ligne">
+        <Formulaire action={A.terminerEdl.bind(null, e.id)} className="ligne"
+          confirmer={type === 'depart' ? [!e.signature && 'Le client n’a pas signé.', !l.clients?.permis_path && 'Aucun permis enregistré pour ce client.'].filter(Boolean).join('\n') + ([!e.signature, !l.clients?.permis_path].some(Boolean) ? '\nContinuer quand même ?' : '') || undefined : undefined}>
           <Envoyer>{type === 'depart' ? 'Terminer : le véhicule part' : 'Terminer : le véhicule est rendu'}</Envoyer>
           {(faites < 11 || !e.signature || e.km == null) && <span className="gris">
             {[faites < 11 && `${11 - faites} photo(s) manquante(s)`, !e.signature && 'pas de signature', e.km == null && 'kilométrage à enregistrer'].filter(Boolean).join(' · ')}

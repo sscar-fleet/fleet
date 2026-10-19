@@ -26,8 +26,12 @@ export default function Formulaire({ action, children, className, style, vider =
 
   return (
     <form ref={ref} className={className} style={style} action={async (fd) => {
-      if (confirmer) { setQuestion(confirmer); setAttente(fd); return; }
-      if (confirmerSiVide && !String(fd.get(confirmerSiVide.champ) ?? '').trim()) { setQuestion(confirmerSiVide.message); setAttente(fd); return; }
+      // Questions « Vous êtes sûr ? » : message fixe, champ vide, ou alertes posées par les champs cachés _alerte…
+      const messages: string[] = [];
+      if (confirmer) messages.push(confirmer);
+      fd.forEach((v, k) => { if (k.startsWith('_alerte') && String(v).trim()) messages.push(String(v)); });
+      if (confirmerSiVide && !String(fd.get(confirmerSiVide.champ) ?? '').trim()) messages.push(confirmerSiVide.message);
+      if (messages.length) { setQuestion(messages.join('\n')); setAttente(fd); return; }
       await executer(fd);
     }}>
       {children}
@@ -35,7 +39,7 @@ export default function Formulaire({ action, children, className, style, vider =
         <div className="fenetre-fond" onClick={() => setAttente(null)}>
           <div className="fenetre" role="alertdialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="fenetre-icone">!</div>
-            <p>{question}</p>
+            {question.split('\n').map((q, i) => <p key={i} style={{ margin: '4px 0' }}>{q}</p>)}
             <div className="fenetre-boutons">
               <button type="button" className="bouton" autoFocus onClick={() => setAttente(null)}>Non, revenir</button>
               <button type="button" className="bouton principal" onClick={async () => { const fd = attente; setAttente(null); await executer(fd); }}>Oui, continuer</button>
