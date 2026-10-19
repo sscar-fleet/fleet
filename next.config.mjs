@@ -6,7 +6,10 @@ const config = {
   },
   // L'appli téléphone (version navigateur) est servie sous /app : toute adresse de l'appli renvoie vers sa page
   async rewrites() {
-    return { fallback: [{ source: '/app/:chemin*', destination: '/app/index.html' }] };
+    return {
+      beforeFiles: [{ source: '/sscs', destination: '/sscs/index.html' }, { source: '/sscs/', destination: '/sscs/index.html' }],
+      fallback: [{ source: '/app/:chemin*', destination: '/app/index.html' }],
+    };
   },
 };
 export default config;
