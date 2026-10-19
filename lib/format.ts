@@ -27,7 +27,7 @@ export const categoriesDepense: Record<string, string> = {
   fourriere: 'Fourrière', reparation: 'Réparation', carburant: 'Carburant', nettoyage: 'Nettoyage', peage: 'Péage / parking', autre: 'Autre',
 };
 export const financements: Record<string, string> = {
-  achat: 'Achat comptant', credit: 'Crédit', leasing: 'Leasing / LOA', lld: 'LLD', autre: 'Autre',
+  achat: 'Achat comptant', credit: 'Crédit', leasing: 'Leasing / LOA', lld: 'LLD', pret: 'Prêté par un confrère', autre: 'Autre',
 };
 export const carburants: Record<string, string> = {
   essence: 'Essence', diesel: 'Diesel', hybride: 'Hybride', electrique: 'Électrique', gpl: 'GPL',

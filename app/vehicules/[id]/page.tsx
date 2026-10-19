@@ -6,6 +6,7 @@ import {
   km, date, dateHeure, euros, echeance, joursEntre, JOUR, versJour, categoriesDepense,
 } from '@/lib/format';
 import * as A from '../../actions';
+import ProvenanceVehicule from '../../_c/ProvenanceVehicule';
 import Cadre from '../../_c/Cadre';
 import Formulaire from '../../_c/Formulaire';
 import Envoyer from '../../_c/Envoyer';
@@ -74,7 +75,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
 
   return (
     <Cadre retour={{ lien: '/vehicules', texte: 'Véhicules' }} tables={['vehicules', 'locations', 'entretiens', 'dommages', 'amendes']}
-      titre={<>{v.immatriculation} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span></>}
+      titre={<>{v.immatriculation} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span>{v.financement === 'pret' && <span className={`pastille ${v.pret_retour && new Date(v.pret_retour).getTime() - Date.now() < 7 * 864e5 ? 'proche' : ''}`} style={{ marginLeft: 10, fontSize: 13 }}>Prêté{v.pret_par ? ` par ${v.pret_par}` : ''}{v.pret_retour ? ` · à rendre le ${date(v.pret_retour)}` : ''}</span>}</>}
       actions={<>
         <span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>
         {v.statut !== 'sorti' && <a className="bouton principal" href={`/locations/nouvelle?vehicule=${v.id}`}>+ Louer</a>}
@@ -127,10 +128,9 @@ export default async function FicheVehicule({ params }: { params: { id: string }
             <label>Prix par jour (€)<input name="prix_jour" type="number" step="0.01" min={0} defaultValue={v.prix_jour ?? ''} /></label>
             <label>Fin d&apos;assurance<input name="assurance_echeance" type="date" defaultValue={v.assurance_echeance ?? ''} /></label>
             <label>Prochain CT<input name="ct_echeance" type="date" defaultValue={v.ct_echeance ?? ''} /></label>
-            <label>Financement<select name="financement" defaultValue={v.financement ?? ''}><option value="">—</option>
-              {Object.entries(financements).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
-            <label>Coût mensuel (€)<input name="cout_mensuel" type="number" step="0.01" min={0} defaultValue={v.cout_mensuel ?? ''} placeholder="Loyer, crédit…" /></label>
-            <label>Prix d&apos;achat (€)<input name="prix_achat" type="number" step="0.01" min={0} defaultValue={v.prix_achat ?? ''} placeholder="Si acheté comptant" /></label>
+            <ProvenanceVehicule v={v} />
+            <label data-cout>Coût mensuel (€)<input name="cout_mensuel" type="number" step="0.01" min={0} defaultValue={v.cout_mensuel ?? ''} placeholder="Loyer, crédit…" /></label>
+            <label data-cout>Prix d&apos;achat (€)<input name="prix_achat" type="number" step="0.01" min={0} defaultValue={v.prix_achat ?? ''} placeholder="Si acheté comptant" /></label>
             <label>Entré dans la flotte le<input name="date_entree" type="date" defaultValue={v.date_entree ?? ''} /></label>
             <Envoyer className="bouton">Enregistrer</Envoyer>
           </Formulaire>

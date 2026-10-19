@@ -41,6 +41,14 @@ function papiersClient(formData: FormData, agenceId: string) {
   return Object.fromEntries(PAPIERS_CLIENT.map((c) => [c, cheminScan(formData, c, agenceId)]));
 }
 
+// Véhicule prêté par un confrère : pas de coût ; les colonnes du prêt ne sont écrites que si besoin
+function champsPret(formData: FormData, _modification = false) {
+  if (texte(formData.get('financement')) === 'pret') {
+    return { cout_mensuel: null, prix_achat: null, pret_par: texte(formData.get('pret_par')), pret_retour: texte(formData.get('pret_retour')) };
+  }
+  return {};
+}
+
 function champAutorise(champ: string, liste: string[]) {
   if (!liste.includes(champ)) throw new Error('Champ non autorisé');
 }
@@ -67,6 +75,7 @@ async function _ajouterVehicule(formData: FormData) {
     date_entree: texte(formData.get('date_entree')) ?? new Date().toISOString().slice(0, 10),
     carte_grise_path: cheminScan(formData, 'carte_grise_path', profil.agence_id),
     prix_achat: nombre(formData.get('prix_achat')),
+    ...champsPret(formData),
   }).select('id').single();
   verifier(error, 'Ajout du véhicule');
   rafraichir();
@@ -88,6 +97,7 @@ async function _majVehicule(id: string, formData: FormData) {
     cout_mensuel: nombre(formData.get('cout_mensuel')),
     financement: texte(formData.get('financement')),
     date_entree: texte(formData.get('date_entree')),
+    ...champsPret(formData, true),
   }).eq('id', id);
   verifier(error, 'Modification du véhicule');
   rafraichir();

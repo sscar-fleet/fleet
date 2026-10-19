@@ -1,5 +1,6 @@
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
-import { statutVehicule, carburants, financements, km, echeance, date } from '@/lib/format';
+import { statutVehicule, carburants, km, echeance, date } from '@/lib/format';
+import ProvenanceVehicule from '../_c/ProvenanceVehicule';
 import { ajouterVehicule } from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
@@ -34,6 +35,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
           <label>Modèle *<input name="modele" placeholder="208" required /></label>
           <ApercuModele />
           <label>Kilométrage<input name="km" type="number" min={0} inputMode="numeric" /></label>
+          <ProvenanceVehicule />
           <details className="options pleine">
             <summary>+ Plus d&apos;options (prix, papiers, coût du véhicule)</summary>
             <div className="grille">
@@ -42,10 +44,8 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
                 {Object.entries(carburants).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
               <label>Fin d&apos;assurance<input name="assurance_echeance" type="date" /></label>
               <label>Prochain contrôle technique<input name="ct_echeance" type="date" /></label>
-              <label>Financement<select name="financement" defaultValue=""><option value="">—</option>
-                {Object.entries(financements).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-              <label>Coût mensuel (€)<input name="cout_mensuel" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Loyer, crédit ou amortissement" /></label>
-              <label>Prix d&apos;achat (€)<input name="prix_achat" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Si acheté comptant" /></label>
+              <label data-cout>Coût mensuel (€)<input name="cout_mensuel" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Loyer, crédit ou amortissement" /></label>
+              <label data-cout>Prix d&apos;achat (€)<input name="prix_achat" type="number" min={0} step="0.01" inputMode="decimal" placeholder="Si acheté comptant" /></label>
               <label>Entré dans la flotte le<input name="date_entree" type="date" /></label>
             </div>
           </details>
@@ -73,7 +73,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
                 <tr key={v.id}>
                   <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{v.immatriculation}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
-                  <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span></td>
+                  <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>{v.financement === 'pret' ? <span className="pastille" style={{ marginLeft: 6 }} title={v.pret_par ? `Prêté par ${v.pret_par}` : 'Prêté par un confrère'}>Prêt</span> : null}</td>
                   <td className="masque-mobile">{km(v.km)}</td>
                   <td className="masque-mobile">
                     {!v.assurance_echeance && !v.ct_echeance ? <span className="gris">À compléter</span>
