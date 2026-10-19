@@ -516,9 +516,20 @@ input[name="immatriculation"] { text-transform: uppercase; }
 .suivi-direct i { width: 8px; height: 8px; border-radius: 50%; background: var(--vert); box-shadow: 0 0 0 0 rgba(34,197,94,.6); animation: pouls 2s infinite; }
 @keyframes pouls { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.55); } 70% { box-shadow: 0 0 0 8px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
 .suivi-corps { display: grid; grid-template-columns: 360px 1fr; gap: 12px; height: calc(100vh - 210px); min-height: 460px; }
-.suivi.compact .suivi-corps { grid-template-columns: 1fr; height: auto; min-height: 0; }
-.suivi.compact .suivi-liste { display: none; }
-.suivi.compact .suivi-carte { height: 260px; }
+.suivi.compact { gap: 10px; }
+.suivi.compact .suivi-corps { grid-template-columns: 280px 1fr; height: 340px; min-height: 0; gap: 10px; }
+.suivi.compact .suivi-kpi { min-width: 0; padding: 6px 11px; font-size: 12.5px; gap: 7px; border-radius: 10px; }
+.suivi.compact .suivi-kpi b { font-size: 16px; }
+.suivi.compact .suivi-ligne { padding: 7px 10px; gap: 8px; }
+.suivi.compact .suivi-ligne .logo { width: 30px; height: 30px; border-radius: 8px; }
+.suivi.compact .suivi-ligne .logo img { width: 21px; height: 21px; }
+.suivi.compact .suivi-recherche { margin: 8px; width: calc(100% - 16px); padding: 7px 10px; font-size: 13px; }
+.suivi.compact .suivi-fiche { width: 260px; padding: 10px 12px; gap: 8px; }
+.suivi-zoom { display: inline-flex; align-items: center; gap: 6px; background: var(--panneau); border: 1px solid var(--bord); border-radius: 10px; padding: 7px 11px; color: var(--texte); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.suivi-zoom:hover { border-color: var(--turquoise); color: var(--turquoise); }
+.suivi.plein { position: fixed; inset: 0; z-index: 2000; background: var(--noir); padding: 18px 20px; overflow-y: auto; align-content: start; animation: suivi-ouvre .18s ease-out; }
+.suivi.plein .suivi-corps { height: calc(100vh - 100px); }
+@keyframes suivi-ouvre { from { opacity: 0; transform: scale(.985); } to { opacity: 1; transform: none; } }
 .suivi-liste { display: flex; flex-direction: column; background: var(--panneau); border: 1px solid var(--bord); border-radius: 14px; overflow: hidden; min-height: 0; }
 .suivi-recherche { margin: 10px; width: calc(100% - 20px); border-radius: 10px; padding: 9px 12px; font-size: 14px; }
 .suivi-lignes { overflow-y: auto; flex: 1; border-top: 1px solid var(--bord); }
@@ -545,9 +556,6 @@ input[name="immatriculation"] { text-transform: uppercase; }
 .suivi-fiche .g span { display: block; color: var(--gris); font-size: 11.5px; }
 .suivi-fiche .g b { font-size: 13.5px; }
 .suivi-fiche .a { display: flex; gap: 6px; flex-wrap: wrap; }
-.suivi-mini-kpis { position: absolute; left: 10px; bottom: 10px; z-index: 500; display: flex; gap: 6px; flex-wrap: wrap; }
-.suivi-mini-kpis span { background: rgba(11,15,18,.82); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 9px; border-radius: 99px; display: flex; align-items: center; gap: 6px; }
-.suivi-mini-kpis i { width: 8px; height: 8px; border-radius: 50%; }
 .suivi-repere span { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
 .suivi-repere span i { position: absolute; inset: -9px; border-radius: 50%; border: 2px solid #3b82f6; animation: pouls-bleu 1.8s infinite; }
 @keyframes pouls-bleu { from { transform: scale(.6); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
@@ -559,6 +567,12 @@ input[name="immatriculation"] { text-transform: uppercase; }
   .suivi-carte { height: 380px; order: -1; }
   .suivi-liste { max-height: none; }
   .suivi-direct { margin-left: 0; width: 100%; }
+  .suivi.compact .suivi-corps { grid-template-columns: 1fr; height: auto; }
+  .suivi.compact .suivi-liste { display: none; }
+  .suivi.compact .suivi-carte { height: 280px; }
+  .suivi.plein { padding: 12px; }
+  .suivi.plein .suivi-corps { height: auto; }
+  .suivi.plein .suivi-carte { height: 62vh; }
 }
 
 /* Accueil : indicateurs compacts façon tableau de bord */

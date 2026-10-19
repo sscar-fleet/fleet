@@ -34,6 +34,23 @@ export default function SuiviFlotte({ lignes, demo, compact = false }: { lignes:
   const calque = useRef<any>(null);
   const reperes = useRef<Record<string, any>>({});
   const cadre = useRef(false);
+  const [plein, setPlein] = useState(false);
+  const bornesRef = useRef<[number, number][]>([]);
+
+  // Plein écran (depuis l'accueil) : Échap pour revenir, la carte se recalcule à chaque changement de taille
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const c = carte.current; if (!c) return;
+      c.invalidateSize();
+      const b = bornesRef.current;
+      if (b.length > 1) c.fitBounds(b, { padding: [60, 60], maxZoom: 14 }); else if (b.length === 1) c.setView(b[0], 14);
+    }, 80);
+    if (!plein) return () => clearTimeout(t);
+    const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') setPlein(false); };
+    window.addEventListener('keydown', echap);
+    document.documentElement.style.overflow = 'hidden';
+    return () => { clearTimeout(t); window.removeEventListener('keydown', echap); document.documentElement.style.overflow = ''; };
+  }, [plein]);
 
   // Actualisation toutes les 30 s
   useEffect(() => { setMaj(Date.now()); }, [lignes]);
@@ -76,6 +93,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false }: { lignes:
         reperes.current[l.id] = m;
         bornes.push([l.lat, l.lng]);
       });
+      bornesRef.current = bornes;
       if (bornes.length && !cadre.current) {
         cadre.current = true;
         if (bornes.length === 1) carte.current.setView(bornes[0], 14);
@@ -93,8 +111,8 @@ export default function SuiviFlotte({ lignes, demo, compact = false }: { lignes:
   const sel = suivis.find((l) => l.id === choisi);
 
   return (
-    <div className={`suivi ${compact ? 'compact' : ''}`}>
-      {!compact && (
+    <div className={`suivi ${compact && !plein ? 'compact' : ''} ${plein ? 'plein' : ''}`}>
+      {(
         <div className="suivi-kpis">
           {(['tous', 'roule', 'arret', 'coupe', 'hors_ligne'] as Filtre[]).map((k) => (
             <button key={k} type="button" className={`suivi-kpi ${filtre === k ? 'actif' : ''}`} onClick={() => setFiltre(k)}>
@@ -104,6 +122,14 @@ export default function SuiviFlotte({ lignes, demo, compact = false }: { lignes:
             </button>
           ))}
           <span className="suivi-direct"><i />En direct · {depuis(new Date(maj).toISOString())}{demo ? ' · aperçu' : ''}</span>
+          {compact && (
+            <button type="button" className="suivi-zoom" onClick={() => setPlein((v) => !v)} aria-label={plein ? 'Réduire' : 'Agrandir'} title={plein ? 'Réduire (Échap)' : 'Agrandir en plein écran'}>
+              {plein
+                ? <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+                : <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>}
+              <span>{plein ? 'Réduire' : 'Agrandir'}</span>
+            </button>
+          )}
         </div>
       )}
       <div className="suivi-corps">
@@ -148,11 +174,6 @@ export default function SuiviFlotte({ lignes, demo, compact = false }: { lignes:
                 {sel.location_id && <a className="bouton petit" href={`/locations/${sel.location_id}`}>Location</a>}
                 {sel.lat != null && <a className="bouton petit" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${sel.lat},${sel.lng}`}>Itinéraire</a>}
               </div>
-            </div>
-          )}
-          {compact && (
-            <div className="suivi-mini-kpis">
-              {(['roule', 'arret', 'coupe', 'hors_ligne'] as const).filter((k) => nb(k) > 0).map((k) => <span key={k}><i style={{ background: COULEUR[k] }} />{nb(k)} {LIBELLE[k].toLowerCase()}</span>)}
             </div>
           )}
         </div>
