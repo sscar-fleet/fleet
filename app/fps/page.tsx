@@ -28,7 +28,7 @@ export default async function Fps({ searchParams }: { searchParams: { filtre?: s
   const { supabase, profil } = await utilisateurCourant();
   const filtre = FILTRES.find((f) => f[0] === searchParams.filtre) ?? FILTRES[0];
   const [{ data: liste, error }, { data: tous }, { data: clients }, { data: vehicules }, agence] = await Promise.all([
-    supabase.from('fps').select('*, vehicules(id, immatriculation, marque, modele, carte_grise_path), clients(id, nom, prenom, telephone, email, adresse), locations(id, numero)')
+    supabase.from('fps').select('*, vehicules(id, immatriculation, marque, modele, carte_grise_path), clients(id, nom, prenom, telephone, email, adresse), locations!fps_location_id_fkey(id, numero)')
       .in('statut', filtre[2]).order('limite_paiement', { ascending: true }),
     supabase.from('fps').select('statut, montant, frais_gestion, rembourse_le'),
     supabase.from('clients').select('id, nom, prenom').order('nom'),
