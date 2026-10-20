@@ -19,6 +19,7 @@ import { POSITIONS, VOYANTS, TYPES_DEGAT, ouvrirEdl, ajouterPhoto, terminerEdl, 
 import { chargerLocation, photosDepart, type LocationFiche } from '@/lib/donnees';
 import { chargerGps } from '@/lib/gps';
 import { prendrePhoto } from '@/lib/photo';
+import * as ImagePicker from 'expo-image-picker';
 import { ouvrirWhatsApp, msg } from '@/lib/messages';
 import { euros, km as fkm, nomClient, nomVehicule, jour, heure, plaque } from '@/lib/format';
 import Signature, { signatureEnImage } from '@/composants/Signature';
@@ -74,14 +75,29 @@ export default function EtatDesLieux() {
   const contratASigner = !retour && l && !l.signature_contrat_path && !l.signe_distance_le;
   const kmRef = !retour ? l?.vehicules?.km ?? null : l?.km_depart ?? null;
 
-  async function photographier(position: string) {
+  async function poser(position: string, uri: string) {
     if (!edlId || !profil) return;
-    const p = await prendrePhoto();
-    if (!p) return;
-    setPhotos((x) => ({ ...x, [position]: p.uri }));
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    const chemin = await ajouterPhoto(edlId, profil.agence_id, position, p.uri);
+    setPhotos((x) => ({ ...x, [position]: uri }));
+    const chemin = await ajouterPhoto(edlId, profil.agence_id, position, uri);
     setChemins((x) => ({ ...x, [position]: chemin }));
+  }
+  async function photographier(position: string, galerie = false) {
+    if (!edlId || !profil) return;
+    const p = await prendrePhoto({ galerie });
+    if (!p) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    await poser(position, p.uri);
+  }
+  // Plusieurs photos prises avant (sans réseau, avec l'appareil photo du téléphone) : rangées dans l'ordre des cases vides
+  async function importerPlusieurs() {
+    if (!edlId || !profil) return;
+    const vides = POSITIONS.filter((p) => !photos[p.position]);
+    if (!vides.length) return;
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: vides.length, quality: 0.6, orderedSelection: true });
+    if (r.canceled || !r.assets?.length) return;
+    for (let i = 0; i < Math.min(r.assets.length, vides.length); i++) await poser(vides[i].position, r.assets[i].uri);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    toast(`${Math.min(r.assets.length, vides.length)} photo${r.assets.length > 1 ? 's' : ''} ajoutée${r.assets.length > 1 ? 's' : ''} : touchez une case pour la changer`);
   }
 
   async function terminer(forcer = false) {
@@ -141,7 +157,13 @@ export default function EtatDesLieux() {
   );
 
   const bas = etape === 0
-    ? (suivante ? <GrosBouton icone="photo" titre={`Photo : ${suivante.libelle}`} sousTitre={`${prises + 1} sur ${POSITIONS.length}`} onPress={() => photographier(suivante.position)} />
+    ? (suivante ? <>
+        <GrosBouton icone="photo" titre={`Photo : ${suivante.libelle}`} sousTitre={`${prises + 1} sur ${POSITIONS.length}`} onPress={() => photographier(suivante.position)} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <GrosBouton petit secondaire titre="Choisir dans mes photos" onPress={() => photographier(suivante.position, true)} style={{ flex: 1 }} />
+          <GrosBouton petit secondaire titre="Importer plusieurs" onPress={importerPlusieurs} style={{ flex: 1 }} />
+        </View>
+      </>
       : <GrosBouton titre="Suivant : le compteur" onPress={() => setEtape(1)} />)
     : etape === 1 ? <GrosBouton titre="Suivant : les contrôles" desactive={!km} onPress={() => (kmRef != null && kmNum < kmRef ? setQuestion('kmBas') : setEtape(2))} />
     : etape === 2 ? <GrosBouton titre="Suivant : la signature" onPress={() => setEtape(3)} />
@@ -271,7 +293,10 @@ export default function EtatDesLieux() {
             {(['leger', 'moyen', 'grave'] as const).map((g) => <Puce key={g} titre={{ leger: 'Léger', moyen: 'Moyen', grave: 'Grave' }[g]} couleur={c.orange} actif={degats[ouverte].gravite === g}
               onPress={() => setDegats((x) => ({ ...x, [ouverte]: { ...x[ouverte], gravite: g } }))} />)}
           </Puces>}
-          <GrosBouton secondaire icone="photo" titre="Reprendre la photo" onPress={() => { const p = ouverte; setOuverte(null); photographier(p); }} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <GrosBouton secondaire icone="photo" titre="Reprendre" onPress={() => { const p = ouverte; setOuverte(null); photographier(p); }} style={{ flex: 1 }} />
+            <GrosBouton secondaire titre="Mes photos" onPress={() => { const p = ouverte; setOuverte(null); photographier(p, true); }} style={{ flex: 1 }} />
+          </View>
           <GrosBouton titre={degats[ouverte] ? 'Dégât noté' : 'Fermer'} onPress={() => { if (degats[ouverte]) toast('Dégât ajouté à la fiche du véhicule'); setOuverte(null); }} />
         </>}
       </Feuille>
