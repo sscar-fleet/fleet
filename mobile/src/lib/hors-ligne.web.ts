@@ -30,8 +30,34 @@ export let dernierRefus = '';
 
 export async function enAttente() { return lireFile().length; }
 
+// Photos et signatures gardées dans la base du navigateur (IndexedDB) : elles survivent à la fermeture de l'appli
+// sans réseau, et ne remplissent pas le petit stockage de la file.
+function base(): Promise<IDBDatabase> {
+  return new Promise((ok, ko) => {
+    const r = indexedDB.open('fleet-fichiers', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('f');
+    r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error);
+  });
+}
+async function idb<T>(mode: IDBTransactionMode, faire: (s: IDBObjectStore) => IDBRequest): Promise<T> {
+  const db = await base();
+  return new Promise((ok, ko) => { const t = db.transaction('f', mode); const r = faire(t.objectStore('f')); r.onsuccess = () => ok(r.result as T); r.onerror = () => ko(r.error); });
+}
+async function rangerFichiers(op: Operation): Promise<Operation> {
+  if (op.genre !== 'fichier') return op;
+  const ensuite = op.ensuite ? await rangerFichiers(op.ensuite) : undefined;
+  if (op.uri.startsWith('idb:') || /^https?:/.test(op.uri)) return { ...op, ensuite };
+  try {
+    const blob = await reduire(await fetch(op.uri).then((r) => r.blob()));
+    const cle = nouvelleCle();
+    await idb('readwrite', (st) => st.put(blob, cle));
+    return { ...op, uri: 'idb:' + cle, ensuite };
+  } catch { return { ...op, ensuite }; }
+}
+
 export async function mettreEnFile(op: Operation) {
-  ecrireJson(CLE, [...lireFile(), { cle: nouvelleCle(), op, essais: 0 }]);
+  const range = await rangerFichiers(op);
+  ecrireJson(CLE, [...lireFile(), { cle: nouvelleCle(), op: range, essais: 0 }]);
   envoyerFile().catch(() => {});
 }
 
@@ -53,10 +79,17 @@ async function executer(op: Operation): Promise<void> {
     const { error } = await supabase.from(op.table).insert(op.champs);
     if (error && error.code !== '23505') throw error; // déjà envoyé (doublon) : on continue
   } else {
-    const fichier = await reduire(await fetch(op.uri).then((r) => r.blob()));
-    const { error } = await supabase.storage.from('documents').upload(op.chemin, fichier, { contentType: fichier.type || op.type, upsert: true });
-    if (error) throw error;
+    const cleIdb = op.uri.startsWith('idb:') ? op.uri.slice(4) : null;
+    let fichier: Blob | undefined;
+    if (cleIdb) fichier = await idb<Blob | undefined>('readonly', (st) => st.get(cleIdb));
+    else { try { fichier = await reduire(await fetch(op.uri).then((r) => r.blob())); } catch { fichier = undefined; } }
+    // Fichier introuvable (appli fermée avant la mise de côté) : on passe à la suite au lieu de bloquer toute la file
+    if (fichier) {
+      const { error } = await supabase.storage.from('documents').upload(op.chemin, fichier, { contentType: fichier.type || op.type, upsert: true });
+      if (error) throw error;
+    }
     if (op.ensuite) await executer(op.ensuite);
+    if (cleIdb) idb('readwrite', (st) => st.delete(cleIdb)).catch(() => {});
   }
 }
 
