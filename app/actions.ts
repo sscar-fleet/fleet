@@ -505,7 +505,7 @@ async function _ajouterAmende(formData: FormData) {
     agence_id: profil.agence_id, vehicule_id: v.id, location_id: loc?.id ?? null, client_id: loc?.client_id ?? null,
     numero_avis: texte(formData.get('numero_avis')), type: texte(formData.get('type')), date_infraction: quand,
     lieu: texte(formData.get('lieu')), montant: nombre(formData.get('montant')), echeance,
-    statut: loc ? 'a_designer' : 'infos_manquantes',
+    avis_path: texte(formData.get('avis_path')), statut: loc ? 'a_designer' : 'infos_manquantes',
   })).error, 'Ajout de l’amende');
   rafraichir();
 }

@@ -4,15 +4,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-type Seance = { agence_id: string; agence: string; couleur: string | null; client: string | null; pieces: Record<string, string>; expire_le: string } | null;
-const PIECES = [
+type Seance = { agence_id: string; agence: string; couleur: string | null; client: string | null; pieces: Record<string, string>; expire_le: string; genre?: string } | null;
+type Piece = { cle: string; titre: string; face: string; format: 'carte' | 'a4'; lire?: string };
+const PIECES_CLIENT: Piece[] = [
   { cle: 'permis_path', titre: 'Permis de conduire', face: 'recto', format: 'carte', lire: 'permis' },
   { cle: 'permis_verso_path', titre: 'Permis de conduire', face: 'verso', format: 'carte' },
   { cle: 'piece_identite_path', titre: 'Pièce d’identité', face: 'recto', format: 'carte' },
   { cle: 'piece_identite_verso_path', titre: 'Pièce d’identité', face: 'verso', format: 'carte' },
   { cle: 'justificatif_domicile_path', titre: 'Justificatif de domicile', face: 'ou attestation d’hébergement', format: 'a4' },
-] as const;
-type Piece = (typeof PIECES)[number];
+];
+// Un seul document à photographier pour les avis et la carte grise
+const DOCUMENTS: Record<string, Piece> = {
+  fps: { cle: 'document_path', titre: 'Avis de FPS', face: 'la page avec le montant', format: 'a4', lire: 'fps' },
+  amende: { cle: 'document_path', titre: 'Avis de contravention', face: 'la page avec l’infraction', format: 'a4', lire: 'amende' },
+  carte_grise: { cle: 'document_path', titre: 'Carte grise', face: 'ouverte, bien à plat', format: 'a4', lire: 'carte_grise' },
+};
 const SORTIE = { carte: { l: 1400, h: 883 }, a4: { l: 1240, h: 1754 } };
 const nomPiece = (p: Piece) => (p.format === 'a4' ? p.titre : `${p.titre} (${p.face})`);
 
@@ -32,6 +38,7 @@ function nettoyer(ctx: CanvasRenderingContext2D, l: number, h: number) {
 }
 
 export default function ScanTelephone({ jeton, seance }: { jeton: string; seance: Seance }) {
+  const PIECES: Piece[] = seance?.genre && DOCUMENTS[seance.genre] ? [DOCUMENTS[seance.genre]] : PIECES_CLIENT;
   const [etape, setEtape] = useState(0);
   const [pris, setPris] = useState<Record<string, string>>(() => {
     const p: Record<string, string> = {};
@@ -113,7 +120,7 @@ export default function ScanTelephone({ jeton, seance }: { jeton: string; seance
       if (error) throw new Error(error.message.includes('row-level') ? 'Lien expiré : générez un nouveau QR code sur l’ordinateur.' : error.message);
       const { error: e2 } = await sb.rpc('scan_ajouter', { le_jeton: jeton, piece: piece.cle, chemin });
       if (e2) throw new Error(e2.message);
-      if ('lire' in piece) fetch(`/api/scans/${jeton}/lire`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: apercu.dataUrl, genre: piece.lire }) }).catch(() => {});
+      if (piece.lire) fetch(`/api/scans/${jeton}/lire`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ image: apercu.dataUrl, genre: piece.lire }) }).catch(() => {});
       setPris((x) => ({ ...x, [piece.cle]: apercu.url }));
       setApercu(null);
       suivante(etape + 1);

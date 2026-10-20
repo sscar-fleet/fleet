@@ -613,3 +613,20 @@ td.libre:hover .case-libre { color: var(--turquoise); }
 .suggestion-amende { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(32,224,200,.08); border: 1px solid rgba(32,224,200,.35); font-size: 14px; }
 .fiche-antai { margin-top: 12px; }
 .fiche-antai > summary { cursor: pointer; font-weight: 700; color: var(--turquoise); font-size: 14px; }
+/* Grande zone de scan (avis de FPS, amendes, carte grise) : déposer, importer ou photographier avec le téléphone */
+.zone-scan { border: 2px dashed var(--turquoise); border-radius: 16px; padding: 18px; background: rgba(32,224,200,.06); display: grid; gap: 14px; transition: background .15s, border-color .15s; }
+.zone-scan.survol { background: rgba(32,224,200,.16); border-style: solid; }
+.zone-scan-titre { display: grid; gap: 4px; }
+.zone-scan-titre b { font-size: 17px; }
+.zone-scan-titre span { color: var(--gris); font-size: 14px; }
+.zone-scan-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.zone-scan-btn { display: flex; align-items: center; gap: 14px; text-align: left; padding: 16px; border-radius: 14px; border: 1.5px solid var(--turquoise); background: var(--turquoise); color: #062a26; cursor: pointer; font: inherit; }
+.zone-scan-btn + .zone-scan-btn { background: transparent; color: var(--texte); }
+.zone-scan-btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.zone-scan-btn span { display: grid; gap: 2px; }
+.zone-scan-btn b { font-size: 15.5px; }
+.zone-scan-btn small { font-size: 12.5px; opacity: .8; }
+.zone-scan-qr { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 12px; border-radius: 12px; background: rgba(0,0,0,.18); }
+.zone-scan-qr img { width: 170px; height: 170px; border-radius: 10px; background: #fff; }
+.zone-scan-qr > div { flex: 1; min-width: 220px; display: grid; gap: 6px; }
+.zone-scan-etat { font-weight: 700; color: var(--turquoise); }

@@ -7,6 +7,7 @@ import Formulaire from '../_c/Formulaire';
 import Envoyer from '../_c/Envoyer';
 import Fichier from '../_c/Fichier';
 import Copier from '../_c/Copier';
+import Scanner from '../_c/Scanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,8 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
       <details className="formulaire carte formulaire-haut">
         <summary>Nouvel avis de contravention</summary>
         <Formulaire vider action={A.ajouterAmende} className="grille">
+          <Scanner genre="amende" agenceId={profil.agence_id} champChemin="avis_path" libelle="Avis de contravention" />
+          <input type="hidden" name="avis_path" />
           <label>Immatriculation *<input name="immatriculation" list="immats" required placeholder="AB123CD" /></label>
           <datalist id="immats">{vehicules?.map((v: any) => <option key={plaque(v.immatriculation)} value={plaque(v.immatriculation)} />)}</datalist>
           <label>Date et heure de l&apos;infraction *<input name="date_infraction" type="datetime-local" required /></label>

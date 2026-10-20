@@ -29,7 +29,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
       <details className="formulaire carte formulaire-haut" open={!tous?.length}>
         <summary>Nouveau véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille" succes="Véhicule ajouté">
-          <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Photo de la carte grise : remplissage automatique" />
+          <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Carte grise" />
           <input type="hidden" name="carte_grise_path" />
           <label>Immatriculation *<input name="immatriculation" placeholder="AB123CD" required autoCapitalize="characters" autoComplete="off" /></label>
           <label>Marque *<input name="marque" placeholder="Peugeot" required /></label>

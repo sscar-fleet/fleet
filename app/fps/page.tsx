@@ -66,7 +66,7 @@ export default async function Fps({ searchParams }: { searchParams: { filtre?: s
       <details className="formulaire carte formulaire-haut">
         <summary>Nouvel avis de FPS</summary>
         <Formulaire vider action={A.ajouterFps} className="grille" succes="FPS enregistré">
-          <Scanner genre="fps" agenceId={profil.agence_id} champChemin="avis_path" libelle="Photo ou PDF de l’avis : tout se remplit seul" />
+          <Scanner genre="fps" agenceId={profil.agence_id} champChemin="avis_path" libelle="Avis de FPS" />
           <input type="hidden" name="avis_path" />
           <label>Immatriculation *<input name="immatriculation" list="immats-fps" required placeholder="AB123CD" /></label>
           <datalist id="immats-fps">{vehicules?.map((v: any) => <option key={v.immatriculation} value={plaque(v.immatriculation)} />)}</datalist>
