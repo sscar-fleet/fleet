@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View, RefreshControl, P
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useCouleurs, T } from '@/lib/theme';
 import Icone, { type NomIcone } from './Icone';
 
@@ -16,10 +16,18 @@ export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChar
 }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
+  const { defil, tirage, actif } = useTirerPourActualiser(rafraichir, enChargement);
   return (
     <View style={{ flex: 1, backgroundColor: c.fond }}>
-      <ScrollView keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 10, paddingBottom: bas ? 130 + marges.bottom : 40, gap: 12, maxWidth: 720, width: '100%', alignSelf: 'center' }}
+      {Platform.OS === 'web' && rafraichir && (tirage > 0 || actif) ? (
+        <View pointerEvents="none" style={{ position: 'absolute', zIndex: 10, left: 0, right: 0, top: marges.top + Math.min(tirage, 80) - 34, alignItems: 'center' }}>
+          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, alignItems: 'center', justifyContent: 'center', opacity: actif ? 1 : Math.min(1, tirage / 70) }}>
+            {actif ? <ActivityIndicator color={c.accent} /> : <View style={{ transform: [{ rotate: `${Math.min(tirage / 70, 1) * 180}deg` }] }}><Icone nom="actualiser" couleur={tirage >= 70 ? c.accent : c.gris} taille={20} /></View>}
+          </View>
+        </View>
+      ) : null}
+      <ScrollView ref={defil} keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 10 + (Platform.OS === 'web' ? Math.min(tirage, 80) * 0.6 : 0), paddingBottom: bas ? 130 + marges.bottom : 40, gap: 12, maxWidth: 720, width: '100%', alignSelf: 'center' }}
         refreshControl={rafraichir ? <RefreshControl refreshing={enChargement} onRefresh={rafraichir} tintColor={c.accent} /> : undefined}>
         {(retour || fermer || actions) && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
@@ -48,6 +56,43 @@ export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChar
       ) : null}
     </View>
   );
+}
+
+// Tirer vers le bas pour actualiser, dans la version navigateur de l'appli (RefreshControl n'y fonctionne pas)
+function useTirerPourActualiser(rafraichir: (() => void) | undefined, enChargement: boolean) {
+  const defil = useRef<any>(null);
+  const [tirage, setTirage] = useState(0);
+  const [actif, setActif] = useState(false);
+  const etat = useRef({ depart: -1, tirage: 0 });
+  const appel = useRef(rafraichir);
+  appel.current = rafraichir;
+  useEffect(() => { if (!enChargement && actif) { const t = setTimeout(() => setActif(false), 400); return () => clearTimeout(t); } }, [enChargement, actif]);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !rafraichir) return;
+    const noeud: HTMLElement | null = defil.current?.getScrollableNode?.() ?? null;
+    if (!noeud) return;
+    noeud.style.overscrollBehaviorY = 'contain';
+    const debut = (e: TouchEvent) => { etat.current.depart = noeud.scrollTop <= 0 ? e.touches[0].clientY : -1; etat.current.tirage = 0; };
+    const bouge = (e: TouchEvent) => {
+      if (etat.current.depart < 0) return;
+      const d = e.touches[0].clientY - etat.current.depart;
+      if (d <= 0 || noeud.scrollTop > 0) { if (etat.current.tirage) { etat.current.tirage = 0; setTirage(0); } return; }
+      if (e.cancelable) e.preventDefault();
+      const t = Math.min(110, d * 0.5);
+      if (t >= 70 && etat.current.tirage < 70) vibrer();
+      etat.current.tirage = t; setTirage(t);
+    };
+    const fin = () => {
+      if (etat.current.tirage >= 70 && appel.current) { setActif(true); appel.current(); setTimeout(() => setActif(false), 8000); }
+      etat.current = { depart: -1, tirage: 0 }; setTirage(0);
+    };
+    noeud.addEventListener('touchstart', debut, { passive: true });
+    noeud.addEventListener('touchmove', bouge, { passive: false });
+    noeud.addEventListener('touchend', fin);
+    noeud.addEventListener('touchcancel', fin);
+    return () => { noeud.removeEventListener('touchstart', debut); noeud.removeEventListener('touchmove', bouge); noeud.removeEventListener('touchend', fin); noeud.removeEventListener('touchcancel', fin); };
+  }, [!!rafraichir]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { defil, tirage, actif: actif };
 }
 
 // Bouton rond en haut d'écran
