@@ -43,7 +43,7 @@ export default function Aujourdhui() {
       rafraichir={recharger} enChargement={enChargement && !!donnees}
       haut={<Ligne style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
         <Logo largeur={96} />
-        <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><BoutonRond icone="eclair" label="Fleet AI" couleur={c.accent} onPress={() => router.push('/assistant')} /><BoutonRond icone="client" label="Clients" onPress={() => router.push('/clients')} /><BoutonRond icone="outil" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
+        <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><BoutonRond icone="eclair" label="Fleet AI" couleur={c.accent} onPress={() => router.push('/assistant')} /><BoutonRond icone="micro" label="Dicter à Fleet AI" onPress={() => router.push({ pathname: '/assistant', params: { dicter: '1' } })} /><BoutonRond icone="client" label="Clients" onPress={() => router.push('/clients')} /><BoutonRond icone="outil" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
       </Ligne>}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       {!donnees && !erreur && <Chargement />}

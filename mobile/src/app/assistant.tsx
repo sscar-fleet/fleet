@@ -1,8 +1,10 @@
 // Fleet AI dans l'appli : on demande, il répond avec les vraies données et prépare les actions à confirmer
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, GrosBouton } from '@/composants/ui';
+import Icone from '@/composants/Icone';
+import { useDictee } from '@/lib/dictee';
 import { useCouleurs } from '@/lib/theme';
 import { api } from '@/lib/site';
 
@@ -24,6 +26,9 @@ export default function Assistant() {
   const [saisie, setSaisie] = useState('');
   const [attente, setAttente] = useState(false);
   const [faits, setFaits] = useState<Record<string, string>>({});
+  const dictee = useDictee((t) => setSaisie(t), (t) => envoyer(t));
+  const { dicter } = useLocalSearchParams<{ dicter?: string }>();
+  useEffect(() => { if (dicter && dictee.dispo) dictee.demarrer(); }, [dicter, dictee.dispo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function envoyer(texte: string) {
     const q = texte.trim();
@@ -58,13 +63,17 @@ export default function Assistant() {
   return (
     <Ecran retour titre="Fleet AI" sousTitre="Il répond et prépare les actions, vous confirmez"
       bas={<View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
-        <TextInput value={saisie} onChangeText={setSaisie} placeholder="Demandez à Fleet AI…" placeholderTextColor={c.gris} multiline
+        {dictee.dispo && <Pressable onPress={() => dictee.basculer(saisie)} accessibilityLabel={dictee.ecoute ? 'Arrêter la dictée' : 'Dicter'}
+          style={{ width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: dictee.ecoute ? c.rouge : c.bord, backgroundColor: dictee.ecoute ? c.rouge : c.panneau }}>
+          <Icone nom="micro" couleur={dictee.ecoute ? '#fff' : c.texte} />
+        </Pressable>}
+        <TextInput value={saisie} onChangeText={setSaisie} placeholder={dictee.ecoute ? 'Je vous écoute…' : 'Demandez à Fleet AI…'} placeholderTextColor={c.gris} multiline
           onSubmitEditing={() => envoyer(saisie)} blurOnSubmit returnKeyType="send"
           style={{ flex: 1, minHeight: 52, maxHeight: 120, borderRadius: 16, borderWidth: 1.5, borderColor: c.bord, backgroundColor: c.panneau, color: c.texte, paddingHorizontal: 14, paddingVertical: 14, fontSize: 16 }} />
         <GrosBouton titre={attente ? '…' : 'Envoyer'} desactive={attente || !saisie.trim()} onPress={() => envoyer(saisie)} style={{ width: 110 }} />
       </View>}>
       {!bulles.length && <View style={{ gap: 8 }}>
-        <Text style={{ color: c.gris, fontSize: 15 }}>Posez une question sur votre flotte, ou demandez une action : « prolonge Karim de 2 jours », « préviens le client de la Clio que son retour est demain 9 h ».</Text>
+        <Text style={{ color: c.gris, fontSize: 15 }}>Touchez le micro et parlez, ou écrivez. Posez une question sur votre flotte, ou demandez une action : « prolonge Karim de 2 jours », « préviens le client de la Clio que son retour est demain 9 h ».</Text>
         {IDEES.map((i) => (
           <Pressable key={i} onPress={() => envoyer(i)} style={{ padding: 14, borderRadius: 14, borderWidth: 1, borderColor: c.bord, backgroundColor: c.panneau }}>
             <Text style={{ color: c.texte, fontSize: 15 }}>{i}</Text>

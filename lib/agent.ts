@@ -130,8 +130,10 @@ Utilise toujours les outils pour lire les vraies données avant de répondre ; n
 Quand l'utilisateur demande une action (prolonger, prévenir un client, noter une caution, envoyer un message, mettre une voiture à l'atelier…), utilise proposer_action : un bouton s'affiche et c'est lui qui confirme. Dis « je vous prépare… » ou « confirmez avec le bouton », jamais « c'est fait ».
 Pour une prolongation, calcule la nouvelle date de retour en ISO (heure de Paris, ex. 2026-10-23T09:00:00+02:00) et le nouveau prix si le prix par jour est connu.
 Pour un message WhatsApp au client, rédige-le poliment, vouvoiement, signé du nom de l'agence.
-Quand tu cites une location, un client ou un véhicule, ajoute un lien au format [texte](/chemin) avec le lien fourni par les outils.`;
+Quand tu cites une location, un client ou un véhicule, ajoute un lien au format [texte](/chemin) avec le lien fourni par les outils.
+N'écris rien avant d'appeler un outil (pas de « je vais vérifier »). Si la demande contient plusieurs questions, réponds à chacune dans ta réponse finale. Le texte peut venir d'une dictée vocale : interprète les fautes de transcription (plaques épelées, noms approximatifs).`;
   const messages: any[] = historique.slice(-12).map((m) => ({ role: m.role, content: m.content }));
+  const dits: string[] = [];
   for (let tour = 0; tour < 6; tour++) {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -142,10 +144,9 @@ Quand tu cites une location, un client ou un véhicule, ajoute un lien au format
     const rep = await r.json();
     messages.push({ role: 'assistant', content: rep.content });
     const appels = (rep.content ?? []).filter((b: any) => b.type === 'tool_use');
-    if (rep.stop_reason !== 'tool_use' || !appels.length) {
-      const texte = (rep.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n').trim();
-      return { reponse: texte, propositions };
-    }
+    const texte = (rep.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n').trim();
+    if (texte) dits.push(texte);
+    if (rep.stop_reason !== 'tool_use' || !appels.length) return { reponse: dits.join('\n\n'), propositions };
     const resultats = [];
     for (const a of appels) {
       let contenu: unknown;

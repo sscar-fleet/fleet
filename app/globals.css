@@ -660,4 +660,12 @@ td.libre:hover .case-libre { color: var(--turquoise); }
 @keyframes ia-pt { 0%, 80%, 100% { opacity: .3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 .ia-saisie { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--bord); }
 .ia-saisie textarea { flex: 1; resize: none; min-height: 44px; max-height: 140px; }
+.ia-saisie { align-items: flex-end; }
+.ia-micro { flex: 0 0 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--bord); background: var(--panneau); color: var(--texte); display: grid; place-items: center; cursor: pointer; }
+.ia-micro:hover { border-color: var(--turquoise); color: var(--turquoise); }
+.ia-micro.actif { background: var(--rouge); border-color: var(--rouge); color: #fff; animation: ia-pulse 1.2s ease-in-out infinite; }
+@keyframes ia-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(229,72,77,.45); } 50% { box-shadow: 0 0 0 8px rgba(229,72,77,0); } }
+.recherche.avec-micro input { padding-right: 46px; }
+.recherche-micro { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border-radius: 50%; border: none; background: none; color: var(--gris); display: grid; place-items: center; cursor: pointer; }
+.recherche-micro:hover { color: var(--turquoise); background: var(--panneau2); }
 @media print { .ia-bulle-flottante { display: none; } }

@@ -3,6 +3,7 @@
 // rien n'est modifié sans un toucher sur le bouton de confirmation.
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useDictee } from '@/lib/dictee';
 
 type Proposition = { type: string; libelle: string; lien?: string; telephone?: string; [k: string]: any };
 type Bulle = { role: 'user' | 'assistant'; content: string; propositions?: Proposition[]; erreur?: boolean };
@@ -19,6 +20,10 @@ function Texte({ t }: { t: string }) {
     if (g) return <b key={i}>{g[1]}</b>;
     return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{m}</span>;
   })}</>;
+}
+
+export function Micro() {
+  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>;
 }
 
 function BoutonAction({ p }: { p: Proposition }) {
@@ -49,9 +54,10 @@ export default function FleetAI({ initiale, page = false }: { initiale?: string;
   const fil = useRef<HTMLDivElement>(null);
   const champ = useRef<HTMLTextAreaElement>(null);
   const lance = useRef(false);
+  const dictee = useDictee((t) => setSaisie(t), (t) => envoyer(t));
 
   useEffect(() => {
-    const ouvrir = (e: Event) => { setOuvert(true); const q = (e as CustomEvent).detail; if (typeof q === 'string' && q) envoyer(q); setTimeout(() => champ.current?.focus(), 50); };
+    const ouvrir = (e: Event) => { setOuvert(true); const q = (e as CustomEvent).detail; if (q === '__dictee__') dictee.demarrer(); else if (typeof q === 'string' && q) envoyer(q); setTimeout(() => champ.current?.focus(), 50); };
     window.addEventListener('fleet-ai', ouvrir);
     return () => window.removeEventListener('fleet-ai', ouvrir);
   }); // eslint-disable-line react-hooks/exhaustive-deps
@@ -102,7 +108,9 @@ export default function FleetAI({ initiale, page = false }: { initiale?: string;
         {attente && <div className="ia-bulle assistant ia-attente"><i /><i /><i /></div>}
       </div>
       <form className="ia-saisie" onSubmit={(e) => { e.preventDefault(); envoyer(saisie); }}>
-        <textarea ref={champ} rows={1} value={saisie} placeholder="Demandez à Fleet AI…" onChange={(e) => setSaisie(e.target.value)}
+        {dictee.dispo && <button type="button" className={`ia-micro ${dictee.ecoute ? 'actif' : ''}`} aria-label={dictee.ecoute ? 'Arrêter la dictée' : 'Dicter'} title={dictee.ecoute ? 'Arrêter' : 'Dicter (parlez, ça s’envoie quand vous vous arrêtez)'}
+          onClick={() => dictee.basculer(saisie)}><Micro /></button>}
+        <textarea ref={champ} rows={1} value={saisie} placeholder={dictee.ecoute ? 'Je vous écoute…' : 'Demandez à Fleet AI…'} onChange={(e) => setSaisie(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyer(saisie); } }} />
         <button type="submit" className="bouton principal" disabled={attente || !saisie.trim()}>Envoyer</button>
       </form>
