@@ -1,6 +1,6 @@
 // Fiche client : contact en un geste, papiers à photographier, historique
 import { useCallback } from 'react';
-import { Image, Linking, Pressable, Text, View } from 'react-native';
+import { Image, Linking, Platform, Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ecran, Carte, GrosBouton, Ligne, Texte, Titre, Chargement, BandeauHorsLigne } from '@/composants/ui';
@@ -33,7 +33,7 @@ export default function FicheClient() {
     if (!profil) return;
     const p = await ImagePicker.requestCameraPermissionsAsync();
     if (!p.granted) return;
-    const r = await ImagePicker.launchCameraAsync({ quality: 0.6 });
+    const r = await (Platform.OS === 'web' ? ImagePicker.launchImageLibraryAsync({ quality: 0.6, mediaTypes: ['images'] }) : ImagePicker.launchCameraAsync({ quality: 0.6 }));
     if (r.canceled) return;
     const chemin = `${profil.agence_id}/clients/${x.id}/${champ.replace('_path', '')}-${Date.now()}.jpg`;
     await mettreEnFile({ genre: 'fichier', chemin, uri: r.assets[0].uri, type: 'image/jpeg', ensuite: { genre: 'maj', table: 'clients', id: x.id, champs: { [champ]: chemin } } });

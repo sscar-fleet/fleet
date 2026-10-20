@@ -8,7 +8,8 @@ export async function prendrePhoto(opts: { pourIa?: boolean; qualite?: number; g
     if (!p.granted) return null;
   }
   const options = { quality: opts.qualite ?? 0.6, base64: !!opts.pourIa, mediaTypes: ['images'] as ImagePicker.MediaType[] };
-  const r = await (opts.galerie ? ImagePicker.launchImageLibraryAsync(options) : ImagePicker.launchCameraAsync(options));
+  // Sur le navigateur, jamais l'appareil photo forcé : l'iPhone propose alors « Photothèque » ou « Prendre une photo »
+  const r = await (opts.galerie || Platform.OS === 'web' ? ImagePicker.launchImageLibraryAsync(options) : ImagePicker.launchCameraAsync(options));
   if (r.canceled || !r.assets?.[0]) return null;
   const a = r.assets[0];
   const dataUrl = opts.pourIa ? (a.uri.startsWith('data:') ? a.uri : a.base64 ? `data:${a.mimeType ?? 'image/jpeg'};base64,${a.base64}` : undefined) : undefined;
