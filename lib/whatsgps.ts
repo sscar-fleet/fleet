@@ -4,7 +4,8 @@
 //   WHATSGPS_COMPTE, WHATSGPS_MOT_DE_PASSE : compte WhatsGPS principal de SS CAR SYSTEM
 //   WHATSGPS_UNITE_KM (facultatif) : « m » ou « km » si le kilométrage remonté est mal interprété
 
-const BASE = 'https://www.whatsgps.com';
+// Les appels passent par le relais à IP fixe (exigé par Seeworld) quand il est configuré
+const BASE = process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com';
 
 export type EtatTraceur = {
   imei: string;
@@ -61,6 +62,7 @@ function entetes(token?: string): Record<string, string> {
     'Accept-Language': 'fr',
   };
   if (token) h.Token = token;
+  if (process.env.WHATSGPS_RELAIS_CLE) h['X-Relais-Cle'] = process.env.WHATSGPS_RELAIS_CLE;
   return h;
 }
 
