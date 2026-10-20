@@ -51,8 +51,9 @@ export default function EspaceSuivi() {
   }));
 
   function ouvrir(s: Suivi) { setChoisi(s.v.id); setFiche(s); }
+  const enRetardLoc = (s: Suivi) => !!s.loc && new Date(s.loc.fin_prevue).getTime() < Date.now();
   const ou = (s: Suivi) => s.loc
-    ? `${nomClient(s.loc.clients)} · retour ${estAujourdhui(s.loc.fin_prevue) ? 'à' : jour(s.loc.fin_prevue)} ${heure(s.loc.fin_prevue)}`
+    ? `${nomClient(s.loc.clients)} · ${enRetardLoc(s) ? 'devait rentrer le' : 'retour'} ${estAujourdhui(s.loc.fin_prevue) ? 'à' : jour(s.loc.fin_prevue)} ${heure(s.loc.fin_prevue)}`
     : s.v.statut === 'maintenance' || s.v.statut === 'hors_service' ? 'À l’atelier' : 'Au parking';
 
   async function moteur() {
@@ -115,7 +116,7 @@ export default function EspaceSuivi() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text numberOfLines={1} style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{plaque(s.v.immatriculation)} <Text style={{ color: c.gris, fontWeight: '600', fontSize: 14 }}>{nomVehicule(s.v)}</Text></Text>
-                  <Text numberOfLines={1} style={{ color: s.loc ? c.texte2 : c.gris, fontSize: 13 }}>{ou(s)}</Text>
+                  <Text numberOfLines={1} style={{ color: enRetardLoc(s) ? c.rouge : s.loc ? c.texte2 : c.gris, fontSize: 13, fontWeight: enRetardLoc(s) ? '700' : '400' }}>{ou(s)}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end', gap: 2 }}>
                   <Text style={{ color: couleurGps(s.e, c), fontWeight: '800', fontSize: 14 }}>{s.e.etat === 'roule' ? `${s.e.vitesse} km/h` : libelleGps(s.e)}</Text>
