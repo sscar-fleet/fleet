@@ -24,10 +24,12 @@ export default async function FicheLocation({ params }: { params: { id: string }
   const d = await chargerLocation(supabase, profil.agence_id, params.id);
   if (!d) notFound();
   const l = d.brut; const v = l.vehicules; const c = l.clients;
-  const [{ data: autres }, { data: historique }] = await Promise.all([
+  const [{ data: autres }, { data: historique }, { data: fpsDus }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele').not('statut', 'in', '(hors_service,sorti)').neq('id', v.id).order('immatriculation'),
     supabase.from('historique').select('action, detail, created_at').eq('location_id', l.id).order('created_at', { ascending: false }),
+    supabase.from('fps').select('montant, frais_gestion').eq('client_id', c.id).in('statut', ['a_refacturer', 'refacture']),
   ]);
+  const detteFps = (fpsDus ?? []).reduce((t: number, f: any) => t + Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0), 0);
   const retard = l.statut === 'en_cours' && new Date(l.fin_prevue) < new Date();
   const sup = kmSupplementaires(l);
   const jours = joursEntre(l.debut, l.fin_reelle ?? l.fin_prevue);
@@ -221,6 +223,9 @@ export default async function FicheLocation({ params }: { params: { id: string }
       titre={<>N° {l.numero} · {c.prenom} {c.nom}</>}
       actions={<span className={`pastille ${retard ? 'retard' : l.statut}`} style={{ fontSize: 16 }}>{retard ? 'En retard' : statutLocation[l.statut]}</span>}>
       {c.liste_noire && <div className="alerte-bandeau">Attention : ce client est en liste noire. {c.note}</div>}
+      {detteFps > 0 && (l.statut === 'reservee' || l.statut === 'en_cours') && (
+        <div className="alerte-caution"><span>{c.prenom} {c.nom} doit encore <b>{euros(detteFps)}</b> de FPS (forfait de stationnement refacturé) : pensez à l’encaisser.</span><a className="bouton petit" href="/fps">Voir les FPS</a></div>
+      )}
       {cautionAPrendre && (
         <div className="alerte-caution">
           <span>Caution de <b>{euros(l.caution_montant)}</b> {l.statut === 'en_cours' ? 'pas encore prise, alors que la voiture est partie.' : 'à prendre avant le départ.'}</span>

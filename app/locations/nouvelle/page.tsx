@@ -17,11 +17,15 @@ export const dynamic = 'force-dynamic';
 // Nouvelle location en 3 étapes + vérification
 export default async function NouvelleLocation({ searchParams }: { searchParams: { vehicule?: string; client?: string; jour?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
-  const [{ data: vehicules }, { data: clients }, { data: resas }] = await Promise.all([
+  const [{ data: vehicules }, { data: clients }, { data: resas }, { data: fpsDus }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour, assurance_echeance, ct_echeance').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('clients').select('id, nom, prenom, telephone, email, date_permis, liste_noire, permis_path').order('nom'),
     supabase.from('locations').select('vehicule_id, debut, fin_prevue, numero').in('statut', ['reservee', 'en_cours']),
+    supabase.from('fps').select('client_id, montant, frais_gestion').in('statut', ['a_refacturer', 'refacture']).not('client_id', 'is', null),
   ]);
+  // Ce que chaque client doit encore en FPS : rappelé quand on lui loue une voiture
+  const dettes: Record<string, number> = {};
+  (fpsDus ?? []).forEach((f: any) => { dettes[f.client_id] = (dettes[f.client_id] ?? 0) + Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0); });
   let depart = new Date(); depart.setMinutes(0, 0, 0); depart.setHours(depart.getHours() + 1);
   // Depuis le planning : la date de la case cliquée, à 10 h (ou dans l'heure si c'est aujourd'hui)
   if (searchParams.jour && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.jour) && searchParams.jour > versJour(new Date())) depart = new Date(depuisParis(searchParams.jour + 'T10:00')!);
@@ -68,7 +72,7 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
           <section className="carte" data-etape="1">
             <h2>Pour quel client ?</h2>
             <div className="grille">
-              <ChoixClient clients={(clients ?? []) as any} defaut={searchParams.client} />
+              <ChoixClient clients={(clients ?? []) as any} defaut={searchParams.client} dettes={dettes} />
             </div>
             <div data-nouveau-client>
               <p className="gris" style={{ margin: '14px 0 8px' }}>Nouveau client : prenez son permis en photo, les champs se remplissent tout seuls.</p>

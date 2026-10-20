@@ -591,6 +591,36 @@ async function _clientFps(id: string, formData: FormData) {
   rafraichir();
 }
 
+// Relance du client (1 : rappel, 2 : ferme, 3 : mise en demeure envoyée) : on note la date pour le suivi
+async function _relancerFps(id: string, niveau: number) {
+  const { supabase } = await utilisateurCourant();
+  const champ = niveau === 1 ? 'relance1_le' : niveau === 2 ? 'relance2_le' : 'mise_en_demeure_le';
+  const maj: any = { [champ]: new Date().toISOString() };
+  const { data: f } = await supabase.from('fps').select('statut').eq('id', id).single();
+  if (f?.statut === 'a_refacturer') { maj.statut = 'refacture'; maj.refacture_le = new Date().toISOString(); }
+  verifier((await supabase.from('fps').update(maj).eq('id', id)).error);
+  rafraichir();
+}
+
+// Le client ne paie pas : le FPS et les frais sont retenus sur une caution encore en main
+async function _retenirCautionFps(id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data: f } = await supabase.from('fps').select('id, client_id, location_id, montant, frais_gestion, numero_avis').eq('id', id).single();
+  if (!f?.client_id) throw new Error('Associez d’abord le client.');
+  const { data: locs } = await supabase.from('locations').select('id, caution_montant, caution_retenue, caution_motif, caution_statut')
+    .eq('client_id', f.client_id).eq('caution_statut', 'prise').order('debut', { ascending: false });
+  const loc = (locs ?? []).find((l: any) => l.id === f.location_id) ?? (locs ?? [])[0];
+  if (!loc) throw new Error('Aucune caution de ce client n’est encore en main.');
+  const total = Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0);
+  const dejaRetenu = Number(loc.caution_retenue ?? 0);
+  if (loc.caution_montant != null && dejaRetenu + total > Number(loc.caution_montant)) throw new Error('La caution ne couvre pas ce montant.');
+  const motif = [loc.caution_motif, `FPS ${f.numero_avis ?? ''} (${total.toFixed(2).replace('.', ',')} €)`.trim()].filter(Boolean).join(' · ');
+  verifier((await supabase.from('locations').update({ caution_retenue: dejaRetenu + total, caution_motif: motif }).eq('id', loc.id)).error, 'Retenue sur la caution');
+  verifier((await supabase.from('fps').update({ statut: 'rembourse', rembourse_le: new Date().toISOString(), retenu_location_id: loc.id }).eq('id', id)).error);
+  await journal(loc.id, null, 'Retenue sur la caution', `FPS ${f.numero_avis ?? ''}`);
+  rafraichir();
+}
+
 async function _fraisFps(id: string, formData: FormData) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('fps').update({ frais_gestion: nombre(formData.get('frais_gestion')) ?? 0 }).eq('id', id)).error);
@@ -868,6 +898,8 @@ export const statutFps = proteger(_statutFps);
 export const payeTresorFps = proteger(_payeTresorFps);
 export const clientFps = proteger(_clientFps);
 export const fraisFps = proteger(_fraisFps);
+export const relancerFps = proteger(_relancerFps);
+export const retenirCautionFps = proteger(_retenirCautionFps);
 export const statutAmende = proteger(_statutAmende);
 export const avisAmende = proteger(_avisAmende);
 export const clientAmende = proteger(_clientAmende);

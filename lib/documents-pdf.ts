@@ -266,3 +266,19 @@ export async function mandatFpsPdf(a: AgenceDoc, f: FpsDoc, v: VehiculeDoc, c: C
   d.pied(PIED);
   return d.octets();
 }
+
+export async function miseEnDemeureFpsPdf(a: AgenceDoc, f: FpsDoc, v: VehiculeDoc, c: ClientDoc) {
+  const d = await Doc.creer('Mise en demeure ' + plaque(v.immatriculation), a.logo, a.couleur);
+  d.entete('Mise en demeure de payer', a, `${date(new Date().toISOString())} · Forfait post-stationnement n° ${f.numero_avis ?? '—'}`);
+  d.boites({ ...loueur(a), titre: 'Expéditeur' }, { titre: 'Destinataire', lignes: [nomClient(c), c.adresse, c.telephone, c.email] });
+  const total = Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0);
+  d.texte(`${c.prenom ? 'Madame, Monsieur ' + c.nom : 'Madame, Monsieur'},`, { taille: 11, apres: 8 });
+  d.texte(`Pendant votre location${f.numero_location ? ' n° ' + String(f.numero_location).padStart(5, '0') : ''}, le véhicule ${[v.marque, v.modele].filter(Boolean).join(' ')} immatriculé ${plaque(v.immatriculation)} a fait l’objet d’un forfait post-stationnement le ${dateHeure(f.date_constat)}${f.lieu ? ', ' + f.lieu : ''}${f.collectivite ? ' (' + f.collectivite + ')' : ''}. Ce forfait, adressé au titulaire de la carte grise, a été réglé par nos soins et vous a été refacturé conformément aux conditions de location que vous avez acceptées.`, { taille: 10.5, apres: 8 });
+  d.texte(`Malgré nos relances, la somme de ${euros(total)} (forfait de ${euros(f.montant)}${Number(f.frais_gestion) > 0 ? ' et frais de gestion de ' + euros(f.frais_gestion) : ''}) reste impayée.`, { taille: 10.5, apres: 8 });
+  d.texte(`Par la présente, nous vous mettons en demeure de nous régler cette somme dans un délai de huit jours à compter de la réception de ce courrier. À défaut, nous engagerons sans autre avis toute procédure utile au recouvrement de notre créance, dont les frais resteront à votre charge.`, { taille: 10.5, apres: 10 });
+  if (a.iban) d.texte('Règlement par virement : IBAN ' + a.iban, { taille: 10, apres: 10 });
+  d.texte('Veuillez agréer, Madame, Monsieur, nos salutations distinguées.', { taille: 10.5, apres: 16 });
+  await signatures(d, { titre: '' }, { titre: `${a.gerant_nom || a.nom}, gérant`, url: a.signature, tampon: a.tampon });
+  d.pied(PIED);
+  return d.octets();
+}

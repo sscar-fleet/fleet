@@ -8,6 +8,8 @@ import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Envoyer from '../_c/Envoyer';
 import Scanner from '../_c/Scanner';
+import LienAction from '../_c/LienAction';
+import { relanceDue, messageRelance, libelleRelance, totalFps } from '@/lib/fps';
 import BoutonPdf from '../_c/BoutonPdf';
 
 export const dynamic = 'force-dynamic';
@@ -54,6 +56,12 @@ export default async function Fps({ searchParams }: { searchParams: { filtre?: s
   };
 
   const total = (f: any) => Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0);
+  // Clients dont une caution est encore en main : le FPS peut y être retenu
+  const idsClients = Array.from(new Set((liste ?? []).map((f: any) => f.client_id).filter(Boolean)));
+  const { data: cautions } = idsClients.length
+    ? await supabase.from('locations').select('client_id, caution_montant, caution_retenue').in('client_id', idsClients).eq('caution_statut', 'prise')
+    : { data: [] as any[] };
+  const cautionDispo = (f: any) => (cautions ?? []).some((l: any) => l.client_id === f.client_id && (l.caution_montant == null || Number(l.caution_montant) - Number(l.caution_retenue ?? 0) >= totalFps(f)));
   const aRecuperer = (tous ?? []).filter((f: any) => ['a_refacturer', 'client_inconnu', 'refacture'].includes(f.statut)).reduce((s: number, f: any) => s + total(f), 0);
   const debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0, 0, 0, 0);
   const recupereMois = (tous ?? []).filter((f: any) => f.statut === 'rembourse' && f.rembourse_le && new Date(f.rembourse_le) >= debutMois);
@@ -139,14 +147,35 @@ export default async function Fps({ searchParams }: { searchParams: { filtre?: s
                 </Formulaire>
               )}
               {c && <BoutonPdf genre="fps_facture" nom={`refacturation-fps-${plaque(v?.immatriculation)}.pdf`} libelle="Facture PDF" classe="bouton petit" donnees={base} />}
-              {c?.telephone && ['a_refacturer', 'refacture'].includes(f.statut) && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(c.telephone, message)}>Envoyer par WhatsApp</a>}
+              {c?.telephone && f.statut === 'a_refacturer' && <LienAction href={lienWhatsApp(c.telephone, message)} action={A.statutFps.bind(null, f.id, 'refacture')}>Envoyer par WhatsApp</LienAction>}
+              {c?.telephone && f.statut === 'refacture' && <a className="bouton petit" target="_blank" rel="noreferrer" href={lienWhatsApp(c.telephone, message)}>Renvoyer la facture</a>}
               {c?.email && ['a_refacturer', 'refacture'].includes(f.statut) && <a className="bouton petit" href={`mailto:${c.email}?subject=${encodeURIComponent(`Forfait post-stationnement ${plaque(v?.immatriculation)}`)}&body=${encodeURIComponent(message)}`}>Par e-mail</a>}
               {c && f.statut === 'a_refacturer' && <Formulaire action={A.statutFps.bind(null, f.id, 'refacture')} succes="Noté comme refacturé"><Envoyer className="bouton petit principal">Marquer refacturé</Envoyer></Formulaire>}
               {c && f.statut === 'refacture' && <Formulaire action={A.statutFps.bind(null, f.id, 'rembourse')} succes="Remboursement noté"><Envoyer className="bouton petit principal">Le client a payé</Envoyer></Formulaire>}
               {c && ['a_refacturer', 'refacture'].includes(f.statut) && <BoutonPdf genre="fps_mandat" nom={`mandat-rapo-${plaque(v?.immatriculation)}.pdf`} libelle="Mandat de contestation" classe="bouton petit" donnees={base} />}
+              {c && ['a_refacturer', 'refacture'].includes(f.statut) && cautionDispo(f) && <Formulaire action={A.retenirCautionFps.bind(null, f.id)} succes="Retenu sur la caution" confirmer={`Retenir ${euros(total(f))} sur la caution de ${c.prenom ?? ''} ${c.nom} ?`}><Envoyer className="bouton petit">Retenir sur la caution</Envoyer></Formulaire>}
+              {!f.paye_tresor && f.statut !== 'abandonne' && <LienAction href="https://www.stationnement.gouv.fr" copier={f.numero_avis ?? undefined}>Payer sur stationnement.gouv.fr{f.numero_avis ? ' (n° copié)' : ''}</LienAction>}
               <Formulaire action={A.payeTresorFps.bind(null, f.id, !f.paye_tresor)}><Envoyer className="bouton petit">{f.paye_tresor ? 'Annuler « réglé au Trésor »' : 'J’ai réglé le FPS'}</Envoyer></Formulaire>
             </div>
 
+            {(() => {
+              const n = relanceDue(f);
+              const histo = [f.refacture_le && `facture envoyée le ${date(f.refacture_le)}`, f.relance1_le && `relance 1 le ${date(f.relance1_le)}`, f.relance2_le && `relance 2 le ${date(f.relance2_le)}`, f.mise_en_demeure_le && `mise en demeure le ${date(f.mise_en_demeure_le)}`].filter(Boolean).join(' · ');
+              return <>
+                {n && c && (
+                  <div className="relance-due">
+                    <span><b>{libelleRelance[n]}</b> · {n === 3 ? 'le client n’a pas payé malgré deux relances.' : 'le client n’a pas encore payé.'}</span>
+                    <span className="ligne">
+                      {n < 3 && c.telephone && <LienAction className="bouton petit principal" href={lienWhatsApp(c.telephone, messageRelance(n as 1 | 2, { prenom: c.prenom, voiture, immat: v?.immatriculation, date_constat: f.date_constat, total: total(f), agence: agence.nom }))} action={A.relancerFps.bind(null, f.id, n)}>Relancer par WhatsApp</LienAction>}
+                      {n < 3 && c.email && <LienAction href={`mailto:${c.email}?subject=${encodeURIComponent('Rappel : forfait post-stationnement ' + plaque(v?.immatriculation))}&body=${encodeURIComponent(messageRelance(n as 1 | 2, { prenom: c.prenom, voiture, immat: v?.immatriculation, date_constat: f.date_constat, total: total(f), agence: agence.nom }))}`} action={A.relancerFps.bind(null, f.id, n)}>Par e-mail</LienAction>}
+                      {n === 3 && <BoutonPdf genre="fps_demeure" nom={`mise-en-demeure-fps-${plaque(v?.immatriculation)}.pdf`} libelle="Mise en demeure PDF" classe="bouton petit principal" donnees={base} />}
+                      {n === 3 && <Formulaire action={A.relancerFps.bind(null, f.id, 3)} succes="Mise en demeure notée"><Envoyer className="bouton petit">Mise en demeure envoyée</Envoyer></Formulaire>}
+                    </span>
+                  </div>
+                )}
+                {histo && <p className="gris" style={{ fontSize: 12.5, margin: '8px 0 0' }}>Suivi : {histo}.</p>}
+              </>;
+            })()}
             <details className="options" style={{ marginTop: 8 }}>
               <summary>+ Plus (frais, contestation, abandon)</summary>
               <div className="ligne" style={{ flexWrap: 'wrap', marginTop: 8 }}>

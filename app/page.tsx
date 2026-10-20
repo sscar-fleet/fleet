@@ -8,6 +8,9 @@ import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
 import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
 import { lienWhatsApp, messageDepart, messageRetour, messageRetard } from '@/lib/whatsapp';
+import { relanceDue, aPayerBientot, messageRelance, libelleRelance, totalFps } from '@/lib/fps';
+import LienAction from './_c/LienAction';
+import * as A from './actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +66,11 @@ export default async function Accueil() {
     { fait: (nbLocations ?? 0) > 0, titre: 'Faire une première location', lien: '/locations/nouvelle', bouton: 'Commencer' },
   ];
   const demarrageFini = etapesDemarrage.every((e) => e.fait);
+  // FPS à suivre : à régler avant la majoration, ou client à relancer
+  const { data: fpsOuverts } = await supabase.from('fps').select('id, statut, montant, frais_gestion, date_constat, limite_paiement, paye_tresor, refacture_le, relance1_le, relance2_le, mise_en_demeure_le, vehicules(immatriculation, marque, modele), clients(prenom, nom, telephone)')
+    .in('statut', ['a_refacturer', 'client_inconnu', 'refacture', 'conteste']);
+  const fpsAPayer = (fpsOuverts ?? []).filter((f: any) => aPayerBientot(f));
+  const fpsARelancer = (fpsOuverts ?? []).filter((f: any) => relanceDue(f) && f.clients);
   const pilotage = await calculerPilotage(supabase, 'mois');
   const mois = pilotage.periodes[pilotage.periodes.length - 1];
   const moisPrec = pilotage.periodes[pilotage.periodes.length - 2];
@@ -185,6 +193,32 @@ export default async function Accueil() {
         </section>
 
         <div className="pile">
+          {(fpsAPayer.length > 0 || fpsARelancer.length > 0) && (
+            <section className="carte">
+              <div className="titre" style={{ marginBottom: 10 }}>
+                <h2 style={{ margin: 0 }}>FPS à suivre</h2>
+                <a className="bouton petit" href="/fps">Tout voir</a>
+              </div>
+              {fpsAPayer.map((f: any) => (
+                <a key={'p' + f.id} href="/fps" className="fichier">
+                  <span><b>À régler avant le {date(f.limite_paiement)}</b> · {plaque(f.vehicules?.immatriculation)} · {euros(f.montant)}<br /><span className="gris">Sinon majoration de 20 % (50 € minimum)</span></span>
+                  <span className={`pastille ${new Date(f.limite_paiement) < new Date() ? 'depasse' : 'proche'}`}>{new Date(f.limite_paiement) < new Date() ? 'Majoré' : 'Bientôt'}</span>
+                </a>
+              ))}
+              {fpsARelancer.map((f: any) => {
+                const n = relanceDue(f)!;
+                const c = f.clients;
+                return (
+                  <div key={'r' + f.id} className="fichier">
+                    <span><b>{libelleRelance[n]}</b> · {c.prenom} {c.nom}<br /><span className="gris">{euros(totalFps(f))} · FPS du {date(f.date_constat)} · {plaque(f.vehicules?.immatriculation)}</span></span>
+                    {n < 3 && c.telephone
+                      ? <LienAction className="bouton petit principal" href={lienWhatsApp(c.telephone, messageRelance(n as 1 | 2, { prenom: c.prenom, voiture: voiture(f.vehicules), immat: f.vehicules?.immatriculation, date_constat: f.date_constat, total: totalFps(f), agence: profil.agences?.nom ?? '' }))} action={A.relancerFps.bind(null, f.id, n)}>Relancer</LienAction>
+                      : <a className="bouton petit" href="/fps">Ouvrir</a>}
+                  </div>
+                );
+              })}
+            </section>
+          )}
           <section className="carte">
             <div className="titre" style={{ marginBottom: 10 }}>
               <h2 style={{ margin: 0 }}>Ma flotte</h2>
