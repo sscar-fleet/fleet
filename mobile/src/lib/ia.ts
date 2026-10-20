@@ -14,3 +14,8 @@ export async function lireAmende(image: string): Promise<Champs> {
   if (DEMO) { await new Promise((r) => setTimeout(r, 1200)); const d = new Date(Date.now() - 2 * 864e5); d.setHours(15, 42, 0, 0); const loc = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T15:42`; return { immatriculation: 'IJ789KL', date_infraction: loc, lieu: 'Bd Périphérique, Paris 17e', type: 'Excès de vitesse', montant: 135, numero_avis: '1234567890' }; }
   return (await api<{ champs: Champs }>('lire', { image, genre: 'amende' })).champs;
 }
+
+export async function lireFps(image: string): Promise<Champs> {
+  if (DEMO) { await new Promise((r) => setTimeout(r, 1200)); return { immatriculation: 'AB123CD', date_constat: new Date(Date.now() - 864e5).toISOString().slice(0, 16), lieu: '12 rue de Rivoli, 75004 Paris', collectivite: 'Ville de Paris', montant: 35, numero_avis: '21750001600019', date_avis: null, limite_paiement: null }; }
+  return (await api<{ champs: Champs }>('lire', { image, genre: 'fps' })).champs;
+}

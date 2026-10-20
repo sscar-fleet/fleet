@@ -1,3 +1,5 @@
+import BarreRecherche from './BarreRecherche';
+import FleetAI from './FleetAI';
 import Logo from './Logo';
 import { utilisateurCourant } from '@/lib/agence';
 import Navigation from './Navigation';
@@ -25,12 +27,11 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
   return (
     <div className="coque">
       <MenuLateral gerant={profil.role === 'gerant'} compteurs={{ '/locations': retards.count ?? 0, '/amendes': amendes.count ?? 0, '/fps': fps.count ?? 0 }} pied={pied} />
+      <FleetAI />
       <main className="page">
         <header className="entete">
           <a href="/" className="logo"><Logo /></a>
-          <form action="/recherche" className="recherche" role="search">
-            <input name="q" type="search" placeholder="Rechercher : 208, Martin, AB123…" aria-label="Rechercher" />
-          </form>
+          <BarreRecherche />
           <span className="droite">
             <span className="agence">{profil.nom}<br /><span className="gris">{profil.agences?.nom}</span></span>
             <BoutonTheme />

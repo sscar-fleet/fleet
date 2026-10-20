@@ -34,7 +34,7 @@ export default function Amendes() {
 
   return (
     <Ecran titre="Amendes" sousTitre={aTraiter.length ? `${aTraiter.length} à traiter · ${euros(total)}` : 'Tout est traité'} rafraichir={recharger} enChargement={enChargement && !!donnees}
-      bas={<GrosBouton icone="photo" titre="Photographier un avis" sousTitre="Tout se remplit tout seul" onPress={() => router.push('/amende')} />}>
+      bas={<GrosBouton icone="photo" titre="Photographier un avis" sousTitre="Amende ou FPS : tout se remplit tout seul" onPress={() => router.push("/amende")} />}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       <Segments valeur={vue} onChange={setVue} options={[{ cle: 'traiter', titre: 'À traiter', n: aTraiter.length, couleur: c.orange }, { cle: 'traitees', titre: 'Traitées', n: autres.length }]} />
       {!donnees ? <Chargement /> : (vue === 'traiter' ? aTraiter : autres).length ? (vue === 'traiter' ? aTraiter : autres).map(ligne)

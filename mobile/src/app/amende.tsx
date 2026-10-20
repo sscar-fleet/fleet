@@ -1,4 +1,4 @@
-// Nouvelle amende : photo de l'avis → lecture automatique → la voiture et le conducteur sont retrouvés
+// Nouvelle amende ou nouveau FPS : photo de l'avis → lecture automatique → la voiture et le conducteur sont retrouvés
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -11,7 +11,8 @@ import { mettreEnFile, enLigne } from '@/lib/hors-ligne';
 import { nouvelId } from '@/lib/id';
 import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
-import { lireAmende } from '@/lib/ia';
+import { lireAmende, lireFps } from '@/lib/ia';
+import { supabase } from '@/lib/supabase';
 import { prendrePhoto } from '@/lib/photo';
 import { DEMO } from '@/lib/demo';
 import { nomClient, jour, heure as fHeure, plaque } from '@/lib/format';
@@ -35,6 +36,13 @@ export default function NouvelleAmende() {
   const [lieu, setLieu] = useState('');
   const [numero, setNumero] = useState('');
   const [conducteur, setConducteur] = useState<any>(undefined);
+  // Avis de contravention (à désigner) ou FPS (à régler puis refacturer au client)
+  const [genre, setGenre] = useState<'amende' | 'fps'>('amende');
+  const [collectivite, setCollectivite] = useState('');
+  const [dateAvis, setDateAvis] = useState<string | null>(null);
+  const [limitePaiement, setLimitePaiement] = useState<string | null>(null);
+  const [fraisFps, setFraisFps] = useState(0);
+  useEffect(() => { if (profil && !DEMO) supabase.from('agences').select('frais_fps').eq('id', profil.agence_id).single().then(({ data }: any) => setFraisFps(Number(data?.frais_fps ?? 0))); }, [profil]);
 
   useEffect(() => { chargerVehicules().then((r) => setVehicules(r.donnees)).catch(() => setVehicules([])); }, []);
 
@@ -60,7 +68,13 @@ export default function NouvelleAmende() {
     if (!p.dataUrl) return;
     setLecture(true);
     try {
-      const ch = await lireAmende(p.dataUrl);
+      const ch = genre === 'fps' ? await lireFps(p.dataUrl) : await lireAmende(p.dataUrl);
+      if (genre === 'fps') {
+        if (ch.date_constat) ch.date_infraction = ch.date_constat;
+        if (ch.collectivite) setCollectivite(String(ch.collectivite));
+        if (ch.date_avis) setDateAvis(String(ch.date_avis));
+        if (ch.limite_paiement) setLimitePaiement(String(ch.limite_paiement));
+      }
       const immat = String(ch.immatriculation ?? '').toUpperCase().replace(/[\s-]/g, '');
       const v = vehicules?.find((x) => x.immatriculation.toUpperCase().replace(/[\s-]/g, '') === immat);
       if (v) setVehicule(v);
@@ -78,6 +92,22 @@ export default function NouvelleAmende() {
   async function enregistrer() {
     if (!profil || !vehicule || !quand) return;
     const id = nouvelId();
+    if (genre === 'fps') {
+      const base = dateAvis ?? new Date().toISOString().slice(0, 10);
+      const plus = (j: string, mois: number) => { const d = new Date(j + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + mois); return d.toISOString().slice(0, 10); };
+      await mettreEnFile({ genre: 'ajout', table: 'fps', champs: {
+        id, agence_id: profil.agence_id, vehicule_id: vehicule.id, location_id: conducteur?.id ?? null, client_id: conducteur?.client_id ?? null,
+        date_constat: quand, montant: montant ? Number(montant.replace(',', '.')) : null, lieu: lieu.trim() || null, numero_avis: numero.trim() || null,
+        collectivite: collectivite.trim() || null, date_avis: dateAvis, limite_contestation: plus(base, 1), limite_paiement: limitePaiement ?? plus(base, 3),
+        frais_gestion: fraisFps, statut: conducteur ? 'a_refacturer' : 'client_inconnu' } });
+      if (photo) {
+        const chemin = `${profil.agence_id}/fps/${id}-${Date.now()}.jpg`;
+        await mettreEnFile({ genre: 'fichier', chemin, uri: photo, type: 'image/jpeg', ensuite: { genre: 'maj', table: 'fps', id, champs: { avis_path: chemin } } });
+      }
+      toast(conducteur ? `FPS enregistré · à refacturer à ${nomClient(conducteur.clients)}` : 'FPS enregistré (client à retrouver)');
+      router.back();
+      return;
+    }
     const echeance = new Date(new Date(quand).getTime() + 45 * 864e5).toISOString().slice(0, 10);
     await mettreEnFile({ genre: 'ajout', table: 'amendes', champs: {
       id, agence_id: profil.agence_id, vehicule_id: vehicule.id, location_id: conducteur?.id ?? null, client_id: conducteur?.client_id ?? null,
@@ -93,7 +123,11 @@ export default function NouvelleAmende() {
 
   const hier = new Date(Date.now() - 864e5), avantHier = new Date(Date.now() - 2 * 864e5);
   return (
-    <Ecran fermer titre="Nouvelle amende" bas={<GrosBouton icone="ok" titre="Enregistrer l'amende" desactive={!vehicule || !quand} sousTitre={!vehicule ? 'Choisissez la voiture' : !quand ? 'Indiquez la date' : undefined} onPress={enregistrer} />}>
+    <Ecran fermer titre={genre === 'fps' ? 'Nouveau FPS' : 'Nouvelle amende'} bas={<GrosBouton icone="ok" titre={genre === 'fps' ? 'Enregistrer le FPS' : "Enregistrer l'amende"} desactive={!vehicule || !quand} sousTitre={!vehicule ? 'Choisissez la voiture' : !quand ? 'Indiquez la date' : undefined} onPress={enregistrer} />}>
+      <Puces>
+        <Puce titre="Avis de contravention" actif={genre === 'amende'} onPress={() => setGenre('amende')} />
+        <Puce titre="FPS (stationnement)" actif={genre === 'fps'} onPress={() => setGenre('fps')} />
+      </Puces>
       <Pressable onPress={photographier} style={{ borderRadius: 20, overflow: 'hidden', borderWidth: 1.5, borderStyle: photo ? 'solid' : 'dashed', borderColor: lu ? c.vert : c.accent, backgroundColor: c.accent + '10', minHeight: 150, justifyContent: 'center' }}>
         {photo ? <Image source={{ uri: photo }} style={{ width: '100%', height: 190 }} resizeMode="cover" /> : (
           <View style={{ alignItems: 'center', gap: 8, padding: 20 }}>
@@ -122,12 +156,15 @@ export default function NouvelleAmende() {
         <Carte accent={conducteur ? c.vert : conducteur === null ? c.orange : c.bord}>
           <Ligne><Icone nom={conducteur ? 'client' : 'alerte'} couleur={conducteur ? c.vert : c.orange} taille={20} />
             <Texte gras>{conducteur ? `Conducteur : ${nomClient(conducteur.clients)}` : conducteur === null ? 'Aucune location à ce moment-là' : 'Recherche du conducteur…'}</Texte></Ligne>
-          <Texte gris taille={14}>{conducteur ? `Location en cours le ${jour(quand)} à ${fHeure(quand)} : l’amende sera prête à désigner.` : 'L’amende sera marquée « infos manquantes ».'}</Texte>
+          <Texte gris taille={14}>{genre === 'fps'
+            ? (conducteur ? `Location en cours le ${jour(quand)} à ${fHeure(quand)} : le FPS sera prêt à refacturer${fraisFps ? ` (+ ${fraisFps} € de frais)` : ''}.` : 'Le client sera à retrouver.')
+            : (conducteur ? `Location en cours le ${jour(quand)} à ${fHeure(quand)} : l’amende sera prête à désigner.` : 'L’amende sera marquée « infos manquantes ».')}</Texte>
         </Carte>
       ) : null}
 
-      <Titre>Infraction</Titre>
-      <Puces>{TYPES.map((t) => <Puce key={t} titre={t} actif={type === t} onPress={() => setType(type === t ? '' : t)} />)}</Puces>
+      <Titre>{genre === 'fps' ? 'Avis' : 'Infraction'}</Titre>
+      {genre === 'fps' ? <Champ libelle="Collectivité" valeur={collectivite} onChange={setCollectivite} placeholder="Ville de Paris" />
+        : <Puces>{TYPES.map((t) => <Puce key={t} titre={t} actif={type === t} onPress={() => setType(type === t ? '' : t)} />)}</Puces>}
       <Champ libelle="Montant (€)" valeur={montant} onChange={setMontant} clavier="decimal-pad" />
       <Champ libelle="Lieu (facultatif)" valeur={lieu} onChange={setLieu} />
       <Champ libelle="N° de l'avis (facultatif)" valeur={numero} onChange={setNumero} clavier="number-pad" />
