@@ -1,5 +1,8 @@
 import { utilisateurCourant } from '@/lib/agence';
-import { date, euros } from '@/lib/format';
+import { date, euros, plaque } from '@/lib/format';
+import * as A from '../actions';
+import Formulaire from '../_c/Formulaire';
+import Envoyer from '../_c/Envoyer';
 import Cadre from '../_c/Cadre';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +24,7 @@ export default async function Devis({ searchParams }: { searchParams: { filtre?:
       </div>
       <div className="tableau">
         <table className="cartes">
-          <thead><tr><th>Client</th><th>Dates</th><th>Prix</th><th>Statut</th><th className="masque-mobile">Véhicule</th></tr></thead>
+          <thead><tr><th>Client</th><th>Dates</th><th>Prix</th><th>Statut</th><th className="masque-mobile">Véhicule</th><th></th></tr></thead>
           <tbody>
             {(devis ?? []).map((d: any) => {
               const expire = d.statut === 'envoye' && d.valide_jusqu && new Date(d.valide_jusqu) < new Date(new Date().toDateString());
@@ -31,11 +34,14 @@ export default async function Devis({ searchParams }: { searchParams: { filtre?:
                   <td>{date(d.debut)} → {date(d.fin)}</td>
                   <td>{euros(d.prix_total)}</td>
                   <td><span className={`pastille ${expire ? 'depasse' : classes[d.statut]}`}>{expire ? 'Expiré' : statuts[d.statut]}</span></td>
-                  <td className="masque-mobile">{d.vehicules ? `${d.vehicules.immatriculation} · ${[d.vehicules.marque, d.vehicules.modele].filter(Boolean).join(' ')}` : <span className="gris">À choisir</span>}</td>
+                  <td className="masque-mobile">{d.vehicules ? `${plaque(d.vehicules.immatriculation)} · ${[d.vehicules.marque, d.vehicules.modele].filter(Boolean).join(' ')}` : <span className="gris">À choisir</span>}</td>
+                  <td style={{ textAlign: 'right' }}>{d.statut === 'envoye' && !expire && (d.vehicules
+                    ? <Formulaire action={A.transformerDevis.bind(null, d.id)} succes="Réservation créée"><Envoyer className="bouton petit principal">Accepté : réserver</Envoyer></Formulaire>
+                    : <a className="bouton petit" href={`/devis/${d.id}`}>Choisir la voiture</a>)}</td>
                 </tr>
               );
             })}
-            {!devis?.length && <tr><td colSpan={5}><div className="vide-guide"><b>Aucun devis ici</b>Un client demande un prix ? Faites le devis en 10 secondes et envoyez-le sur WhatsApp.<br /><a className="bouton principal" href="/devis/nouveau">+ Nouveau devis</a></div></td></tr>}
+            {!devis?.length && <tr><td colSpan={6}><div className="vide-guide"><b>Aucun devis ici</b>Un client demande un prix ? Faites le devis en 10 secondes et envoyez-le sur WhatsApp.<br /><a className="bouton principal" href="/devis/nouveau">+ Nouveau devis</a></div></td></tr>}
           </tbody>
         </table>
       </div>

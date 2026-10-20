@@ -5,7 +5,7 @@ import { utilisateurCourant } from '@/lib/agence';
 import { chargerLocation } from '@/lib/location';
 import { lienWhatsApp, messageDepart, messageRetour, messageRetard } from '@/lib/whatsapp';
 import { kmSupplementaires } from '@/lib/documents-pdf';
-import { statutLocation, statutCaution, statutEdl, typeDommage, graviteDommage, dateHeure, date, euros, km, joursEntre, versLocal } from '@/lib/format';
+import { statutLocation, statutCaution, statutEdl, typeDommage, graviteDommage, dateHeure, date, euros, km, joursEntre, versLocal, plaque, tel } from '@/lib/format';
 import * as A from '../../actions';
 import Cadre from '../../_c/Cadre';
 import Formulaire from '../../_c/Formulaire';
@@ -38,7 +38,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
   const lienSignature = l.jeton_signature ? `${hd.get('x-forwarded-proto') ?? 'https'}://${hd.get('host')}/signer/${l.jeton_signature}` : null;
   const signe = !!(l.signature_contrat_path || l.signature_distance);
   const msgSignature = `Bonjour ${c.prenom ?? ''}, voici votre contrat de location ${d.agence.nom} à vérifier et signer depuis votre téléphone : ${lienSignature}`;
-  const nomFichier = (t: string) => `${t}-${String(l.numero).padStart(5, '0')}-${v.immatriculation}.pdf`;
+  const nomFichier = (t: string) => `${t}-${String(l.numero).padStart(5, '0')}-${plaque(v.immatriculation)}.pdf`;
   const kmParcourus = l.km_retour != null && l.km_depart != null ? l.km_retour - l.km_depart : null;
 
   const edlBloc = (type: 'depart' | 'retour', e: any) => (
@@ -69,12 +69,13 @@ export default async function FicheLocation({ params }: { params: { id: string }
     : l.statut === 'terminee' && d.agence.facture_auto
     ? { texte: 'Véhicule rendu. La facture est prête.', bouton: <BoutonPdf genre="facture" nom={nomFichier('facture')} libelle="Facture PDF" classe="bouton principal" donnees={base} /> }
     : null;
+  const cautionAPrendre = (l.statut === 'reservee' || l.statut === 'en_cours') && Number(l.caution_montant) > 0 && l.caution_statut === 'a_prendre';
   const mailContrat = c.email ? `mailto:${c.email}?subject=${encodeURIComponent(`Votre contrat de location n° ${l.numero} · ${d.agence.nom}`)}&body=${encodeURIComponent(`Bonjour ${c.prenom ?? ''},\n\nVous trouverez ci-joint votre contrat de location pour la ${voiture}, du ${dateHeure(l.debut)} au ${dateHeure(l.fin_prevue)}.\n\nBonne route,\n${d.agence.nom}`)}` : null;
 
   const resume = (
     <div className="colonnes">
       <section className="carte">
-        <h2>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}</h2>
+        <h2>{plaque(v.immatriculation)} · {[v.marque, v.modele].filter(Boolean).join(' ')}</h2>
         <div className="infos">
           <div><span>Départ</span><b>{dateHeure(l.debut)}</b></div>
           <div><span>{l.fin_reelle ? 'Rendue le' : 'Retour prévu'}</span><b>{dateHeure(l.fin_reelle ?? l.fin_prevue)}</b></div>
@@ -87,7 +88,10 @@ export default async function FicheLocation({ params }: { params: { id: string }
           {sup.enTrop > 0 && <div><span>Km en trop</span><b className="retard">{km(sup.enTrop)} · {euros(sup.montant)}</b></div>}
           {(l.carburant_depart != null || l.carburant_retour != null) && <div><span>Carburant</span><b>{l.carburant_depart ?? '—'} %{l.carburant_retour != null ? ` → ${l.carburant_retour} %` : ''}</b></div>}
         </div>
-        <div className="ligne" style={{ marginTop: 14 }}><a className="bouton petit" href={`/vehicules/${v.id}`}>Fiche du véhicule</a></div>
+        <div className="ligne" style={{ marginTop: 14 }}>
+          <a className="bouton petit" href={`/vehicules/${v.id}`}>Fiche du véhicule</a>
+          {v.traceur_id && (l.statut === 'en_cours' || l.statut === 'reservee') && <a className="bouton petit" href={`/carte?vehicule=${v.id}`}>Où est la voiture ?</a>}
+        </div>
       </section>
       <section className="carte">
         <h2>Caution</h2>
@@ -115,7 +119,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
     <section className="carte">
       <h2><a href={`/clients/${c.id}`}>{c.nom} {c.prenom}</a> {c.liste_noire && <span className="pastille depasse" style={{ fontSize: 14 }}>Liste noire</span>}</h2>
       <div className="infos" style={{ marginBottom: 12 }}>
-        <div><span>Téléphone</span><b>{c.telephone ? <a className="lien" href={`tel:${c.telephone}`}>{c.telephone}</a> : '—'}</b></div>
+        <div><span>Téléphone</span><b>{c.telephone ? <a className="lien" href={`tel:${c.telephone}`}>{tel(c.telephone)}</a> : '—'}</b></div>
         <div><span>E-mail</span><b>{c.email ?? '—'}</b></div>
         <div><span>Permis du</span><b>{date(c.date_permis)}</b></div>
         <div><span>Né(e) le</span><b>{date(c.date_naissance)}</b></div>
@@ -183,7 +187,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
           <summary className="bouton">Changer de voiture</summary>
           <Formulaire action={A.changerVoiture.bind(null, l.id)} className="grille" succes="Voiture changée">
             <label>Nouveau véhicule<select name="vehicule_id" required><option value="">Choisir…</option>
-              {autres?.map((x: any) => <option key={x.id} value={x.id}>{x.immatriculation} · {[x.marque, x.modele].filter(Boolean).join(' ')}</option>)}</select></label>
+              {autres?.map((x: any) => <option key={x.id} value={x.id}>{plaque(x.immatriculation)} · {[x.marque, x.modele].filter(Boolean).join(' ')}</option>)}</select></label>
             <Envoyer className="bouton principal">Changer</Envoyer>
           </Formulaire>
         </details>
@@ -191,10 +195,10 @@ export default async function FicheLocation({ params }: { params: { id: string }
           <Envoyer className="bouton danger">Annuler la réservation</Envoyer></Formulaire>}
         {v.traceur_id ? <div className="ligne" style={{ flexWrap: 'wrap' }}>
           <Formulaire action={A.moteur.bind(null, v.id, true)} succes="Coupure envoyée"
-            confirmer={`Couper le moteur de ${v.immatriculation} ? Le véhicule ne pourra plus redémarrer.`}>
+            confirmer={`Couper le moteur de ${plaque(v.immatriculation)} ? Le véhicule ne pourra plus redémarrer.`}>
             <Envoyer className="bouton danger">Couper le moteur</Envoyer>
           </Formulaire>
-          <Formulaire action={A.moteur.bind(null, v.id, false)} succes="Moteur remis en route" confirmer={`Remettre en route le moteur de ${v.immatriculation} ?`}>
+          <Formulaire action={A.moteur.bind(null, v.id, false)} succes="Moteur remis en route" confirmer={`Remettre en route le moteur de ${plaque(v.immatriculation)} ?`}>
             <Envoyer className="bouton">Remettre en route</Envoyer>
           </Formulaire>
           <a className="bouton" href={`/vehicules/${v.id}`}>Voir sur la carte</a>
@@ -217,13 +221,24 @@ export default async function FicheLocation({ params }: { params: { id: string }
       titre={<>N° {l.numero} · {c.prenom} {c.nom}</>}
       actions={<span className={`pastille ${retard ? 'retard' : l.statut}`} style={{ fontSize: 16 }}>{retard ? 'En retard' : statutLocation[l.statut]}</span>}>
       {c.liste_noire && <div className="alerte-bandeau">Attention : ce client est en liste noire. {c.note}</div>}
-      {action && <div className="action-principale"><span>{action.texte}</span>{action.bouton}</div>}
-      {d.agence.envoi_contrat && l.statut === 'en_cours' && (
-        <div className="info-bandeau ligne" style={{ justifyContent: 'space-between' }}>
-          <span>Envoyer le contrat au client{d.location.signature ? ' (signé)' : ''} :</span>
-          <span className="ligne">
-            <BoutonPdf genre="contrat" nom={nomFichier('contrat')} libelle="Contrat PDF à partager" classe="bouton petit" donnees={base} />
-            {mailContrat && <a className="bouton petit" href={mailContrat}>Par e-mail</a>}
+      {cautionAPrendre && (
+        <div className="alerte-caution">
+          <span>Caution de <b>{euros(l.caution_montant)}</b> {l.statut === 'en_cours' ? 'pas encore prise, alors que la voiture est partie.' : 'à prendre avant le départ.'}</span>
+          <Formulaire action={A.cautionLocation.bind(null, l.id)} succes="Caution notée comme prise">
+            <input type="hidden" name="caution_statut" value="prise" /><input type="hidden" name="caution_montant" value={l.caution_montant ?? ''} />
+            <Envoyer className="bouton petit principal">Caution prise</Envoyer>
+          </Formulaire>
+        </div>
+      )}
+      {(action || c.telephone) && (
+        <div className="action-principale">
+          <span>{action?.texte ?? `${statutLocation[l.statut]}.`}</span>
+          <span className="ligne action-boutons">
+            {c.telephone && <a className="bouton petit" href={`tel:${c.telephone}`}>Appeler</a>}
+            {wa && <a className="bouton petit" target="_blank" rel="noreferrer" href={wa}>WhatsApp</a>}
+            {d.agence.envoi_contrat && l.statut === 'en_cours' && <BoutonPdf genre="contrat" nom={nomFichier('contrat')} libelle="Contrat PDF" classe="bouton petit" donnees={base} />}
+            {d.agence.envoi_contrat && l.statut === 'en_cours' && mailContrat && <a className="bouton petit" href={mailContrat}>Contrat par e-mail</a>}
+            {action?.bouton}
           </span>
         </div>
       )}

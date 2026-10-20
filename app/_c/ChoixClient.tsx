@@ -1,4 +1,5 @@
 'use client';
+import { tel } from '@/lib/format';
 import { useEffect, useRef, useState } from 'react';
 
 type Client = { id: string; nom: string; prenom: string | null; telephone: string | null; email: string | null; date_permis: string | null; liste_noire: boolean; permis_path: string | null };
@@ -16,13 +17,13 @@ export default function ChoixClient({ clients, defaut }: { clients: Client[]; de
     <div ref={ref} className="pleine" style={{ display: 'grid', gap: 10 }}>
       <label>Client déjà connu<select name="client_id" value={id} onChange={(e) => setId(e.target.value)}>
         <option value="">— Nouveau client —</option>
-        {clients.map((x) => <option key={x.id} value={x.id}>{x.nom} {x.prenom ?? ''}{x.telephone ? ' · ' + x.telephone : ''}{x.liste_noire ? ' ⚑ LISTE NOIRE' : ''}</option>)}
+        {clients.map((x) => <option key={x.id} value={x.id}>{x.nom} {x.prenom ?? ''}{x.telephone ? ' · ' + tel(x.telephone) : ''}{x.liste_noire ? ' ⚑ LISTE NOIRE' : ''}</option>)}
       </select></label>
       <input type="hidden" name="_alerte_noire" value={c?.liste_noire ? `${c.prenom ?? ''} ${c.nom} est en liste noire. Continuer quand même ?`.trim() : ''} />
       {c && (
         <div className={`fiche-client ${c.liste_noire ? 'noire' : ''}`}>
           <b>{c.prenom} {c.nom}</b>
-          <span>{c.telephone ?? 'Pas de téléphone'}{c.email ? ' · ' + c.email : ''}</span>
+          <span>{c.telephone ? tel(c.telephone) : 'Pas de téléphone'}{c.email ? ' · ' + c.email : ''}</span>
           <span className="gris">{c.date_permis ? `Permis depuis le ${new Date(c.date_permis).toLocaleDateString('fr-FR')}` : 'Date du permis inconnue'} · {c.permis_path ? 'permis scanné ✓' : 'permis à scanner'}</span>
           {c.liste_noire && <span className="retard">⚑ Client en liste noire</span>}
         </div>

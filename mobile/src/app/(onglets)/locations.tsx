@@ -8,7 +8,7 @@ import { chargerLocations } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useCouleurs } from '@/lib/theme';
 import { useGps } from '@/lib/gps';
-import { enRetard, nomClient } from '@/lib/format';
+import { enRetard, nomClient, plaque } from '@/lib/format';
 
 type Filtre = 'encours' | 'avenir' | 'retard';
 
@@ -26,7 +26,7 @@ export default function Locations() {
   const retard = enCours.filter((l) => enRetard(l.fin_prevue));
   const aVenir = tout.filter((l) => l.statut === 'reservee').sort((a, b) => a.debut.localeCompare(b.debut));
   const cherche = q.trim().toLowerCase().replace(/[\s-]/g, '');
-  const correspond = (l: (typeof tout)[number]) => !cherche || `${nomClient(l.clients)}${l.vehicules?.immatriculation}${l.vehicules?.marque}${l.vehicules?.modele}${l.numero ?? ''}${l.clients?.telephone ?? ''}`.toLowerCase().replace(/[\s-]/g, '').includes(cherche);
+  const correspond = (l: (typeof tout)[number]) => !cherche || `${nomClient(l.clients)}${plaque(l.vehicules?.immatriculation)}${l.vehicules?.marque}${l.vehicules?.modele}${l.numero ?? ''}${l.clients?.telephone ?? ''}`.toLowerCase().replace(/[\s-]/g, '').includes(cherche);
   const liste = (cherche ? tout : filtre === 'encours' ? enCours : filtre === 'retard' ? retard : aVenir).filter(correspond);
 
   return (

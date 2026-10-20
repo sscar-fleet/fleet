@@ -1,9 +1,11 @@
 // Champs d'une fiche client (création et modification)
+import { tel } from '@/lib/format';
 import Scanner from './Scanner';
+import AlerteDoublon from './AlerteDoublon';
 import ChampAdresse from './ChampAdresse';
 import ScanOrdinateur from './ScanOrdinateur';
 
-export default function ChampsClient({ c = {} as any, obligatoire = true, agenceId }: { c?: any; obligatoire?: boolean; agenceId?: string }) {
+export default function ChampsClient({ c = {} as any, obligatoire = true, agenceId, clients }: { c?: any; obligatoire?: boolean; agenceId?: string; clients?: { id: string; nom: string; prenom: string | null; telephone: string | null }[] }) {
   return (
     <>
       {agenceId && <>
@@ -21,7 +23,8 @@ export default function ChampsClient({ c = {} as any, obligatoire = true, agence
       </>}
       <label>Nom{obligatoire ? ' *' : ''}<input name="nom" defaultValue={c.nom ?? ''} required={obligatoire} autoComplete="off" /></label>
       <label>Prénom<input name="prenom" defaultValue={c.prenom ?? ''} autoComplete="off" /></label>
-      <label>Téléphone<input name="telephone" type="tel" defaultValue={c.telephone ?? ''} autoComplete="off" /></label>
+      <label>Téléphone<input name="telephone" type="tel" defaultValue={tel(c.telephone)} autoComplete="off" /></label>
+      {clients && <AlerteDoublon clients={clients} sauf={c.id} />}
       <label>E-mail<input name="email" type="email" defaultValue={c.email ?? ''} autoComplete="off" /></label>
       <ChampAdresse defaut={c.adresse ?? ''} />
       <label>Date de naissance<input name="date_naissance" type="date" defaultValue={c.date_naissance ?? ''} /></label>

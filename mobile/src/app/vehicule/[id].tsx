@@ -14,7 +14,7 @@ import { useDonnees } from '@/lib/useDonnees';
 import { mettreEnFile } from '@/lib/hors-ligne';
 import { useCouleurs } from '@/lib/theme';
 import { useGps, libelleGps, couleurGps, depuis, itineraire, commanderMoteur } from '@/lib/gps';
-import { dateCourte, echeance, euros, km, statutVehicule, nomVehicule } from '@/lib/format';
+import { dateCourte, echeance, euros, km, statutVehicule, nomVehicule, plaque } from '@/lib/format';
 
 export default function FicheVehicule() {
   const c = useCouleurs();
@@ -50,7 +50,7 @@ export default function FicheVehicule() {
     <Ecran retour titre={nomVehicule(v)} rafraichir={() => { recharger(); rafraichirGps(); }}
       surTitre={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }}>
         <LogoMarque marque={v.marque} modele={v.modele} taille={64} />
-        <View style={{ gap: 6 }}><Plaque immat={v.immatriculation} /><Etiquette titre={statutVehicule[v.statut] ?? v.statut} couleur={couleurStatut[v.statut] ?? c.gris} /></View>
+        <View style={{ gap: 6 }}><Plaque immat={plaque(v.immatriculation)} /><Etiquette titre={statutVehicule[v.statut] ?? v.statut} couleur={couleurStatut[v.statut] ?? c.gris} /></View>
       </View>}
       bas={v.statut === 'disponible'
         ? <GrosBouton icone="ajout" titre="Louer ce véhicule" onPress={() => router.push({ pathname: '/nouvelle', params: { vehicule: v.id } })} />
@@ -86,7 +86,7 @@ export default function FicheVehicule() {
       {locations.length > 0 && <><Titre>Locations</Titre>{locations.map((l) => <CarteLocation key={l.id} l={l} genre={l.statut === 'en_cours' ? 'retour' : 'depart'} gps={e} />)}</>}
       {v.statut === 'disponible' && <GrosBouton secondaire icone="outil" titre="Envoyer à l'atelier" onPress={() => statut('maintenance')} />}
 
-      <Fenetre visible={question} danger icone="moteur" question={`Couper le moteur de ${v.immatriculation} ?`}
+      <Fenetre visible={question} danger icone="moteur" question={`Couper le moteur de ${plaque(v.immatriculation)} ?`}
         detail="La voiture ne pourra plus redémarrer. La coupure se fait à l’arrêt ou à vitesse lente, selon le boîtier." non="Annuler" oui="Couper le moteur" onNon={() => setQuestion(false)} onOui={moteur} />
     </Ecran>
   );

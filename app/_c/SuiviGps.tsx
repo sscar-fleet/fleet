@@ -3,7 +3,7 @@ import Formulaire from './Formulaire';
 import Envoyer from './Envoyer';
 import CarteGps from './CarteGps';
 import * as A from '../actions';
-import { km, dateHeure } from '@/lib/format';
+import { km, dateHeure, plaque } from '@/lib/format';
 import { kmEstime, depuis, type Suivi } from '@/lib/telematique';
 
 export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any | null; suivi: Suivi }) {
@@ -62,11 +62,11 @@ export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any |
           </Formulaire>
         )}
         {suivi.actif && (traceur.moteur_coupe
-          ? <Formulaire action={A.moteur.bind(null, v.id, false)} succes="Moteur remis en route" confirmer={`Remettre en route le moteur de ${v.immatriculation} ?`}>
+          ? <Formulaire action={A.moteur.bind(null, v.id, false)} succes="Moteur remis en route" confirmer={`Remettre en route le moteur de ${plaque(v.immatriculation)} ?`}>
               <Envoyer className="bouton petit principal">Remettre le moteur en route</Envoyer>
             </Formulaire>
           : <Formulaire action={A.moteur.bind(null, v.id, true)} succes="Coupure envoyée"
-              confirmer={`Couper le moteur de ${v.immatriculation} ? Le véhicule ne pourra plus redémarrer. La coupure se fait une fois le véhicule à l’arrêt ou à vitesse lente, selon le boîtier.`}>
+              confirmer={`Couper le moteur de ${plaque(v.immatriculation)} ? Le véhicule ne pourra plus redémarrer. La coupure se fait une fois le véhicule à l’arrêt ou à vitesse lente, selon le boîtier.`}>
               <Envoyer className="bouton petit danger">Couper le moteur</Envoyer>
             </Formulaire>)}
         <Formulaire action={A.delierTraceur.bind(null, v.id)} succes="Traceur retiré" confirmer="Retirer ce traceur du véhicule ? Le boîtier reste sur votre compte.">

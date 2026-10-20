@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
-import { dateHeure } from '@/lib/format';
+import { dateHeure, plaque } from '@/lib/format';
 import { donneesAgence } from '@/lib/donnees';
 import { enregistrerAttestation } from '../../../actions';
 import Cadre from '../../../_c/Cadre';
@@ -32,7 +32,7 @@ export default async function Fourriere({ params }: { params: { id: string } }) 
     <Cadre retour={{ lien: `/vehicules/${v.id}`, texte: v.immatriculation }} titre="Attestation fourrière">
       <div className="colonnes">
         <section className="carte">
-          <h2>Bon de pouvoir pour {v.immatriculation}</h2>
+          <h2>Bon de pouvoir pour {plaque(v.immatriculation)}</h2>
           <FormulaireFourriere
             action={enregistrerAttestation.bind(null, v.id)}
             agence={agence}

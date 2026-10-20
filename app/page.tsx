@@ -1,6 +1,6 @@
 import { papiersComplets } from '@/app/_c/PapiersClient';
 import { utilisateurCourant } from '@/lib/agence';
-import { debutJour, heure, date, echeance, JOUR } from '@/lib/format';
+import { debutJour, heure, date, echeance, JOUR, plaque } from '@/lib/format';
 import Cadre from './_c/Cadre';
 import SuiviFlotte, { type LigneSuivi } from './_c/SuiviFlotte';
 import { suiviAgence, kmEstime } from '@/lib/telematique';
@@ -44,7 +44,7 @@ export default async function Accueil() {
     lignesGps = (vt ?? []).map((v: any): LigneSuivi => {
       const t = v.traceurs; const e = t ? suivi.etats.get(String(t.imei)) : undefined;
       const loc = (enCours ?? []).find((l: any) => l.vehicule_id === v.id) as any;
-      return { id: v.id, immat: v.immatriculation, marque: v.marque, modele: v.modele, statut: v.statut,
+      return { id: v.id, immat: plaque(v.immatriculation), marque: v.marque, modele: v.modele, statut: v.statut,
         etat: !e ? 'hors_ligne' : t.moteur_coupe ? 'coupe' : !e.enLigne ? 'hors_ligne' : e.enMouvement ? 'roule' : 'arret',
         vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null, lat: e?.lat ?? null, lng: e?.lng ?? null, le: e?.le ?? null, km: kmEstime(t, e) ?? v.km,
         client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null };
@@ -77,10 +77,10 @@ export default async function Accueil() {
   (vehicules ?? []).forEach((v: any) => {
     if (v.statut === 'hors_service' || v.statut === 'sorti') return;
     const a = echeance(v.assurance_echeance); const c = echeance(v.ct_echeance);
-    if (a) alertes.push({ texte: `${v.immatriculation} : assurance ${a === 'depasse' ? 'expirée' : 'expire'} le ${date(v.assurance_echeance)}`, lien: `/vehicules/${v.id}`, niveau: a });
-    if (c) alertes.push({ texte: `${v.immatriculation} : contrôle technique ${c === 'depasse' ? 'dépassé' : 'à faire'} le ${date(v.ct_echeance)}`, lien: `/vehicules/${v.id}`, niveau: c });
+    if (a) alertes.push({ texte: `${plaque(v.immatriculation)} : assurance ${a === 'depasse' ? 'expirée' : 'expire'} le ${date(v.assurance_echeance)}`, lien: `/vehicules/${v.id}`, niveau: a });
+    if (c) alertes.push({ texte: `${plaque(v.immatriculation)} : contrôle technique ${c === 'depasse' ? 'dépassé' : 'à faire'} le ${date(v.ct_echeance)}`, lien: `/vehicules/${v.id}`, niveau: c });
   });
-  (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${e.vehicules?.immatriculation} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: '/entretiens', niveau: 'proche' }));
+  (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: '/entretiens', niveau: 'proche' }));
   (departs ?? []).forEach((l: any) => {
     if (new Date(l.debut).getTime() < Date.now() - 2 * 3600 * 1000)
       alertes.push({ texte: `Contrat ${l.numero} : départ prévu à ${heure(l.debut)} ${new Date(l.debut) < new Date(aujourdhui) ? 'le ' + date(l.debut) : ''} pas encore fait`, lien: `/locations/${l.id}`, niveau: 'proche' });
@@ -92,8 +92,8 @@ export default async function Accueil() {
     { titre: 'Départs du jour', valeur: departs?.length ?? 0, lien: '/locations?filtre=departs', classe: 'ok', actif: (departs?.length ?? 0) > 0 },
     { titre: 'Retours du jour', valeur: retours?.length ?? 0, lien: '/locations?filtre=retours', classe: 'ok', actif: (retours?.length ?? 0) > 0 },
     { titre: 'En retard', valeur: retards?.length ?? 0, lien: '/locations?filtre=retard', classe: 'danger', actif: (retards?.length ?? 0) > 0 },
-    { titre: 'Occupation', valeur: `${occupation} %`, detail: `${flotte[0].n}/${totalFlotte} loués`, lien: '/vehicules', classe: 'info', actif: true },
-    ...(profil.role === 'gerant' ? [{ titre: 'Encaissé ce mois', valeur: euros(caMois), detail: moisPrec ? `${caMois >= moisPrec.recettes ? '▲' : '▼'} vs ${euros(moisPrec.recettes)}` : undefined, lien: '/pilotage', classe: 'info', actif: true }] : []),
+    { titre: 'Loués aujourd\u2019hui', valeur: `${flotte[0].n}/${totalFlotte}`, detail: `${occupation} % de la flotte`, lien: '/vehicules', classe: 'info', actif: true },
+    ...(profil.role === 'gerant' ? [{ titre: 'Encaissé ce mois', valeur: euros(caMois), detail: moisPrec && moisPrec.recettes > 0 ? `${caMois >= moisPrec.recettes ? '▲' : '▼'} vs ${euros(moisPrec.recettes)} le mois dernier` : 'depuis le 1er du mois', lien: '/pilotage', classe: 'info', actif: true }] : []),
     { titre: 'Amendes', valeur: amendes?.length ?? 0, detail: amendesUrgentes ? `${amendesUrgentes} urgente${amendesUrgentes > 1 ? 's' : ''}` : 'à désigner', lien: '/amendes', classe: amendesUrgentes ? 'danger' : 'alerte', actif: (amendes?.length ?? 0) > 0 },
     { titre: 'Alertes', valeur: alertes.length, detail: 'papiers, garage', lien: '#alertes', classe: 'alerte', actif: alertes.length > 0 },
   ];
@@ -125,7 +125,7 @@ export default async function Accueil() {
   return (
     <Cadre titre={<>Bonjour {profil.nom.split(' ')[0]} <span className="gris" style={{ fontWeight: 400, fontSize: 16 }}>· {jourTexte}</span></>}
       tables={['locations', 'vehicules', 'amendes', 'entretiens', 'etats_des_lieux']}
-      actions={<a className="bouton principal" href="/locations/nouvelle">+ Nouvelle location</a>}>
+>
       {profil.role === 'gerant' && !demarrageFini && (
         <section className="carte demarrage">
           <h2>Pour bien démarrer ({etapesDemarrage.filter((e) => e.fait).length}/4)</h2>
@@ -171,7 +171,7 @@ export default async function Accueil() {
             <div key={x.genre + x.id} className="fichier">
               <a href={`/locations/${x.id}`} className="jour">
                 <span className={`etiquette ${x.genre}`}>{etiquette[x.genre]}</span>
-                <span><b>{x.genre === 'retard' ? date(x.quand) + ' ' : ''}{heure(x.quand)}</b> · {x.v?.immatriculation} {voiture(x.v)}<br />
+                <span><b>{x.genre === 'retard' ? date(x.quand) + ' ' : ''}{heure(x.quand)}</b> · {plaque(x.v?.immatriculation)} {voiture(x.v)}<br />
                   <span className="gris">{nom(x.c)}{x.c?.liste_noire ? ' · liste noire' : ''}</span></span>
               </a>
               <span className="ligne">

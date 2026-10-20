@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { Carte, Etiquette, Pastille, Barre } from './ui';
 import LogoMarque from './LogoMarque';
 import { useCouleurs } from '@/lib/theme';
-import { heure, jour, nomClient, nomVehicule, estAujourdhui, enRetard, relatif } from '@/lib/format';
+import { heure, jour, nomClient, nomVehicule, estAujourdhui, enRetard, relatif, plaque } from '@/lib/format';
 import { voyantsDepart, type LocationLigne } from '@/lib/donnees';
 import { couleurGps, libelleGps, type EtatGps } from '@/lib/gps';
 
@@ -21,13 +21,13 @@ export default function CarteLocation({ l, genre, gps }: { l: LocationLigne; gen
   return (
     <Carte accent={coul} onPress={() => router.push({ pathname: '/location/[id]', params: { id: l.id } })}>
       <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-        <View style={{ width: 64 }}>
-          <Text style={{ color: c.texte, fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{heure(quand)}</Text>
+        <View style={{ minWidth: 72 }}>
+          <Text numberOfLines={1} style={{ color: c.texte, fontSize: 21, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{heure(quand)}</Text>
           <Text style={{ color: coul, fontSize: 12, fontWeight: '800' }}>{genre === 'depart' ? 'DÉPART' : 'RETOUR'}</Text>
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text numberOfLines={1} style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomClient(l.clients)}</Text>
-          <Text numberOfLines={1} style={{ color: c.gris, fontSize: 14 }}>{nomVehicule(l.vehicules)} · {l.vehicules?.immatriculation}</Text>
+          <Text numberOfLines={1} style={{ color: c.gris, fontSize: 14 }}>{nomVehicule(l.vehicules)} · {plaque(l.vehicules?.immatriculation)}</Text>
         </View>
         <LogoMarque marque={l.vehicules?.marque} modele={l.vehicules?.modele} taille={42} />
       </View>

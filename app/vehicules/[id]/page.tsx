@@ -3,8 +3,7 @@ import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
   statutVehicule, statutLocation, statutEntretien, typesMaintenance, motifsSortie, statutAmende, typeDommage, graviteDommage, carburants, financements, photosGuidees,
-  km, date, dateHeure, euros, echeance, joursEntre, JOUR, versJour, categoriesDepense,
-} from '@/lib/format';
+  km, date, dateHeure, euros, echeance, joursEntre, JOUR, versJour, categoriesDepense, plaque } from '@/lib/format';
 import * as A from '../../actions';
 import ProvenanceVehicule from '../../_c/ProvenanceVehicule';
 import Cadre from '../../_c/Cadre';
@@ -75,11 +74,11 @@ export default async function FicheVehicule({ params }: { params: { id: string }
 
   return (
     <Cadre retour={{ lien: '/vehicules', texte: 'Véhicules' }} tables={['vehicules', 'locations', 'entretiens', 'dommages', 'amendes']}
-      titre={<>{v.immatriculation} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span>{v.financement === 'pret' && <span className={`pastille ${v.pret_retour && new Date(v.pret_retour).getTime() - Date.now() < 7 * 864e5 ? 'proche' : ''}`} style={{ marginLeft: 10, fontSize: 13 }}>Prêté{v.pret_par ? ` par ${v.pret_par}` : ''}{v.pret_retour ? ` · à rendre le ${date(v.pret_retour)}` : ''}</span>}</>}
+      titre={<>{plaque(v.immatriculation)} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span>{v.financement === 'pret' && <span className={`pastille ${v.pret_retour && new Date(v.pret_retour).getTime() - Date.now() < 7 * 864e5 ? 'proche' : ''}`} style={{ marginLeft: 10, fontSize: 13 }}>Prêté{v.pret_par ? ` par ${v.pret_par}` : ''}{v.pret_retour ? ` · à rendre le ${date(v.pret_retour)}` : ''}</span>}</>}
       actions={<>
         <span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>
         {v.statut !== 'sorti' && <a className="bouton principal" href={`/locations/nouvelle?vehicule=${v.id}`}>+ Louer</a>}
-        <BoutonPdf genre="bilan" nom={`bilan-${v.immatriculation}.pdf`} libelle="Bilan PDF" donnees={{ agence, bilan: {
+        <BoutonPdf genre="bilan" nom={`bilan-${plaque(v.immatriculation)}.pdf`} libelle="Bilan PDF" donnees={{ agence, bilan: {
           vehicule: { immatriculation: v.immatriculation, marque: v.marque, modele: v.modele, financement: v.financement, cout_mensuel: v.cout_mensuel,
             date_entree: v.date_entree, date_sortie: v.date_sortie, motif_sortie: v.motif_sortie, prix_sortie: v.prix_sortie, km: v.km },
           chiffres: [
@@ -119,7 +118,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         <section className="carte">
           <h2>Informations</h2>
           <Formulaire action={A.majVehicule.bind(null, v.id)} className="grille">
-            <label>Immatriculation<input name="immatriculation" defaultValue={v.immatriculation} required /></label>
+            <label>Immatriculation<input name="immatriculation" defaultValue={plaque(v.immatriculation)} required /></label>
             <label>Marque<input name="marque" defaultValue={v.marque ?? ''} required /></label>
             <label>Modèle<input name="modele" defaultValue={v.modele ?? ''} required /></label>
             <label>Carburant<select name="carburant" defaultValue={v.carburant ?? ''}><option value="">—</option>
@@ -240,7 +239,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
       <section className="carte">
         <div className="titre" style={{ marginBottom: 10 }}>
           <h2 style={{ margin: 0 }}>Dommages {ouverts > 0 && <span className="badge rouge">{ouverts}</span>}</h2>
-          <BoutonPdf genre="dommages" nom={`dommages-${v.immatriculation}.pdf`} libelle="Relevé PDF" classe="bouton petit"
+          <BoutonPdf genre="dommages" nom={`dommages-${plaque(v.immatriculation)}.pdf`} libelle="Relevé PDF" classe="bouton petit"
             donnees={{ agence, vehicule: { immatriculation: v.immatriculation, marque: v.marque, modele: v.modele }, dommages: dommagesDoc }} />
         </div>
         <details className="formulaire">

@@ -21,7 +21,7 @@ import { lirePapier } from '@/lib/ia';
 import { prendrePhoto } from '@/lib/photo';
 import { urlSite } from '@/lib/site';
 import { ouvrirWhatsApp, msg } from '@/lib/messages';
-import { euros, jour, heure, nomClient, nomVehicule } from '@/lib/format';
+import { euros, jour, heure, nomClient, nomVehicule, tel, plaque, memePersonne } from '@/lib/format';
 
 const ETAPES = ['Quand', 'Voiture', 'Client', 'Prix'] as const;
 const RAPIDES = [['maintenant', 'Maintenant'], ['h1', 'Dans 1 h'], ['0-18', 'Ce soir 18 h'], ['1-9', 'Demain 9 h'], ['1-14', 'Demain 14 h'], ['2-9', 'Après-demain 9 h']] as const;
@@ -97,7 +97,10 @@ export default function NouvelleLocation() {
     if (conflit) return conflit.statut === 'en_cours' ? (new Date(conflit.fin_prevue).getTime() < Date.now() ? 'Pas encore rendue (retour en retard)' : `Louée jusqu’au ${jour(conflit.fin_prevue)} ${heure(conflit.fin_prevue)}`) : `Réservée (n° ${conflit.numero ?? '—'}) du ${jour(conflit.debut)}`;
     return null;
   };
-  const liste = (vehicules ?? []).filter((v) => !qv || `${v.immatriculation}${v.marque}${v.modele}`.toLowerCase().replace(/[\s-]/g, '').includes(qv.toLowerCase().replace(/[\s-]/g, '')));
+  // Assurance ou contrôle technique qui expire avant la fin de la location : signalé, pas bloquant
+  const papiersAlerte = (v: VehiculeLigne) => ([['Assurance', v.assurance_echeance], ['Contrôle technique', v.ct_echeance]] as [string, string | null][])
+    .filter(([, d]) => d && new Date(d + 'T23:59:59') < fin).map(([lib, d]) => `${lib} ${new Date(d!) < new Date() ? 'expiré' : 'expire'} le ${new Date(d!).toLocaleDateString('fr-FR')}`);
+  const liste = (vehicules ?? []).filter((v) => !qv || `${plaque(v.immatriculation)}${v.marque}${v.modele}`.toLowerCase().replace(/[\s-]/g, '').includes(qv.toLowerCase().replace(/[\s-]/g, '')));
   const libres = liste.filter((v) => !indispo(v)).sort((a, b) => Number(a.prix_jour ?? 0) - Number(b.prix_jour ?? 0));
   const prises = liste.filter((v) => indispo(v));
   useEffect(() => { if (vehicule && indispo(vehicule)) setVehicule(undefined); }, [debut, fin]); // eslint-disable-line
@@ -136,7 +139,7 @@ export default function NouvelleLocation() {
     let clientObj: any = client;
     if (!clientId) {
       clientId = nouvelId();
-      const champs: Record<string, unknown> = { id: clientId, agence_id: profil.agence_id, nom: nc.nom.trim().toUpperCase(), prenom: nc.prenom.trim() || null, telephone: nc.telephone.trim() || null,
+      const champs: Record<string, unknown> = { id: clientId, agence_id: profil.agence_id, nom: nc.nom.trim().toUpperCase(), prenom: nc.prenom.trim() || null, telephone: nc.telephone.trim() ? tel(nc.telephone) : null,
         email: nc.email.trim() || null, date_naissance: versIso(nc.naissance), date_permis: versIso(nc.datePermis), ...(nc.numeroPermis.trim() ? { numero_permis: nc.numeroPermis.trim().toUpperCase() } : {}) };
       await mettreEnFile({ genre: 'ajout', table: 'clients', champs });
       if (permis) {
@@ -205,7 +208,7 @@ export default function NouvelleLocation() {
             <Text style={{ color: c.texte, fontWeight: '700', flex: 1 }}>{jour(debut.toISOString())} {heure(debut.toISOString())} → {jour(fin.toISOString())} {heure(fin.toISOString())} · {jours} j</Text>
           </Pressable>
           {etape > 1 && vehicule && <Pressable onPress={() => setEtape(1)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Icone nom="voiture" couleur={c.accent} taille={18} /><Text style={{ color: c.texte, fontWeight: '700', flex: 1 }}>{nomVehicule(vehicule)} · {vehicule.immatriculation}</Text></Pressable>}
+            <Icone nom="voiture" couleur={c.accent} taille={18} /><Text style={{ color: c.texte, fontWeight: '700', flex: 1 }}>{nomVehicule(vehicule)} · {plaque(vehicule.immatriculation)}</Text></Pressable>}
           {etape > 2 && clientPret && <Pressable onPress={() => setEtape(2)} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Icone nom="client" couleur={c.accent} taille={18} /><Text style={{ color: c.texte, fontWeight: '700', flex: 1 }}>{nomChoisi}{nouveau ? ' (nouveau)' : ''}</Text></Pressable>}
         </Carte>
@@ -252,7 +255,8 @@ export default function NouvelleLocation() {
           <Carte key={v.id} accent={vehicule?.id === v.id ? c.accent : undefined} onPress={() => { setVehicule(v); setEtape(2); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <LogoMarque marque={v.marque} modele={v.modele} />
-              <View style={{ flex: 1, gap: 5 }}><Text style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomVehicule(v)}</Text><Plaque immat={v.immatriculation} taille={0.7} /></View>
+              <View style={{ flex: 1, gap: 5 }}><Text style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomVehicule(v)}</Text><Plaque immat={plaque(v.immatriculation)} taille={0.7} />
+                {papiersAlerte(v).map((t) => <Text key={t} style={{ color: c.orange, fontSize: 13, fontWeight: '700' }}>{t}</Text>)}</View>
               {v.prix_jour ? <View style={{ alignItems: 'flex-end' }}><Text style={{ color: c.texte, fontWeight: '800', fontSize: 17 }}>{euros(Number(v.prix_jour) * jours)}</Text><Text style={{ color: c.gris, fontSize: 12 }}>{euros(v.prix_jour)}/j</Text></View> : null}
             </View>
           </Carte>
@@ -263,7 +267,7 @@ export default function NouvelleLocation() {
           {prises.map((v) => (
             <View key={v.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: 0.5, paddingVertical: 6 }}>
               <LogoMarque marque={v.marque} modele={v.modele} taille={36} />
-              <View style={{ flex: 1 }}><Text style={{ color: c.texte, fontWeight: '700' }}>{nomVehicule(v)} · {v.immatriculation}</Text><Text style={{ color: c.gris, fontSize: 13 }}>{indispo(v)}</Text></View>
+              <View style={{ flex: 1 }}><Text style={{ color: c.texte, fontWeight: '700' }}>{nomVehicule(v)} · {plaque(v.immatriculation)}</Text><Text style={{ color: c.gris, fontSize: 13 }}>{indispo(v)}</Text></View>
             </View>
           ))}
         </>}
@@ -305,6 +309,11 @@ export default function NouvelleLocation() {
           <Champ libelle="Prénom" valeur={nc.prenom} onChange={(t) => setNc({ ...nc, prenom: t })} />
           <Champ libelle="Nom" valeur={nc.nom} onChange={(t) => setNc({ ...nc, nom: t })} majuscules />
           <Champ libelle="Téléphone (pour WhatsApp)" valeur={nc.telephone} onChange={(t) => setNc({ ...nc, telephone: t })} clavier="phone-pad" placeholder="06 12 34 56 78" />
+          {(() => { const d = (nc.nom || nc.telephone) ? (clients ?? []).find((x) => memePersonne(nc, x)) : undefined; return d ? (
+            <Carte accent={c.orange} onPress={() => { setNouveau(false); choisirClient(d); }}>
+              <Text style={{ color: c.texte, fontSize: 15 }}>Ce client existe peut-être déjà : <Text style={{ fontWeight: '800' }}>{nomClient(d)}</Text>{d.telephone ? ` · ${tel(d.telephone)}` : ''}</Text>
+              <Text style={{ color: c.accent, fontWeight: '800', fontSize: 14 }}>Toucher pour reprendre sa fiche</Text>
+            </Carte>) : null; })()}
           <Champ libelle="E-mail (facultatif)" valeur={nc.email} onChange={(t) => setNc({ ...nc, email: t.trim() })} clavier="email-address" placeholder="nom@exemple.fr" />
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}><Champ libelle="Né(e) le" valeur={nc.naissance} onChange={(t) => setNc({ ...nc, naissance: saisieDate(t) })} clavier="number-pad" placeholder="JJ/MM/AAAA" /></View>

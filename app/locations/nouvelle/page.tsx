@@ -1,5 +1,5 @@
 import { utilisateurCourant } from '@/lib/agence';
-import { versLocal, euros } from '@/lib/format';
+import { versLocal, versJour, depuisParis, euros, plaque } from '@/lib/format';
 import { creerLocation } from '../../actions';
 import Cadre from '../../_c/Cadre';
 import Formulaire from '../../_c/Formulaire';
@@ -10,18 +10,21 @@ import ChampDate from '../../_c/ChampDate';
 import ChoixClient from '../../_c/ChoixClient';
 import AideTarif from '../../_c/AideTarif';
 import DispoVehicules from '../../_c/DispoVehicules';
+import ChoixVoiture from '../../_c/ChoixVoiture';
 
 export const dynamic = 'force-dynamic';
 
 // Nouvelle location en 3 étapes + vérification
-export default async function NouvelleLocation({ searchParams }: { searchParams: { vehicule?: string; client?: string } }) {
+export default async function NouvelleLocation({ searchParams }: { searchParams: { vehicule?: string; client?: string; jour?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const [{ data: vehicules }, { data: clients }, { data: resas }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour, assurance_echeance, ct_echeance').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('clients').select('id, nom, prenom, telephone, email, date_permis, liste_noire, permis_path').order('nom'),
     supabase.from('locations').select('vehicule_id, debut, fin_prevue, numero').in('statut', ['reservee', 'en_cours']),
   ]);
-  const depart = new Date(); depart.setMinutes(0, 0, 0); depart.setHours(depart.getHours() + 1);
+  let depart = new Date(); depart.setMinutes(0, 0, 0); depart.setHours(depart.getHours() + 1);
+  // Depuis le planning : la date de la case cliquée, à 10 h (ou dans l'heure si c'est aujourd'hui)
+  if (searchParams.jour && /^\d{4}-\d{2}-\d{2}$/.test(searchParams.jour) && searchParams.jour > versJour(new Date())) depart = new Date(depuisParis(searchParams.jour + 'T10:00')!);
   const retour = new Date(depart.getTime() + 24 * 3600 * 1000);
 
   if (!vehicules?.length) {
@@ -47,16 +50,19 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
             <h2>Quelle voiture, et quand ?</h2>
             <DispoVehicules reservations={(resas ?? []).map((r: any) => ({ vehicule_id: r.vehicule_id, debut: r.debut, fin: r.fin_prevue, numero: r.numero }))} />
             <div className="grille" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-              <label className="pleine">Véhicule<select name="vehicule_id" defaultValue={searchParams.vehicule ?? ''} required>
-                <option value="">Choisir…</option>
-                {vehicules.map((v: any) => (
-                  <option key={v.id} value={v.id} data-prix={v.prix_jour ?? ''} data-nom={`${[v.marque, v.modele].filter(Boolean).join(' ')} ${v.immatriculation}`}>
-                    {v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}{v.prix_jour ? ` · ${euros(v.prix_jour)}/jour` : ''}{v.statut !== 'disponible' ? ` (${v.statut === 'loue' ? 'actuellement loué' : 'en maintenance'})` : ''}
-                  </option>
-                ))}
-              </select></label>
               <ChampDate name="debut" libelle="Départ" defaut={versLocal(depart.toISOString())} mode="depart" />
               <ChampDate name="fin_prevue" libelle="Retour" defaut={versLocal(retour.toISOString())} mode="retour" depuis="debut" />
+              <select name="vehicule_id" className="select-masque" defaultValue={searchParams.vehicule ?? ''} required aria-label="Véhicule" tabIndex={-1}>
+                <option value="">Choisir…</option>
+                {vehicules.map((v: any) => (
+                  <option key={v.id} value={v.id} data-prix={v.prix_jour ?? ''} data-nom={`${[v.marque, v.modele].filter(Boolean).join(' ')} ${plaque(v.immatriculation)}`}>
+                    {plaque(v.immatriculation)} · {[v.marque, v.modele].filter(Boolean).join(' ')}
+                  </option>
+                ))}
+              </select>
+              <ChoixVoiture voitures={vehicules.map((v: any) => ({ id: v.id, marque: v.marque, modele: v.modele, plaque: plaque(v.immatriculation),
+                prix: v.prix_jour ? euros(v.prix_jour) : null, note: v.statut === 'maintenance' ? 'En maintenance aujourd’hui' : null,
+                echeances: [v.assurance_echeance && { libelle: 'Assurance', date: v.assurance_echeance }, v.ct_echeance && { libelle: 'Contrôle technique', date: v.ct_echeance }].filter(Boolean) }))} />
             </div>
           </section>
           <section className="carte" data-etape="1">
@@ -66,7 +72,7 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
             </div>
             <div data-nouveau-client>
               <p className="gris" style={{ margin: '14px 0 8px' }}>Nouveau client : prenez son permis en photo, les champs se remplissent tout seuls.</p>
-              <div className="grille"><ChampsClient obligatoire={false} agenceId={profil.agence_id} /></div>
+              <div className="grille"><ChampsClient obligatoire={false} agenceId={profil.agence_id} clients={(clients ?? []).map((x: any) => ({ id: x.id, nom: x.nom, prenom: x.prenom, telephone: x.telephone }))} /></div>
             </div>
           </section>
           <section className="carte" data-etape="2">

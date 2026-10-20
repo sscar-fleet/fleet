@@ -1,5 +1,6 @@
+import OuvrirFormulaire from '@/app/_c/OuvrirFormulaire';
 import { utilisateurCourant } from '@/lib/agence';
-import { statutEntretien, typesMaintenance, dateHeure, date, euros } from '@/lib/format';
+import { statutEntretien, typesMaintenance, dateHeure, date, euros, plaque } from '@/lib/format';
 import * as A from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
@@ -17,12 +18,12 @@ export default async function Entretiens({ searchParams }: { searchParams: { fil
   ]);
 
   return (
-    <Cadre titre="Maintenance et transferts" tables={['entretiens', 'vehicules']} actions={<a className="bouton" href="/export/entretiens">Exporter</a>}>
-      <details className="formulaire carte">
-        <summary className="bouton principal">+ Maintenance, réparation ou transfert</summary>
+    <Cadre titre="Maintenance et transferts" tables={['entretiens', 'vehicules']} actions={<><a className="bouton" href="/export/entretiens">Exporter</a><OuvrirFormulaire>+ Maintenance, réparation ou transfert</OuvrirFormulaire></>}>
+      <details className="formulaire carte formulaire-haut">
+        <summary>Maintenance, réparation ou transfert</summary>
         <Formulaire vider action={A.ajouterEntretien} className="grille">
           <label>Véhicule *<select name="vehicule_id" required><option value="">Choisir…</option>
-            {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}</option>)}</select></label>
+            {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{plaque(v.immatriculation)} · {[v.marque, v.modele].filter(Boolean).join(' ')}</option>)}</select></label>
           <label>Type<select name="type">{Object.entries(typesMaintenance).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
           <label>Détail<input name="raison" placeholder="Vidange, pneus, prêt à Loc Express…" /></label>
           <label>Garage ou loueur<input name="garage" /></label>
@@ -46,7 +47,7 @@ export default async function Entretiens({ searchParams }: { searchParams: { fil
               const retard = e.statut === 'en_cours' && e.retour_prevu && new Date(e.retour_prevu) < new Date();
               return (
                 <tr key={e.id}>
-                  <td><a className="bloc" href={`/vehicules/${e.vehicules?.id}`}><b>{e.vehicules?.immatriculation}</b><br /><span className="gris">{[e.vehicules?.marque, e.vehicules?.modele].filter(Boolean).join(' ')}</span></a></td>
+                  <td><a className="bloc" href={`/vehicules/${e.vehicules?.id}`}><b>{plaque(e.vehicules?.immatriculation)}</b><br /><span className="gris">{[e.vehicules?.marque, e.vehicules?.modele].filter(Boolean).join(' ')}</span></a></td>
                   <td>{typesMaintenance[e.type] ?? 'Entretien'}<br /><span className="gris">{[e.raison, e.garage, e.cout ? 'coût ' + euros(e.cout) : '', e.montant_recu ? 'reçu ' + euros(e.montant_recu) : ''].filter(Boolean).join(' · ')}</span></td>
                   <td><span className={`pastille ${retard ? 'retard' : e.statut}`}>{retard ? 'En retard' : statutEntretien[e.statut]}</span></td>
                   <td className="masque-mobile">{e.statut === 'termine' ? `Fini le ${date(e.fin)}` : dateHeure(e.retour_prevu)}</td>

@@ -1,5 +1,5 @@
 import { supabaseServeur } from '@/lib/supabase';
-import { dateHeure, euros, km } from '@/lib/format';
+import { dateHeure, euros, km, plaque } from '@/lib/format';
 import SignerContrat from './SignerContrat';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export default async function Signer({ params }: { params: { jeton: string } }) 
     );
   }
   const lignes: [string, string][] = [
-    ['Véhicule', `${c.vehicule} · ${c.immatriculation}`],
+    ['Véhicule', `${c.vehicule} · ${plaque(c.immatriculation)}`],
     ['Départ', dateHeure(c.debut)],
     ['Retour', dateHeure(c.fin)],
     ['Prix', euros(c.prix)],

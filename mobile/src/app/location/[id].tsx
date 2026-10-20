@@ -24,7 +24,7 @@ import { useGps, libelleGps, couleurGps, depuis, itineraire, commanderMoteur } f
 import { signatureDistance } from '@/lib/capacites';
 import { urlSite } from '@/lib/site';
 import { appeler, ouvrirWhatsApp, ouvrirSms, msg } from '@/lib/messages';
-import { euros, heure, jour, km, nomClient, nomVehicule, relatif, enRetard, nbJours } from '@/lib/format';
+import { euros, heure, jour, km, nomClient, nomVehicule, relatif, enRetard, nbJours, plaque } from '@/lib/format';
 
 const CAUTION: Record<string, string> = { a_prendre: 'à prendre', prise: 'prise', rendue: 'rendue', encaissee: 'encaissée', litige: 'en litige' };
 
@@ -167,7 +167,7 @@ export default function FicheLocation() {
           <LogoMarque marque={v?.marque} modele={v?.modele} taille={56} />
           <View style={{ flex: 1, gap: 6 }}>
             <Text style={{ color: c.texte, fontSize: 19, fontWeight: '800' }}>{nomVehicule(v)}</Text>
-            <Plaque immat={v?.immatriculation} taille={0.85} />
+            <Plaque immat={plaque(v?.immatriculation)} taille={0.85} />
           </View>
         </View>
       </Carte>

@@ -14,7 +14,7 @@ import { useCouleurs } from '@/lib/theme';
 import { lireAmende } from '@/lib/ia';
 import { prendrePhoto } from '@/lib/photo';
 import { DEMO } from '@/lib/demo';
-import { nomClient, jour, heure as fHeure } from '@/lib/format';
+import { nomClient, jour, heure as fHeure, plaque } from '@/lib/format';
 
 const TYPES = ['Excès de vitesse', 'Stationnement', 'Feu rouge', 'Péage', 'Téléphone', 'Autre'];
 const jj = (d: Date) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -107,7 +107,7 @@ export default function NouvelleAmende() {
       </Pressable>
 
       <Titre>Véhicule</Titre>
-      {!vehicules ? <Chargement /> : <Puces>{vehicules.map((v) => <Puce key={v.id} titre={v.immatriculation} actif={vehicule?.id === v.id} onPress={() => setVehicule(v)} />)}</Puces>}
+      {!vehicules ? <Chargement /> : <Puces>{vehicules.map((v) => <Puce key={v.id} titre={plaque(v.immatriculation)} actif={vehicule?.id === v.id} onPress={() => setVehicule(v)} />)}</Puces>}
 
       <Titre>Quand</Titre>
       <Puces>

@@ -1,4 +1,5 @@
 'use client';
+import { plaque } from '@/lib/format';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { attestationPdf } from '@/lib/documents-pdf';
@@ -20,7 +21,7 @@ export default function FormulaireFourriere({ action, agence, vehicule }: {
       const octets = await attestationPdf(agence, vehicule, personne.trim(), fourriere.trim());
       const r = await action(personne.trim(), fourriere.trim(), frais ? Number(frais.replace(',', '.')) : null);
       if (r && r.erreur) throw new Error(r.erreur);
-      await livrer(octets, `bon-de-pouvoir-${vehicule.immatriculation}.pdf`, true);
+      await livrer(octets, `bon-de-pouvoir-${plaque(vehicule.immatriculation)}.pdf`, true);
       setEtat('PDF prêt.');
       router.refresh();
     } catch (err: any) {
@@ -32,7 +33,7 @@ export default function FormulaireFourriere({ action, agence, vehicule }: {
     <form onSubmit={generer} className="grille" style={{ gridTemplateColumns: '1fr' }}>
       <p style={{ margin: 0, lineHeight: 1.6 }}>
         Je soussigné <b>{agence.gerant_nom || '[gérant à renseigner]'}</b>, représentant <b>{agence.nom}</b>, autorise
-        <b> {personne || '…'}</b> à récupérer le véhicule <b>{vehicule.immatriculation}</b>.
+        <b> {personne || '…'}</b> à récupérer le véhicule <b>{plaque(vehicule.immatriculation)}</b>.
       </p>
       <label>Personne autorisée (convoyeur, salarié…) *<input value={personne} onChange={(e) => setPersonne(e.target.value)} placeholder="Prénom NOM" required /></label>
       <label>Fourrière<input value={fourriere} onChange={(e) => setFourriere(e.target.value)} placeholder="Ex. Fourrière de Pantin" /></label>

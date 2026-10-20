@@ -1,5 +1,5 @@
 import { utilisateurCourant } from '@/lib/agence';
-import { motifsSortie, date, euros, km, JOUR } from '@/lib/format';
+import { motifsSortie, date, euros, km, JOUR, plaque } from '@/lib/format';
 import Cadre from '../../_c/Cadre';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +47,7 @@ export default async function Sortis({ searchParams }: { searchParams: { motif?:
           <tbody>
             {lignes.map(({ v, resultat, recettes, couts, mois, nbLocations }) => (
               <tr key={v.id}>
-                <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{v.immatriculation}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')} · {km(v.km)}</span></a></td>
+                <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{plaque(v.immatriculation)}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')} · {km(v.km)}</span></a></td>
                 <td>{date(v.date_sortie)}<br /><span className="gris">{motifsSortie[v.motif_sortie] ?? v.motif_sortie ?? ''}</span></td>
                 <td>{euros(v.prix_sortie)}</td>
                 <td style={{ color: resultat >= 0 ? 'var(--vert)' : 'var(--rouge)', fontWeight: 600 }} title={`Recettes ${euros(recettes)} · coûts ${euros(couts)}`}>{resultat >= 0 ? '+' : ''}{euros(resultat)}<br /><span className="gris" style={{ fontWeight: 400 }}>{nbLocations} location{nbLocations > 1 ? 's' : ''}</span></td>

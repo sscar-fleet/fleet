@@ -1,7 +1,10 @@
 // Écran d'ouverture : la prochaine chose à faire en grand, la journée en dessous. Rien à chercher.
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Ecran, GrosBouton, Titre, Vide, Chargement, BandeauHorsLigne, Tuile, Action, Carte, Etiquette, BoutonRond, Ligne } from '@/composants/ui';
+import { Ecran, GrosBouton, Titre, Vide, Chargement, BandeauHorsLigne, Tuile, Carte, Etiquette, BoutonRond, Ligne } from '@/composants/ui';
+import { useToast } from '@/composants/Toast';
+import { mettreEnFile } from '@/lib/hors-ligne';
 import CarteLocation from '@/composants/CarteLocation';
 import LogoMarque from '@/composants/LogoMarque';
 import Synchro from '@/composants/Synchro';
@@ -12,7 +15,7 @@ import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
 import { useGps } from '@/lib/gps';
 import { appeler, ouvrirWhatsApp, msg } from '@/lib/messages';
-import { heure, nomClient, nomVehicule, relatif, enRetard } from '@/lib/format';
+import { heure, nomClient, nomVehicule, relatif, enRetard, duree, plaque } from '@/lib/format';
 
 type Tache = { l: LocationLigne; genre: 'depart' | 'retour'; quand: string };
 
@@ -40,7 +43,7 @@ export default function Aujourdhui() {
       rafraichir={recharger} enChargement={enChargement && !!donnees}
       haut={<Ligne style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
         <Logo largeur={96} />
-        <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><BoutonRond icone="client" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
+        <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><BoutonRond icone="client" label="Clients" onPress={() => router.push('/clients')} /><BoutonRond icone="outil" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
       </Ligne>}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       {!donnees && !erreur && <Chargement />}
@@ -63,12 +66,6 @@ export default function Aujourdhui() {
           <Tuile valeur={donnees.amendes} libelle="Amendes à traiter" couleur={c.orange} icone="amendes" alerte={donnees.amendes > 0} onPress={() => router.push('/amendes')} />
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-          <Action icone="ajout" titre="Location" onPress={() => router.push('/nouvelle')} />
-          <Action icone="amendes" titre="Amende" couleur={c.orange} onPress={() => router.push('/amende')} />
-          <Action icone="client" titre="Clients" couleur={c.bleu} onPress={() => router.push('/clients')} />
-          <Action icone="carte" titre="Carte GPS" couleur={c.vert} onPress={() => router.push('/carte')} />
-        </View>
 
         {(passees.length > 0 || aVenir.length > 0) && <Titre>Programme du jour</Titre>}
         {passees.map((t) => <CarteLocation key={t.l.id + t.genre} l={t.l} genre={t.genre} gps={t.l.vehicules ? gps.parVehicule[t.l.vehicules.id] : undefined} />)}
@@ -99,22 +96,40 @@ export default function Aujourdhui() {
 
   // Grande carte « à faire maintenant » : un geste pour lancer l'état des lieux, appeler ou écrire
   function Prochaine({ t, gpsEtat }: { t: Tache; gpsEtat?: import('@/lib/gps').EtatGps }) {
+    const toast = useToast();
+    const [confirmer, setConfirmer] = useState(false);
     const { l, genre, quand } = t;
     const retard = enRetard(quand);
+    const departRetard = retard && genre === 'depart';
+    // Client pas venu : on décale le départ à maintenant (même durée) ou on annule, sans ouvrir la fiche
+    async function decaler() {
+      const ecart = Date.now() - new Date(l.debut).getTime();
+      const debut = new Date().toISOString();
+      const fin = new Date(new Date(l.fin_prevue).getTime() + ecart).toISOString();
+      await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { debut, fin_prevue: fin } });
+      toast(`Départ décalé à ${heure(debut)}, retour le ${new Date(fin).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} ${heure(fin)}`);
+      setTimeout(recharger, 1500);
+    }
+    async function annuler() {
+      if (!confirmer) { setConfirmer(true); return; }
+      await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { statut: 'annulee' } });
+      toast('Location annulée');
+      setTimeout(recharger, 1500);
+    }
     const manque = genre === 'depart' ? voyantsDepart(l).filter((v) => !v.ok) : [];
-    const coul = retard && genre === 'retour' ? c.rouge : genre === 'depart' ? c.accent : c.vert;
+    const coul = retard ? (genre === 'retour' ? c.rouge : c.orange) : genre === 'depart' ? c.accent : c.vert;
     const tel = l.clients?.telephone;
     return (
       <View style={{ borderRadius: 24, padding: 18, gap: 14, backgroundColor: coul + '14', borderWidth: 1.5, borderColor: coul + '55' }}>
         <Ligne style={{ justifyContent: 'space-between' }}>
-          <Etiquette plein titre={retard && genre === 'retour' ? 'RETOUR EN RETARD' : genre === 'depart' ? 'PROCHAIN DÉPART' : 'PROCHAIN RETOUR'} couleur={coul} icone={retard ? 'alerte' : 'horloge'} />
-          <Text style={{ color: coul, fontWeight: '800', fontSize: 15 }}>{heure(quand)} · {relatif(quand)}</Text>
+          <Etiquette plein titre={retard ? (genre === 'retour' ? 'RETOUR EN RETARD' : 'DÉPART EN RETARD') : genre === 'depart' ? 'PROCHAIN DÉPART' : 'PROCHAIN RETOUR'} couleur={coul} icone={retard ? 'alerte' : 'horloge'} />
+          <Text style={{ color: coul, fontWeight: '800', fontSize: 15 }}>{retard ? `prévu ${heure(quand)} · ${duree(Date.now() - new Date(quand).getTime())} de retard` : `${heure(quand)} · ${relatif(quand)}`}</Text>
         </Ligne>
         <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }} onPress={() => ouvrir(l.id)}>
           <LogoMarque marque={l.vehicules?.marque} modele={l.vehicules?.modele} taille={58} />
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} style={{ color: c.texte, fontSize: 22, fontWeight: '800' }}>{nomClient(l.clients)}</Text>
-            <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 15 }}>{nomVehicule(l.vehicules)} · {l.vehicules?.immatriculation}</Text>
+            <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 15 }}>{nomVehicule(l.vehicules)} · {plaque(l.vehicules?.immatriculation)}</Text>
             {gpsEtat?.lat != null && genre === 'retour' && <Text style={{ color: c.gris, fontSize: 13, marginTop: 2 }}>Traceur : {gpsEtat.etat === 'roule' ? `roule à ${gpsEtat.vitesse} km/h` : 'à l’arrêt'}</Text>}
           </View>
         </Pressable>
@@ -128,6 +143,12 @@ export default function Aujourdhui() {
             <BoutonRond taille={60} icone="whatsapp" label="WhatsApp" couleur={coul} onPress={() => ouvrirWhatsApp(tel, retard && genre === 'retour' ? msg.retard(l) : genre === 'depart' ? msg.rappelDepart(l) : msg.rappelRetour(l))} />
           </> : null}
         </View>
+        {departRetard && (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <GrosBouton petit secondaire style={{ flex: 1 }} icone="horloge" titre="Décaler à maintenant" onPress={decaler} />
+            <GrosBouton petit secondaire danger={confirmer} style={{ flex: 1 }} titre={confirmer ? 'Confirmer l’annulation' : 'Annuler'} onPress={annuler} />
+          </View>
+        )}
       </View>
     );
   }

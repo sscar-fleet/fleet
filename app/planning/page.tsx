@@ -32,19 +32,12 @@ export default async function Planning({ searchParams }: { searchParams: { debut
 
   return (
     <Cadre titre="Planning" tables={['locations', 'entretiens']}
-      actions={<a className="bouton principal" href="/locations/nouvelle">+ Location</a>}>
-      <section className="carte">
-        <form className="grille" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
-          <label>Du<input type="date" name="debut" defaultValue={debutJ} /></label>
-          <label>Au<input type="date" name="fin" defaultValue={finJ} /></label>
-          <button className="bouton principal" type="submit">Afficher</button>
-        </form>
-        <div className="filtres" style={{ margin: '12px 0 0' }}>
-          {raccourcis.map(([t, d, f]) => <a key={t} href={lien(d, f)} className={d === debutJ && f === finJ ? 'actif' : ''}>{t}</a>)}
-          <a href={lien(decale(debut, -duree), decale(debut, -1))}>← Période précédente</a>
-          <a href={lien(decale(debut, duree), decale(debut, 2 * duree - 1))}>Période suivante →</a>
-        </div>
-      </section>
+      actions={<a className="bouton principal" href="/locations/nouvelle">+ Nouvelle location</a>}>
+      <div className="filtres" style={{ margin: '0 0 12px' }}>
+        {raccourcis.map(([t, d, f]) => <a key={t} href={lien(d, f)} className={d === debutJ && f === finJ ? 'actif' : ''}>{t}</a>)}
+        <a href={lien(decale(debut, -duree), decale(debut, -1))}>← Avant</a>
+        <a href={lien(decale(debut, duree), decale(debut, 2 * duree - 1))}>Après →</a>
+      </div>
       <section className="chiffres">
         <div><span>Remplissage moyen</span><b>{Math.round((p.remplissage.reduce((s, x) => s + x, 0) / nb) * 100)} %</b></div>
         <div><span>Jours affichés</span><b>{nb}</b></div>
@@ -52,7 +45,7 @@ export default async function Planning({ searchParams }: { searchParams: { debut
         <div><span>Locations sur la période</span><b>{p.locations.length}</b></div>
       </section>
       <GrillePlanning p={p} />
-      <p className="gris" style={{ fontSize: 13 }}>Toucher une case vide crée une location pour ce véhicule. Sur les longues périodes, passer sur une case affiche le client. Turquoise clair : réservée ou terminée · foncé : en cours · orange : maintenance ou transfert (⇄). Jusqu&apos;à 4 mois d&apos;un coup.</p>
+      <p className="gris" style={{ fontSize: 13 }}>Cliquez sur une case vide pour créer une location sur cette voiture, à cette date. Sur les longues périodes, passer sur une case affiche le client. Turquoise clair : réservée ou terminée · foncé : en cours · orange : maintenance ou transfert (⇄). Jusqu&apos;à 4 mois d&apos;un coup.</p>
     </Cadre>
   );
 }

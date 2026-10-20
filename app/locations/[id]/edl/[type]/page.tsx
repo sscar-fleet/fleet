@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { utilisateurCourant } from '@/lib/agence';
 import { chargerLocation } from '@/lib/location';
 import { suiviAgence, kmEstime } from '@/lib/telematique';
-import { photosGuidees, checklistEdl, typeDommage, graviteDommage, statutEdl, km, dateHeure, euros, libellePosition } from '@/lib/format';
+import { photosGuidees, checklistEdl, typeDommage, graviteDommage, statutEdl, km, dateHeure, euros, libellePosition, plaque } from '@/lib/format';
 import * as A from '../../../../actions';
 import Cadre from '../../../../_c/Cadre';
 import Formulaire from '../../../../_c/Formulaire';
@@ -43,10 +43,10 @@ export default async function EtatDesLieux({ params }: { params: { id: string; t
     <Cadre retour={{ lien: `/locations/${l.id}`, texte: `Location N° ${l.numero}` }} tables={['photos_edl', 'etats_des_lieux', 'dommages']}
       titre={`État des lieux de ${type === 'depart' ? 'départ' : 'retour'}`}
       actions={<><span className={`pastille ${e.statut}`}>{statutEdl[e.statut]}</span>
-        <BoutonPdf genre="edl" nom={`etat-des-lieux-${type}-${v.immatriculation}.pdf`} libelle="PDF" classe="bouton petit"
+        <BoutonPdf genre="edl" nom={`etat-des-lieux-${type}-${plaque(v.immatriculation)}.pdf`} libelle="PDF" classe="bouton petit"
           donnees={{ agence: d.agence, location: d.location, vehicule: d.vehicule, client: d.client, edl: e, dommages }} /></>}>
       <Position deja={e.latitude != null} action={A.positionEdl.bind(null, e.id)} />
-      <p className="gris" style={{ marginTop: -6 }}>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')} · {l.clients.prenom} {l.clients.nom} · commencé le {dateHeure(e.created_at)}</p>
+      <p className="gris" style={{ marginTop: -6 }}>{plaque(v.immatriculation)} · {[v.marque, v.modele].filter(Boolean).join(' ')} · {l.clients.prenom} {l.clients.nom} · commencé le {dateHeure(e.created_at)}</p>
 
       <section className="carte">
         <div className="titre" style={{ marginBottom: 10 }}>

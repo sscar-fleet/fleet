@@ -1,4 +1,5 @@
 // Les 5 documents de Fleet, fabriqués dans le navigateur
+import { plaque } from '@/lib/format';
 import { Doc, Agence } from './pdf';
 import { date, dateHeure, euros, km, joursEntre, libellePosition, checklistEdl, typeDommage, graviteDommage, carburants } from './format';
 
@@ -188,7 +189,7 @@ export type BilanDoc = {
 export async function bilanPdf(a: AgenceDoc, b: BilanDoc) {
   const v = b.vehicule;
   const d = await Doc.creer('Bilan ' + v.immatriculation, a.logo, a.couleur);
-  d.entete(`Bilan du véhicule ${v.immatriculation}`, a, `${[v.marque, v.modele].filter(Boolean).join(' ')} · édité le ${date(new Date().toISOString())}`);
+  d.entete(`Bilan du véhicule ${plaque(v.immatriculation)}`, a, `${[v.marque, v.modele].filter(Boolean).join(' ')} · édité le ${date(new Date().toISOString())}`);
   d.section('Résumé');
   d.infos(b.chiffres, 3);
   const bloc = (titre: string, entetes: string[], lignes: string[][], largeurs: number[]) => {
@@ -200,7 +201,7 @@ export async function bilanPdf(a: AgenceDoc, b: BilanDoc) {
   bloc('Dépenses', ['Type', 'Détail', 'Date', 'Montant'], b.depenses, [0.2, 0.45, 0.15, 0.2]);
   bloc('Dommages', ['Type', 'Gravité', 'Date', 'Coût'], b.dommages, [0.3, 0.25, 0.2, 0.25]);
   bloc('Amendes', ['Infraction', 'Statut', 'Date', 'Montant'], b.amendes, [0.4, 0.2, 0.2, 0.2]);
-  d.pied(`Bilan ${v.immatriculation} · ${PIED}`);
+  d.pied(`Bilan ${plaque(v.immatriculation)} · ${PIED}`);
   return d.octets();
 }
 

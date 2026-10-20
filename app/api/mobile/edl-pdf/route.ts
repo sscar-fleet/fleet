@@ -1,3 +1,4 @@
+import { plaque } from '@/lib/format';
 import { NextResponse } from 'next/server';
 import { clientApi } from '@/lib/api';
 import { chargerLocation } from '@/lib/location';
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     const { error } = await c.supabase.storage.from('documents').upload(chemin, octets, { contentType: 'application/pdf', upsert: true });
     if (error) throw error;
     await c.supabase.from('etats_des_lieux').update({ pdf_path: chemin }).eq('id', e.id);
-    const { data: lien } = await c.supabase.storage.from('documents').createSignedUrl(chemin, 30 * 24 * 3600, { download: `etat-des-lieux-${type}-${d.vehicule.immatriculation}.pdf` });
+    const { data: lien } = await c.supabase.storage.from('documents').createSignedUrl(chemin, 30 * 24 * 3600, { download: `etat-des-lieux-${type}-${plaque(d.vehicule.immatriculation)}.pdf` });
     return NextResponse.json({ lien: lien?.signedUrl ?? null, photos: e.photos.length });
   } catch (err: any) {
     return NextResponse.json({ erreur: 'PDF impossible : ' + (err?.message ?? 'erreur') }, { status: 500 });

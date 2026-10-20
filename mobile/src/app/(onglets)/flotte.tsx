@@ -12,7 +12,7 @@ import { chargerVehicules } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useCouleurs } from '@/lib/theme';
 import { useGps, libelleGps, couleurGps } from '@/lib/gps';
-import { echeance, km, statutVehicule, nomVehicule } from '@/lib/format';
+import { echeance, km, statutVehicule, nomVehicule, plaque } from '@/lib/format';
 
 type Filtre = 'tous' | 'disponible' | 'loue' | 'atelier';
 
@@ -27,7 +27,7 @@ export default function Flotte() {
   const nb = (f: Filtre) => tous.filter((v) => f === 'tous' || (f === 'atelier' ? atelier(v.statut) : v.statut === f)).length;
   const cherche = q.toLowerCase().replace(/[\s-]/g, '');
   const liste = tous.filter((v) => (filtre === 'tous' || (filtre === 'atelier' ? atelier(v.statut) : v.statut === filtre))
-    && (!cherche || `${v.immatriculation}${v.marque ?? ''}${v.modele ?? ''}`.toLowerCase().replace(/[\s-]/g, '').includes(cherche)));
+    && (!cherche || `${plaque(v.immatriculation)}${v.marque ?? ''}${v.modele ?? ''}`.toLowerCase().replace(/[\s-]/g, '').includes(cherche)));
   const couleurStatut: Record<string, string> = { disponible: c.vert, loue: c.accent, maintenance: c.orange, hors_service: c.rouge };
   const points = tous.map((v) => ({ v, e: gps.parVehicule[v.id] })).filter((x) => x.e?.lat != null && x.e?.lng != null)
     .map((x) => ({ id: x.v.id, lat: x.e!.lat!, lng: x.e!.lng!, couleur: couleurGps(x.e!, c), titre: x.v.immatriculation, logo: logoMarque(x.v.marque, x.v.modele) }));
@@ -55,7 +55,7 @@ export default function Flotte() {
               <LogoMarque marque={v.marque} modele={v.modele} />
               <View style={{ flex: 1, gap: 5 }}>
                 <Text numberOfLines={1} style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomVehicule(v)}</Text>
-                <Plaque immat={v.immatriculation} taille={0.7} />
+                <Plaque immat={plaque(v.immatriculation)} taille={0.7} />
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>
                 <Text style={{ color: couleurStatut[v.statut] ?? c.gris, fontWeight: '800', fontSize: 14 }}>{statutVehicule[v.statut] ?? v.statut}</Text>

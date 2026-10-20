@@ -24,3 +24,23 @@ export const duree = (ms: number) => {
 export const relatif = (d: string) => { const ms = new Date(d).getTime() - Date.now(); return ms >= 0 ? `dans ${duree(ms)}` : `depuis ${duree(ms)}`; };
 export const nbJours = (a: string, b: string) => Math.max(1, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 864e5));
 export const prenom = (c?: { prenom: string | null; nom: string } | null) => c?.prenom || c?.nom || '';
+// Plaque : AB123CD -> AB-123-CD ; téléphone : 0612345678 -> 06 12 34 56 78
+export const plaque = (v?: string | null) => { const s = String(v ?? '').toUpperCase().replace(/[\s-]/g, ''); const m = s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/); return m ? `${m[1]}-${m[2]}-${m[3]}` : (v ?? ''); };
+export const tel = (v?: string | null) => {
+  if (!v) return '';
+  const d = String(v).replace(/[^\d+]/g, '');
+  if (/^0\d{9}$/.test(d)) return d.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  const m = d.match(/^\+33(\d)(\d{8})$/);
+  return m ? `+33 ${m[1]} ${m[2].replace(/(\d{2})(?=\d)/g, '$1 ').trim()}` : String(v).trim();
+};
+export const cleNom = (v?: string | null) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+const sousSuite = (a: string, b: string) => { let i = 0; for (const ch of b) if (ch === a[i]) i++; return i === a.length; };
+// Même personne probable : même téléphone, ou même prénom et un nom contenu dans l'autre (BRGT / BERGERET)
+export function memePersonne(a: { nom?: string | null; prenom?: string | null; telephone?: string | null }, b: { nom?: string | null; prenom?: string | null; telephone?: string | null }) {
+  const ta = String(a.telephone ?? '').replace(/\D/g, '').replace(/^33/, '0'), tb = String(b.telephone ?? '').replace(/\D/g, '').replace(/^33/, '0');
+  if (ta.length >= 9 && ta === tb) return true;
+  const na = cleNom(a.nom), nb = cleNom(b.nom), pa = cleNom(a.prenom), pb = cleNom(b.prenom);
+  if (na.length < 3 || nb.length < 3) return false;
+  const nomsProches = na === nb || (na.length <= nb.length ? sousSuite(na, nb) : sousSuite(nb, na));
+  return nomsProches && (na === nb ? pa === pb || !pa || !pb : !!pa && pa === pb);
+}

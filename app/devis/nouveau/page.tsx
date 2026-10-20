@@ -1,5 +1,5 @@
 import { utilisateurCourant } from '@/lib/agence';
-import { versLocal, versJour, euros, JOUR } from '@/lib/format';
+import { versLocal, versJour, euros, JOUR, plaque, tel } from '@/lib/format';
 import { creerDevis } from '../../actions';
 import Cadre from '../../_c/Cadre';
 import Formulaire from '../../_c/Formulaire';
@@ -23,7 +23,7 @@ export default async function NouveauDevis() {
           <div className="grille">
             <label className="pleine">Client existant<select name="client_id" defaultValue="">
               <option value="">— Nouveau (remplir ci-dessous) —</option>
-              {clients?.map((c: any) => <option key={c.id} value={c.id}>{c.nom} {c.prenom ?? ''}{c.telephone ? ' · ' + c.telephone : ''}</option>)}
+              {clients?.map((c: any) => <option key={c.id} value={c.id}>{c.nom} {c.prenom ?? ''}{c.telephone ? ' · ' + tel(c.telephone) : ''}</option>)}
             </select></label>
             <label>Nom<input name="client_nom" placeholder="Prénom Nom" /></label>
             <label>Téléphone<input name="telephone" type="tel" /></label>
@@ -35,7 +35,7 @@ export default async function NouveauDevis() {
           <div className="grille">
             <label className="pleine">Véhicule<select name="vehicule_id" defaultValue="">
               <option value="">À choisir plus tard</option>
-              {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}{v.prix_jour ? ` · ${euros(v.prix_jour)}/j` : ''}</option>)}
+              {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{plaque(v.immatriculation)} · {[v.marque, v.modele].filter(Boolean).join(' ')}{v.prix_jour ? ` · ${euros(v.prix_jour)}/j` : ''}</option>)}
             </select></label>
             <label>Départ<input name="debut" type="datetime-local" defaultValue={versLocal(depart.toISOString())} required /></label>
             <label>Retour<input name="fin" type="datetime-local" defaultValue={versLocal(retour.toISOString())} required /></label>

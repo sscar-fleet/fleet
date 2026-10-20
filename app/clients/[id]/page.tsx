@@ -2,7 +2,7 @@ import ScanOrdinateur from '@/app/_c/ScanOrdinateur';
 import PapiersClient, { cheminsPapiers } from '@/app/_c/PapiersClient';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
-import { statutLocation, statutAmende, date, dateHeure, euros } from '@/lib/format';
+import { statutLocation, statutAmende, date, dateHeure, euros, plaque } from '@/lib/format';
 import * as A from '../../actions';
 import Cadre from '../../_c/Cadre';
 import Formulaire from '../../_c/Formulaire';
@@ -74,7 +74,7 @@ export default async function FicheClient({ params }: { params: { id: string } }
           {!locations?.length && <p className="gris">Aucune location.</p>}
           {locations?.map((l: any) => (
             <a key={l.id} href={`/locations/${l.id}`} className="fichier">
-              <span>N° {l.numero} · {l.vehicules?.immatriculation} {[l.vehicules?.marque, l.vehicules?.modele].filter(Boolean).join(' ')}
+              <span>N° {l.numero} · {plaque(l.vehicules?.immatriculation)} {[l.vehicules?.marque, l.vehicules?.modele].filter(Boolean).join(' ')}
                 <br /><span className="gris">{date(l.debut)} → {date(l.fin_reelle ?? l.fin_prevue)} · {euros(l.prix_total)}</span></span>
               <span className={`pastille ${l.statut}`}>{statutLocation[l.statut]}</span>
             </a>
@@ -87,7 +87,7 @@ export default async function FicheClient({ params }: { params: { id: string } }
           {!amendes?.length && <p className="gris">Aucune amende.</p>}
           {amendes?.map((a: any) => (
             <a key={a.id} href="/amendes" className="fichier">
-              <span>{a.vehicules?.immatriculation} · {a.type ?? 'Amende'} · {euros(a.montant)}<br /><span className="gris">{dateHeure(a.date_infraction)}</span></span>
+              <span>{plaque(a.vehicules?.immatriculation)} · {a.type ?? 'Amende'} · {euros(a.montant)}<br /><span className="gris">{dateHeure(a.date_infraction)}</span></span>
               <span className={`pastille ${a.statut}`}>{statutAmende[a.statut]}</span>
             </a>
           ))}

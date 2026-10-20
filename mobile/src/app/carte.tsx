@@ -11,7 +11,7 @@ import { chargerVehicules } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useCouleurs } from '@/lib/theme';
 import { useGps, libelleGps, couleurGps, depuis, itineraire } from '@/lib/gps';
-import { km, nomVehicule } from '@/lib/format';
+import { km, nomVehicule, plaque } from '@/lib/format';
 
 export default function CarteFlotte() {
   const c = useCouleurs();
@@ -40,7 +40,7 @@ export default function CarteFlotte() {
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Text numberOfLines={1} style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{nomVehicule(x.v)}</Text>
-              <Plaque immat={x.v.immatriculation} taille={0.62} />
+              <Plaque immat={plaque(x.v.immatriculation)} taille={0.62} />
               <Text numberOfLines={1} style={{ color: c.gris, fontSize: 13 }}>{libelleGps(x.e)} · {depuis(x.e.le)}{x.e.km_estime != null ? ` · ${km(x.e.km_estime)}` : ''}</Text>
             </View>
             {x.e.lat != null ? <Pressable hitSlop={8} onPress={() => Linking.openURL(itineraire(x.e.lat!, x.e.lng!))}

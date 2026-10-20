@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { utilisateurCourant } from '@/lib/agence';
 import { calculerPilotage, Granularite } from '@/lib/pilotage';
-import { euros, versJour, date, categoriesDepense } from '@/lib/format';
+import { euros, versJour, date, categoriesDepense, plaque } from '@/lib/format';
 import { ajouterDepense } from '../actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
@@ -49,7 +49,7 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
       </div>}>
 
       {sansCout.length > 0 && <div className="info-bandeau">
-        Coût mensuel à renseigner pour {sansCout.map((v: any) => <a key={v.id} className="lien" href={`/vehicules/${v.id}`}>{v.immatriculation} </a>)}
+        Coût mensuel à renseigner pour {sansCout.map((v: any) => <a key={v.id} className="lien" href={`/vehicules/${v.id}`}>{plaque(v.immatriculation)} </a>)}
         : sans lui, la rentabilité ne compte pas le leasing ou le crédit.
       </div>}
 
@@ -65,10 +65,10 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
       <section className="compteurs">
         <div className="compteur"><span>Encaissé</span><b style={{ color: 'var(--texte)' }}>{euros(p.recettes)}</b></div>
         <div className="compteur"><span>Dépenses</span><b style={{ color: 'var(--texte)' }}>{euros(p.couts)}</b></div>
-        <div className="compteur"><span>Bénéfice{evolution !== null ? ` (${evolution >= 0 ? '+' : ''}${evolution} %)` : ''}</span>
+        <div className="compteur"><span>Bénéfice{evolution !== null ? ` (${evolution >= 0 ? '+' : ''}${evolution} % vs ${libelleG} précédent${g === 'semaine' ? 'e' : ''})` : ''}</span>
           <b style={{ color: p.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{p.resultat >= 0 ? '+' : ''}{euros(p.resultat)}</b></div>
         <div className="compteur"><span>Marge</span><b style={{ color: 'var(--texte)' }}>{p.recettes ? marge + ' %' : '—'}</b></div>
-        <div className="compteur"><span>Occupation de la flotte</span><b style={{ color: 'var(--texte)' }}>{occupation} %</b></div>
+        <div className="compteur"><span>Occupation {g === 'jour' ? 'du jour' : g === 'semaine' ? 'de la semaine' : 'du mois'}</span><b style={{ color: 'var(--texte)' }}>{occupation} %</b></div>
         <div className="compteur"><span>Départs · retours</span><b style={{ color: 'var(--texte)' }}>{p.departs} · {p.retours}</b></div>
       </section>
 
@@ -111,7 +111,7 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
                 const x = v.periodes[i];
                 return (
                   <tr key={v.id}>
-                    <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{v.immatriculation}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}{v.cout_mensuel ? ` · ${euros(v.cout_mensuel)}/mois` : v.prix_achat ? ` · acheté ${euros(v.prix_achat)} (amorti sur 3 ans)` : ' · coût à renseigner'}</span></a></td>
+                    <td><a className="bloc" href={`/vehicules/${v.id}`}><b>{plaque(v.immatriculation)}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}{v.cout_mensuel ? ` · ${euros(v.cout_mensuel)}/mois` : v.prix_achat ? ` · acheté ${euros(v.prix_achat)} (amorti sur 3 ans)` : ' · coût à renseigner'}</span></a></td>
                     <td>{euros(x.recettes)}</td><td>{euros(x.couts)}</td>
                     <td style={{ color: x.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)', fontWeight: 600 }}>{x.resultat >= 0 ? '+' : ''}{euros(x.resultat)}</td>
                     <td className="masque-mobile">{Math.round(x.joursLoues * 10) / 10}</td>
@@ -128,7 +128,7 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
         <h2>Ajouter une dépense</h2>
         <Formulaire vider action={ajouterDepense} className="grille">
           <label>Véhicule<select name="vehicule_id"><option value="">Toute la flotte</option>
-            {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{v.immatriculation} · {[v.marque, v.modele].filter(Boolean).join(' ')}</option>)}</select></label>
+            {vehicules?.map((v: any) => <option key={v.id} value={v.id}>{plaque(v.immatriculation)} · {[v.marque, v.modele].filter(Boolean).join(' ')}</option>)}</select></label>
           <label>Type<select name="categorie">{Object.entries(categoriesDepense).map(([k, x]) => <option key={k} value={k}>{x}</option>)}</select></label>
           <label>Montant (€) *<input name="montant" type="number" step="0.01" min={0} required inputMode="decimal" /></label>
           <label>Date<input name="date" type="date" defaultValue={versJour(new Date())} /></label>

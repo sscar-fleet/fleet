@@ -20,7 +20,7 @@ import { chargerLocation, photosDepart, type LocationFiche } from '@/lib/donnees
 import { chargerGps } from '@/lib/gps';
 import { prendrePhoto } from '@/lib/photo';
 import { ouvrirWhatsApp, msg } from '@/lib/messages';
-import { euros, km as fkm, nomClient, nomVehicule, jour, heure } from '@/lib/format';
+import { euros, km as fkm, nomClient, nomVehicule, jour, heure, plaque } from '@/lib/format';
 import Signature, { signatureEnImage } from '@/composants/Signature';
 
 const ETAPES = ['Photos', 'Compteur', 'Contrôles', 'Signature'] as const;
@@ -149,7 +149,7 @@ export default function EtatDesLieux() {
 
   return (
     <Ecran fermer titre={retour ? 'État des lieux retour' : 'État des lieux départ'} bas={bas}
-      surTitre={l ? <Ligne style={{ marginBottom: 6 }}><Plaque immat={l.vehicules?.immatriculation} taille={0.75} /><Texte gris taille={14}>{nomClient(l.clients)}</Texte></Ligne> : undefined}>
+      surTitre={l ? <Ligne style={{ marginBottom: 6 }}><Plaque immat={plaque(l.vehicules?.immatriculation)} taille={0.75} /><Texte gris taille={14}>{nomClient(l.clients)}</Texte></Ligne> : undefined}>
       <Etapes etapes={ETAPES} etape={etape} onChoix={setEtape} />
       {!l && <Chargement />}
 

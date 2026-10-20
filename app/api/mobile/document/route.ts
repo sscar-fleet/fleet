@@ -1,3 +1,4 @@
+import { plaque } from '@/lib/format';
 import { NextResponse } from 'next/server';
 import { clientApi } from '@/lib/api';
 import { chargerLocation } from '@/lib/location';
@@ -21,14 +22,14 @@ export async function POST(request: Request) {
     let octets: Uint8Array;
     let nom: string;
     const numero = String(d.location.numero ?? '').padStart(5, '0');
-    if (genre === 'contrat') { octets = await contratPdf(d.agence, d.location, d.vehicule, d.client); nom = `contrat-${numero}-${d.vehicule.immatriculation}.pdf`; }
-    else if (genre === 'facture') { octets = await facturePdf(d.agence, d.location, d.vehicule, d.client); nom = `facture-${numero}-${d.vehicule.immatriculation}.pdf`; }
+    if (genre === 'contrat') { octets = await contratPdf(d.agence, d.location, d.vehicule, d.client); nom = `contrat-${numero}-${plaque(d.vehicule.immatriculation)}.pdf`; }
+    else if (genre === 'facture') { octets = await facturePdf(d.agence, d.location, d.vehicule, d.client); nom = `facture-${numero}-${plaque(d.vehicule.immatriculation)}.pdf`; }
     else {
       const type = genre === 'edl_depart' ? 'depart' : 'retour';
       const e = d[type];
       if (!e) return NextResponse.json({ erreur: 'État des lieux introuvable (encore en cours d’envoi ?).' }, { status: 404 });
       octets = await edlPdf(d.agence, d.location, d.vehicule, d.client, e, d.dommages.filter((x: any) => x.edl_id === e.id));
-      nom = `etat-des-lieux-${type}-${d.vehicule.immatriculation}.pdf`;
+      nom = `etat-des-lieux-${type}-${plaque(d.vehicule.immatriculation)}.pdf`;
     }
     const chemin = `${u.agence_id}/locations/${location_id}/${nom}`;
     const { error } = await c.supabase.storage.from('documents').upload(chemin, octets, { contentType: 'application/pdf', upsert: true });

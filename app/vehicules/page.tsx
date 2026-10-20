@@ -1,5 +1,6 @@
+import OuvrirFormulaire from '@/app/_c/OuvrirFormulaire';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
-import { statutVehicule, carburants, km, echeance, date } from '@/lib/format';
+import { statutVehicule, carburants, km, echeance, date, plaque } from '@/lib/format';
 import ProvenanceVehicule from '../_c/ProvenanceVehicule';
 import { ajouterVehicule } from '../actions';
 import Cadre from '../_c/Cadre';
@@ -18,15 +19,15 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const vehicules = (tous ?? []).filter((v: any) =>
     (searchParams.statut ? v.statut === searchParams.statut : v.statut !== 'sorti') &&
-    (!q || `${v.immatriculation} ${v.marque ?? ''} ${v.modele ?? ''}`.toLowerCase().includes(q)));
+    (!q || `${plaque(v.immatriculation)} ${v.marque ?? ''} ${v.modele ?? ''}`.toLowerCase().includes(q)));
   const photos = await liensFichiers(supabase, vehicules.map((v: any) => v.photo_path));
   const compte = (s: string) => (tous ?? []).filter((v: any) => v.statut === s).length;
 
   return (
     <Cadre titre={`Véhicules (${(tous ?? []).filter((v: any) => v.statut !== 'sorti').length})`} tables={['vehicules']}
-      actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a></>}>
-      <details className="formulaire carte" open={!tous?.length}>
-        <summary className="bouton principal">+ Ajouter un véhicule</summary>
+      actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a><OuvrirFormulaire>+ Ajouter un véhicule</OuvrirFormulaire></>}>
+      <details className="formulaire carte formulaire-haut" open={!tous?.length}>
+        <summary>Nouveau véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille" succes="Véhicule ajouté">
           <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Photo de la carte grise : remplissage automatique" />
           <input type="hidden" name="carte_grise_path" />
@@ -71,7 +72,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
               const pire = a === 'depasse' || c === 'depasse' ? 'depasse' : a || c;
               return (
                 <tr key={v.id}>
-                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{v.immatriculation}</b></a></td>
+                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{plaque(v.immatriculation)}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>{v.financement === 'pret' ? <span className="pastille" style={{ marginLeft: 6 }} title={v.pret_par ? `Prêté par ${v.pret_par}` : 'Prêté par un confrère'}>Prêt</span> : null}</td>
                   <td className="masque-mobile">{km(v.km)}</td>

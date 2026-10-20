@@ -1,5 +1,5 @@
 import { utilisateurCourant } from '@/lib/agence';
-import { statutLocation, statutCaution, date, heure, euros, debutJour } from '@/lib/format';
+import { statutLocation, statutCaution, date, heure, euros, debutJour, plaque } from '@/lib/format';
 import Cadre from '../_c/Cadre';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +38,7 @@ export default async function Locations({ searchParams }: { searchParams: { filt
               return (
                 <tr key={l.id}>
                   <td><a className="bloc" href={`/locations/${l.id}`}><b>{l.clients?.nom}</b> {l.clients?.prenom}{l.clients?.liste_noire && <span className="retard"> ⚑</span>}<br /><span className="gris">N° {l.numero}</span></a></td>
-                  <td><a className="bloc" href={`/locations/${l.id}`}>{l.vehicules?.immatriculation}<br /><span className="gris">{[l.vehicules?.marque, l.vehicules?.modele].filter(Boolean).join(' ')}</span></a></td>
+                  <td><a className="bloc" href={`/locations/${l.id}`}>{plaque(l.vehicules?.immatriculation)}<br /><span className="gris">{[l.vehicules?.marque, l.vehicules?.modele].filter(Boolean).join(' ')}</span></a></td>
                   <td>{date(l.debut)} {heure(l.debut)}<br /><span className="gris">→ {date(l.fin_reelle ?? l.fin_prevue)} {heure(l.fin_reelle ?? l.fin_prevue)}</span></td>
                   <td><span className={`pastille ${retard ? 'retard' : l.statut}`}>{retard ? 'En retard' : statutLocation[l.statut]}</span> {dommages > 0 && <span className="badge rouge" title="Dommages ouverts">{dommages}</span>}</td>
                   <td className="masque-mobile">{euros(l.prix_total)}<br />{l.caution_montant ? <span className={`pastille ${l.caution_statut}`}>{statutCaution[l.caution_statut]}</span> : <span className="gris">sans caution</span>}</td>

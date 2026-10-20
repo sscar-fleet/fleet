@@ -4,7 +4,8 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { utilisateurCourant, verifier } from '@/lib/agence';
-import { texte, nombre, immat, depuisParis, joursEntre, JOUR } from '@/lib/format';
+import { texte, nombre, immat, depuisParis, joursEntre, JOUR, tel, memePersonne } from '@/lib/format';
+const telephoneSaisi = (v: FormDataEntryValue | null) => { const t = texte(v); return t ? tel(t) : null; };
 import { chercherPhotoModele } from '@/lib/photoModele';
 import { imeiDeLAgence } from '@/lib/telematique';
 import { commandeMoteur } from '@/lib/whatsgps';
@@ -252,7 +253,7 @@ function champsClient(formData: FormData) {
   return {
     nom: (texte(formData.get('nom')) ?? '').toUpperCase(),
     prenom: texte(formData.get('prenom')),
-    telephone: texte(formData.get('telephone')),
+    telephone: telephoneSaisi(formData.get('telephone')),
     email: texte(formData.get('email')),
     adresse: texte(formData.get('adresse')),
     date_naissance: texte(formData.get('date_naissance')),
@@ -574,7 +575,7 @@ async function _creerDevis(formData: FormData) {
   if (!debut || !fin) throw new Error('Indiquez les dates.');
   if (new Date(fin) <= new Date(debut)) throw new Error('Le retour doit être après le départ.');
   const client_id = texte(formData.get('client_id'));
-  let client_nom = texte(formData.get('client_nom')); let telephone = texte(formData.get('telephone')); let email = texte(formData.get('email'));
+  let client_nom = texte(formData.get('client_nom')); let telephone = telephoneSaisi(formData.get('telephone')); let email = texte(formData.get('email'));
   if (client_id) {
     const { data: c } = await supabase.from('clients').select('nom, prenom, telephone, email').eq('id', client_id).single();
     client_nom = [c?.prenom, c?.nom].filter(Boolean).join(' '); telephone = telephone ?? c?.telephone ?? null; email = email ?? c?.email ?? null;
@@ -617,7 +618,16 @@ async function _transformerDevis(id: string, formData: FormData) {
     const morceaux = String(x.client_nom).trim().split(/\s+/);
     const nom = (morceaux.length > 1 ? morceaux.slice(1).join(' ') : morceaux[0]).toUpperCase();
     const prenom = morceaux.length > 1 ? morceaux[0] : null;
-    const { data: c, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, nom, prenom, telephone: x.telephone, email: x.email }).select('id').single();
+    // Client déjà connu (même téléphone, ou même nom) : on reprend sa fiche au lieu d'en créer une deuxième
+    const { data: connus } = await supabase.from('clients').select('id, nom, prenom, telephone');
+    const existant = (connus ?? []).find((k: any) => memePersonne({ nom, prenom, telephone: x.telephone }, k));
+    if (existant) client_id = existant.id;
+  }
+  if (!client_id) {
+    const morceaux = String(x.client_nom).trim().split(/\s+/);
+    const nom = (morceaux.length > 1 ? morceaux.slice(1).join(' ') : morceaux[0]).toUpperCase();
+    const prenom = morceaux.length > 1 ? morceaux[0] : null;
+    const { data: c, error } = await supabase.from('clients').insert({ agence_id: profil.agence_id, nom, prenom, telephone: x.telephone ? tel(x.telephone) : null, email: x.email }).select('id').single();
     verifier(error, 'Création du client');
     client_id = c!.id;
   }
@@ -668,7 +678,7 @@ async function _majAgence(formData: FormData) {
     nom: texte(formData.get('nom')) ?? 'Mon agence',
     siret: texte(formData.get('siret')),
     adresse: texte(formData.get('adresse')),
-    telephone: texte(formData.get('telephone')),
+    telephone: telephoneSaisi(formData.get('telephone')),
     email: texte(formData.get('email')),
     gerant_nom: texte(formData.get('gerant_nom')),
     tva_taux: nombre(formData.get('tva_taux')) ?? 20,

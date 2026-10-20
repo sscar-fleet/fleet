@@ -1,4 +1,4 @@
-import { depuisParis, versJour, JOUR } from '@/lib/format';
+import { depuisParis, versJour, JOUR, plaque } from '@/lib/format';
 
 // Calendrier à jauge : une ligne par véhicule, une colonne par jour, jauge de remplissage en haut
 export async function chargerPlanning(supabase: any, jour0: string, nb: number) {
@@ -54,7 +54,7 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
         <tbody>
           {p.vehicules.map((v: any) => (
             <tr key={v.id}>
-              <td><a href={`/vehicules/${v.id}`}><b>{v.immatriculation}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}</span></a></td>
+              <td><a href={`/vehicules/${v.id}`}><b>{plaque(v.immatriculation)}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}</span></a></td>
               {p.jours.map((j, i) => {
                 const o = p.occupation(v.id, j);
                 const we = [0, 6].includes(new Date(j.getTime() + 12 * 3600 * 1000).getUTCDay());
@@ -66,7 +66,7 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                 if (o?.type === 'ent') return o.e?.type === 'transfert'
                   ? <td key={i} className="occupe maintenance" title={`${jour} · transféré${o.e.garage ? ' à ' + o.e.garage : ''}`}>⇄{serre ? '' : ' ' + (o.e.garage ?? '')}</td>
                   : <td key={i} className="occupe maintenance" title={`${jour} · maintenance`}>{serre ? '' : '🔧'}</td>;
-                return <td key={i} className={we ? 'weekend' : ''} title={jour}><a href={`/locations/nouvelle?vehicule=${v.id}`} style={{ display: 'block', color: 'transparent' }}>+</a></td>;
+                return <td key={i} className={`libre ${we ? 'weekend' : ''}`} title={`${jour} · nouvelle location`}><a href={`/locations/nouvelle?vehicule=${v.id}&jour=${versJour(j)}`} className="case-libre">+</a></td>;
               })}
             </tr>
           ))}

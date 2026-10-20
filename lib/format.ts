@@ -125,3 +125,32 @@ export const nombre = (v: FormDataEntryValue | null) => {
   return Number.isFinite(n) ? n : null;
 };
 export const immat = (v: FormDataEntryValue | null) => String(v ?? '').toUpperCase().replace(/[\s-]/g, '');
+
+// Plaque à l'affichage : AB123CD -> AB-123-CD (les anciens formats restent tels quels)
+export const plaque = (v?: string | null) => {
+  const s = String(v ?? '').toUpperCase().replace(/[\s-]/g, '');
+  const m = s.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : (v ?? '');
+};
+// Téléphone : 0612345678 -> 06 12 34 56 78, +33612345678 -> +33 6 12 34 56 78
+export const tel = (v?: string | null) => {
+  if (!v) return '';
+  const d = String(v).replace(/[^\d+]/g, '');
+  if (/^0\d{9}$/.test(d)) return d.replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  const m = d.match(/^\+33(\d)(\d{8})$/);
+  if (m) return `+33 ${m[1]} ${m[2].replace(/(\d{2})(?=\d)/g, '$1 ').trim()}`;
+  return String(v).trim();
+};
+// Pour comparer deux noms sans accents, espaces ni casse
+export const cleNom = (v?: string | null) => String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z]/g, '');
+// Deux fiches sont probablement la même personne : même téléphone, ou même prénom et un nom contenu dans l'autre
+// (BRGT / BERGERET, Martin / MARTIN Karim)
+const sousSuite = (a: string, b: string) => { let i = 0; for (const ch of b) if (ch === a[i]) i++; return i === a.length; };
+export function memePersonne(a: { nom?: string | null; prenom?: string | null; telephone?: string | null }, b: { nom?: string | null; prenom?: string | null; telephone?: string | null }) {
+  const ta = String(a.telephone ?? '').replace(/\D/g, '').replace(/^33/, '0'), tb = String(b.telephone ?? '').replace(/\D/g, '').replace(/^33/, '0');
+  if (ta.length >= 9 && ta === tb) return true;
+  const na = cleNom(a.nom), nb = cleNom(b.nom), pa = cleNom(a.prenom), pb = cleNom(b.prenom);
+  if (na.length < 3 || nb.length < 3) return false;
+  const nomsProches = na === nb || (na.length <= nb.length ? sousSuite(na, nb) : sousSuite(nb, na));
+  return nomsProches && (pa === pb || !pa || !pb) && (na === nb ? pa === pb || !pa || !pb : !!pa && pa === pb);
+}
