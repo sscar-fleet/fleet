@@ -537,6 +537,67 @@ async function _clientAmende(id: string, formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// FPS (forfaits post-stationnement) : le loueur règle, puis refacture au client qui avait la voiture
+// ---------------------------------------------------------------------------
+const plusUnMois = (jour: string) => { const d = new Date(jour + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + 1); return d.toISOString().slice(0, 10); };
+
+async function _ajouterFps(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const plaque = immat(formData.get('immatriculation'));
+  const quand = depuisParis(texte(formData.get('date_constat')));
+  if (!quand) throw new Error('Indiquez la date et l’heure du stationnement.');
+  const { data: v } = await supabase.from('vehicules').select('id').eq('immatriculation', plaque).maybeSingle();
+  if (!v) throw new Error(`Aucun véhicule ${plaque} dans votre flotte.`);
+  // La location en cours à ce moment-là donne le client à refacturer
+  const { data: locs } = await supabase.from('locations').select('id, client_id, debut, fin_prevue, fin_reelle')
+    .eq('vehicule_id', v.id).neq('statut', 'annulee').lte('debut', quand).order('debut', { ascending: false }).limit(5);
+  const loc = (locs ?? []).find((l: any) => new Date(l.fin_reelle ?? l.fin_prevue) >= new Date(quand));
+  const { data: ag } = await supabase.from('agences').select('frais_fps').eq('id', profil.agence_id).single();
+  const dateAvis = texte(formData.get('date_avis'));
+  const base = dateAvis ?? new Date().toISOString().slice(0, 10);
+  // Sans date limite lue sur l'avis : trois mois après l'envoi, comme sur les avis de l'ANTAI
+  const limitePaiement = texte(formData.get('limite_paiement')) ?? (() => { const d = new Date(base + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + 3); return d.toISOString().slice(0, 10); })();
+  verifier((await supabase.from('fps').insert({
+    agence_id: profil.agence_id, vehicule_id: v.id, location_id: loc?.id ?? null, client_id: loc?.client_id ?? null,
+    numero_avis: texte(formData.get('numero_avis')), collectivite: texte(formData.get('collectivite')), date_constat: quand,
+    lieu: texte(formData.get('lieu')), montant: nombre(formData.get('montant')), date_avis: dateAvis,
+    limite_contestation: plusUnMois(base), limite_paiement: limitePaiement,
+    frais_gestion: nombre(formData.get('frais_gestion')) ?? Number(ag?.frais_fps ?? 0),
+    avis_path: texte(formData.get('avis_path')), statut: loc ? 'a_refacturer' : 'client_inconnu',
+  })).error, 'Ajout du FPS');
+  rafraichir();
+}
+
+async function _statutFps(id: string, statut: string) {
+  champAutorise(statut, ['a_refacturer', 'client_inconnu', 'refacture', 'rembourse', 'conteste', 'abandonne']);
+  const { supabase } = await utilisateurCourant();
+  const maj: any = { statut };
+  if (statut === 'refacture') maj.refacture_le = new Date().toISOString();
+  if (statut === 'rembourse') maj.rembourse_le = new Date().toISOString();
+  verifier((await supabase.from('fps').update(maj).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _payeTresorFps(id: string, valeur: boolean) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('fps').update({ paye_tresor: valeur }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _clientFps(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const client_id = texte(formData.get('client_id'));
+  verifier((await supabase.from('fps').update({ client_id, statut: client_id ? 'a_refacturer' : 'client_inconnu' }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _fraisFps(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('fps').update({ frais_gestion: nombre(formData.get('frais_gestion')) ?? 0 }).eq('id', id)).error);
+  rafraichir();
+}
+
+// ---------------------------------------------------------------------------
 // Dépenses (fourrière, réparation, carburant…)
 // ---------------------------------------------------------------------------
 async function _ajouterDepense(formData: FormData) {
@@ -682,6 +743,7 @@ async function _majAgence(formData: FormData) {
     email: texte(formData.get('email')),
     gerant_nom: texte(formData.get('gerant_nom')),
     tva_taux: nombre(formData.get('tva_taux')) ?? 20,
+    frais_fps: nombre(formData.get('frais_fps')) ?? 0,
     conditions: texte(formData.get('conditions')),
     forme_juridique: texte(formData.get('forme_juridique')),
     rcs: texte(formData.get('rcs')),
@@ -801,6 +863,11 @@ export const positionEdl = proteger(_positionEdl);
 export const terminerEdl = proteger(_terminerEdl);
 export const validerComparaison = proteger(_validerComparaison);
 export const ajouterAmende = proteger(_ajouterAmende);
+export const ajouterFps = proteger(_ajouterFps);
+export const statutFps = proteger(_statutFps);
+export const payeTresorFps = proteger(_payeTresorFps);
+export const clientFps = proteger(_clientFps);
+export const fraisFps = proteger(_fraisFps);
 export const statutAmende = proteger(_statutAmende);
 export const avisAmende = proteger(_avisAmende);
 export const clientAmende = proteger(_clientAmende);

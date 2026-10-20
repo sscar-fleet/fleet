@@ -44,6 +44,7 @@ export default async function Parametres() {
             <label>E-mail<input name="email" type="email" defaultValue={a.email ?? ''} disabled={!gerant} /></label>
             <label>Nom du gérant<input name="gerant_nom" defaultValue={a.gerant_nom ?? ''} disabled={!gerant} /></label>
             <label>TVA (%)<input name="tva_taux" type="number" step="0.1" min={0} defaultValue={a.tva_taux ?? 20} disabled={!gerant} /></label>
+            <label>Frais de gestion par FPS refacturé (€)<input name="frais_fps" type="number" step="0.01" min={0} defaultValue={a.frais_fps ?? 0} disabled={!gerant} /></label>
             <label>N° de TVA intracommunautaire<input name="tva_intra" defaultValue={a.tva_intra ?? ''} disabled={!gerant} /></label>
             <label>Site internet<input name="site" defaultValue={a.site ?? ''} disabled={!gerant} /></label>
             <label className="pleine">IBAN (imprimé sur les factures)<input name="iban" defaultValue={a.iban ?? ''} placeholder="FR76 …" disabled={!gerant} /></label>

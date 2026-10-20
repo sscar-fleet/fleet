@@ -6,6 +6,8 @@ export const consignes: Record<string, string> = {
 {"nom": champ 1, "prenom": champ 2, "date_naissance": champ 3 au format AAAA-MM-JJ, "numero_permis": champ 5, "date_permis": date d'obtention de la catégorie B (colonne 10) ou à défaut date de délivrance (4a), format AAAA-MM-JJ}`,
   amende: `Avis de contravention français (ANTAI). Renvoie uniquement ce JSON :
 {"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_infraction": date et heure de l'infraction au format AAAA-MM-JJTHH:MM, "lieu": lieu de l'infraction, "type": nature de l'infraction en quelques mots (ex. "Excès de vitesse", "Stationnement"), "montant": montant de l'amende forfaitaire en euros (nombre), "numero_avis": numéro de l'avis}`,
+  fps: `Avis de paiement de forfait post-stationnement (FPS) français. Renvoie uniquement ce JSON :
+{"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_constat": date et heure de constatation au format AAAA-MM-JJTHH:MM, "lieu": adresse du stationnement (rue, code postal, ville), "collectivite": nom de la collectivité (ex. "Ville de Paris"), "montant": montant du FPS en euros (nombre), "numero_avis": numéro de l'avis de paiement en chiffres sans espaces ni clé, "date_avis": date d'envoi de l'avis au format AAAA-MM-JJ, "limite_paiement": date limite de paiement au format AAAA-MM-JJ}`,
   identite: `Pièce d'identité (carte d'identité ou passeport). Renvoie uniquement ce JSON :
 {"nom": nom de famille, "prenom": premier prénom, "date_naissance": format AAAA-MM-JJ, "adresse": adresse si elle figure sur le document sinon null}`,
 };
@@ -14,10 +16,15 @@ export const consignes: Record<string, string> = {
 export async function lireDocument(image: string, genre: string): Promise<{ champs?: Record<string, unknown>; erreur?: string; statut: number }> {
   const cle = process.env.ANTHROPIC_API_KEY;
   if (!cle) return { erreur: 'La lecture automatique n’est pas encore activée. Remplissez à la main.', statut: 503 };
-  if (!consignes[genre] || typeof image !== 'string' || !image.startsWith('data:image/')) return { erreur: 'Photo illisible.', statut: 400 };
+  const estPdf = typeof image === 'string' && image.startsWith('data:application/pdf');
+  if (!consignes[genre] || typeof image !== 'string' || !(image.startsWith('data:image/') || estPdf)) return { erreur: 'Photo illisible.', statut: 400 };
   const [entete, donnees] = image.split(',');
   const type = entete.slice(5, entete.indexOf(';'));
-  if (donnees.length > 7_000_000) return { erreur: 'Photo trop lourde.', statut: 413 };
+  if (donnees.length > 14_000_000) return { erreur: 'Document trop lourd.', statut: 413 };
+  // Un PDF (avis reçu par e-mail, scan) est lu tel quel ; une photo comme image
+  const piece = estPdf
+    ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: donnees } }
+    : { type: 'image', source: { type: 'base64', media_type: type, data: donnees } };
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': cle, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
@@ -25,7 +32,7 @@ export async function lireDocument(image: string, genre: string): Promise<{ cham
       model: process.env.LECTURE_MODELE || 'claude-haiku-4-5-20251001',
       max_tokens: 400,
       messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: type, data: donnees } },
+        piece,
         { type: 'text', text: `${consignes[genre]}\nMets null pour tout champ illisible ou absent. Aucun texte en dehors du JSON.` },
       ] }],
     }),

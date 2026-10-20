@@ -11,9 +11,10 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
 }) {
   const { supabase, profil } = await utilisateurCourant();
   // Petits compteurs rouges du menu : retours en retard, amendes à traiter
-  const [retards, amendes] = await Promise.all([
+  const [retards, amendes, fps] = await Promise.all([
     supabase.from('locations').select('id', { count: 'exact', head: true }).eq('statut', 'en_cours').lt('fin_prevue', new Date().toISOString()),
     supabase.from('amendes').select('id', { count: 'exact', head: true }).in('statut', ['a_designer', 'infos_manquantes']),
+    supabase.from('fps').select('id', { count: 'exact', head: true }).in('statut', ['a_refacturer', 'client_inconnu']),
   ]);
   const pied = (
     <>
@@ -23,7 +24,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
   );
   return (
     <div className="coque">
-      <MenuLateral gerant={profil.role === 'gerant'} compteurs={{ '/locations': retards.count ?? 0, '/amendes': amendes.count ?? 0 }} pied={pied} />
+      <MenuLateral gerant={profil.role === 'gerant'} compteurs={{ '/locations': retards.count ?? 0, '/amendes': amendes.count ?? 0, '/fps': fps.count ?? 0 }} pied={pied} />
       <main className="page">
         <header className="entete">
           <a href="/" className="logo"><Logo /></a>

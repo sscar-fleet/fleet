@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-type Ico = 'accueil' | 'planning' | 'locations' | 'vehicules' | 'clients' | 'carte' | 'amendes' | 'entretiens' | 'pilotage' | 'devis' | 'reglages' | 'plus' | 'replier';
+type Ico = 'fps' | 'accueil' | 'planning' | 'locations' | 'vehicules' | 'clients' | 'carte' | 'amendes' | 'entretiens' | 'pilotage' | 'devis' | 'reglages' | 'plus' | 'replier';
 function Icone({ nom }: { nom: Ico }) {
   const p = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
@@ -14,6 +14,7 @@ function Icone({ nom }: { nom: Ico }) {
       {nom === 'vehicules' && <><path d="M5 16.5V12l2-5h10l2 5v4.5" {...p} /><path d="M3.5 16.5h17V19h-17z" {...p} /><circle cx="7.5" cy="13.5" r="1" fill="currentColor" /><circle cx="16.5" cy="13.5" r="1" fill="currentColor" /></>}
       {nom === 'clients' && <><circle cx="9" cy="8.5" r="3.5" {...p} /><path d="M2.5 20c.9-3.4 3.4-5.2 6.5-5.2s5.6 1.8 6.5 5.2M16 5.5a3.2 3.2 0 0 1 0 6.2M18 14.8c1.8.6 3 2.3 3.5 5" {...p} /></>}
       {nom === 'carte' && <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z" {...p} /><path d="M9 4v14M15 6v14" {...p} /></>}
+      {nom === 'fps' && <><rect x="4" y="3" width="16" height="18" rx="2" {...p} /><path d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9" {...p} /></>}
       {nom === 'amendes' && <><path d="M6 3h9l4 4v14H6z" {...p} /><path d="M14.5 3v4.5H19M9 12h7M9 16h5" {...p} /></>}
       {nom === 'entretiens' && <path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5zM14.5 6.5 17 4" {...p} />}
       {nom === 'pilotage' && <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" {...p} /></>}
@@ -27,7 +28,7 @@ function Icone({ nom }: { nom: Ico }) {
 
 const GROUPES: { titre: string; liens: [string, string, Ico][] }[] = [
   { titre: 'Au quotidien', liens: [['/', 'Accueil', 'accueil'], ['/planning', 'Planning', 'planning'], ['/locations', 'Locations', 'locations'], ['/vehicules', 'Véhicules', 'vehicules'], ['/clients', 'Clients', 'clients']] },
-  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/entretiens', 'Maintenance', 'entretiens']] },
+  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens']] },
   { titre: 'Gestion', liens: [['/pilotage', 'Pilotage', 'pilotage'], ['/devis', 'Devis', 'devis'], ['/parametres', 'Réglages', 'reglages']] },
 ];
 

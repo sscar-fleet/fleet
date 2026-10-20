@@ -225,3 +225,44 @@ export async function attestationPdf(a: AgenceDoc, v: VehiculeDoc, personne: str
   d.pied(PIED);
   return d.octets();
 }
+
+// ---------------------------------------------------------------------------
+// FPS : refacturation au client, et mandat pour qu'il conteste lui-même
+// ---------------------------------------------------------------------------
+export type FpsDoc = { numero_avis?: string | null; collectivite?: string | null; date_constat: string; lieu?: string | null;
+  montant?: number | null; frais_gestion?: number | null; date_avis?: string | null; limite_contestation?: string | null; numero_location?: number | null };
+
+export async function facturationFpsPdf(a: AgenceDoc, f: FpsDoc, v: VehiculeDoc, c: ClientDoc) {
+  const d = await Doc.creer('Refacturation FPS ' + plaque(v.immatriculation), a.logo, a.couleur);
+  d.entete('Refacturation d’un forfait post-stationnement', a, `Avis n° ${f.numero_avis ?? '—'} · ${date(new Date().toISOString())}`);
+  d.boites({ ...loueur(a), titre: 'Émetteur' }, { titre: 'Facturé à', lignes: [nomClient(c), c.adresse, c.telephone, c.email] });
+  d.texte(`Pendant votre location${f.numero_location ? ' n° ' + String(f.numero_location).padStart(5, '0') : ''}, le véhicule ${[v.marque, v.modele].filter(Boolean).join(' ')} immatriculé ${plaque(v.immatriculation)} a fait l’objet d’un forfait post-stationnement, adressé au titulaire de la carte grise et réglé par nos soins. Conformément aux conditions de location, il vous est refacturé.`, { taille: 10, apres: 10 });
+  d.infos([['Collectivité', f.collectivite ?? '—'], ['Constaté le', dateHeure(f.date_constat)], ['Lieu', f.lieu ?? '—'], ['N° de l’avis', f.numero_avis ?? '—']]);
+  const fps = Number(f.montant ?? 0), frais = Number(f.frais_gestion ?? 0);
+  const lignes: string[][] = [[`Forfait post-stationnement (débours, non soumis à TVA)`, euros(fps)]];
+  if (frais > 0) lignes.push(['Frais de gestion du dossier', euros(frais)]);
+  d.tableau(['Désignation', 'Montant TTC'], lignes, [0.78, 0.22]);
+  d.totaux([['Total à régler', euros(fps + frais)]]);
+  if (a.iban) { d.section('Règlement'); d.texte('Virement : IBAN ' + a.iban, { taille: 9.5 }); }
+  d.y -= 6;
+  d.texte(`Vous souhaitez contester ce forfait ? Demandez-nous le mandat : il vous permet de déposer vous-même le recours (RAPO) auprès de la collectivité, avant le ${date(f.limite_contestation)}.`, { taille: 9 });
+  d.pied(PIED);
+  return d.octets();
+}
+
+export async function mandatFpsPdf(a: AgenceDoc, f: FpsDoc, v: VehiculeDoc, c: ClientDoc) {
+  const d = await Doc.creer('Mandat RAPO ' + plaque(v.immatriculation), a.logo, a.couleur);
+  d.entete('Mandat de contestation', a, 'Recours administratif préalable obligatoire (RAPO) contre un forfait post-stationnement');
+  d.y -= 8;
+  const gerant = a.gerant_nom || '[nom du gérant]';
+  d.texte(`Je soussigné ${gerant}, représentant la société ${a.nom}${a.forme_juridique ? ' ' + a.forme_juridique : ''}${a.siret ? ' (SIRET ' + a.siret + ')' : ''}${a.adresse ? ', ' + a.adresse : ''}, titulaire du certificat d’immatriculation du véhicule ${plaque(v.immatriculation)}, donne mandat à ${nomClient(c)}${c.adresse ? ', demeurant ' + c.adresse : ''}, pour exercer en mon nom le recours administratif préalable obligatoire contre l’avis de paiement suivant :`, { taille: 11, apres: 12 });
+  d.infos([['N° de l’avis', f.numero_avis ?? '—'], ['Collectivité', f.collectivite ?? '—'], ['Constaté le', dateHeure(f.date_constat)], ['Lieu', f.lieu ?? '—'],
+    ['Montant', euros(f.montant)], ['Recours à déposer avant le', date(f.limite_contestation)]]);
+  d.y -= 6;
+  d.texte(`${nomClient(c)} déclare avoir eu la garde du véhicule à la date et à l’heure du stationnement, dans le cadre d’un contrat de location.`, { taille: 10, apres: 6 });
+  d.texte('Le recours se dépose auprès de la collectivité indiquée sur l’avis, dans le mois qui suit sa notification, accompagné de ce mandat, de l’avis de paiement, du contrat de location et de la carte grise.', { taille: 9.5, apres: 16 });
+  await signatures(d, { titre: `${nomClient(c)}, mandataire` }, { titre: `${gerant}, gérant`, url: a.signature, tampon: a.tampon });
+  await d.joindre(v.carte_grise, 'Carte grise');
+  d.pied(PIED);
+  return d.octets();
+}
