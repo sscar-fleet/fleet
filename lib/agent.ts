@@ -2,7 +2,7 @@
 // Il lit les données de l'agence (droits de l'utilisateur connecté) et ne modifie jamais rien lui-même :
 // chaque action est proposée avec un bouton, et c'est l'utilisateur qui confirme (voir executerAction).
 import { lienWhatsApp } from './whatsapp';
-import { plaque, euros, dateHeure } from './format';
+import { plaque, euros, dateHeure, debutJour as jourParis } from './format';
 import { calculerPilotage } from './pilotage';
 
 export type Message = { role: 'user' | 'assistant'; content: string };
@@ -68,8 +68,7 @@ async function outil(supabase: any, nomOutil: string, e: any, propositions: Prop
     };
   }
   if (nomOutil === 'locations') {
-    const debutJour = new Date(); debutJour.setHours(0, 0, 0, 0);
-    const finJour = new Date(debutJour.getTime() + 864e5), finDemain = new Date(debutJour.getTime() + 2 * 864e5);
+    const debutJour = new Date(jourParis(0)), finJour = new Date(jourParis(1)), finDemain = new Date(jourParis(2));
     let q = supabase.from('locations').select(CHAMPS_LOC);
     switch (e.filtre) {
       case 'en_cours': q = q.eq('statut', 'en_cours').order('fin_prevue'); break;
