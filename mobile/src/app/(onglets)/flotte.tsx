@@ -32,13 +32,15 @@ export default function EspaceSuivi() {
   useEffect(() => { chargerLocations().then((r) => setLocations(r.donnees)).catch(() => {}); }, [donnees]);
   const [filtre, setFiltre] = useState<Filtre>('tous');
   const [choisi, setChoisi] = useState<string | null>(null);
-  const [fiche, setFiche] = useState<Suivi | null>(null);
+  const [ficheChoisie, setFiche] = useState<Suivi | null>(null);
   const [question, setQuestion] = useState(false);
   const [envoi, setEnvoi] = useState(false);
 
   const vehicules = (donnees ?? []).filter((v) => v.statut !== 'sorti');
   const enCours = (id: string) => locations.find((l) => l.statut === 'en_cours' && l.vehicules?.id === id);
   const suivis: Suivi[] = vehicules.filter((v) => gps.parVehicule[v.id]).map((v) => ({ v, e: gps.parVehicule[v.id], loc: enCours(v.id) }));
+  // La fiche ouverte suit l'état en direct (coupure moteur, position)
+  const fiche = ficheChoisie ? suivis.find((s) => s.v.id === ficheChoisie.v.id) ?? ficheChoisie : null;
   const sansTraceur = vehicules.filter((v) => !gps.parVehicule[v.id]);
   const nb = (f: Filtre) => (f === 'tous' ? suivis.length : suivis.filter((s) => s.e.etat === f).length);
   // Les voitures qui roulent d'abord, puis les dernières nouvelles en haut
@@ -63,8 +65,6 @@ export default function EspaceSuivi() {
       const couper = !fiche.e.moteur_coupe;
       const r = await commanderMoteur(fiche.v.id, couper);
       toast(couper ? (r.enLigne ? 'Coupure envoyée au boîtier' : 'Coupure en attente : boîtier hors ligne') : 'Moteur remis en route', couper ? 'alerte' : 'ok');
-      rafraichirGps();
-      setFiche(null);
     } catch (err: any) { toast(err?.message ?? 'Commande impossible', 'alerte'); }
     setEnvoi(false);
   }

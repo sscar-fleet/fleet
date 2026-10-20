@@ -16,18 +16,11 @@ export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChar
 }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
-  const { defil, tirage, actif } = useTirerPourActualiser(rafraichir, enChargement);
+  const defil = useTirerPourActualiser(rafraichir, enChargement, c.accent, c.panneau, c.bord, marges.top);
   return (
     <View style={{ flex: 1, backgroundColor: c.fond }}>
-      {Platform.OS === 'web' && rafraichir && (tirage > 0 || actif) ? (
-        <View pointerEvents="none" style={{ position: 'absolute', zIndex: 10, left: 0, right: 0, top: marges.top + Math.min(tirage, 80) - 34, alignItems: 'center' }}>
-          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, alignItems: 'center', justifyContent: 'center', opacity: actif ? 1 : Math.min(1, tirage / 70) }}>
-            {actif ? <ActivityIndicator color={c.accent} /> : <View style={{ transform: [{ rotate: `${Math.min(tirage / 70, 1) * 180}deg` }] }}><Icone nom="actualiser" couleur={tirage >= 70 ? c.accent : c.gris} taille={20} /></View>}
-          </View>
-        </View>
-      ) : null}
       <ScrollView ref={defil} keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 10 + (Platform.OS === 'web' ? Math.min(tirage, 80) * 0.6 : 0), paddingBottom: bas ? 130 + marges.bottom : 40, gap: 12, maxWidth: 720, width: '100%', alignSelf: 'center' }}
+        contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 10, paddingBottom: bas ? 130 + marges.bottom : 40, gap: 12, maxWidth: 720, width: '100%', alignSelf: 'center' }}
         refreshControl={rafraichir ? <RefreshControl refreshing={enChargement} onRefresh={rafraichir} tintColor={c.accent} /> : undefined}>
         {(retour || fermer || actions) && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
@@ -58,41 +51,84 @@ export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChar
   );
 }
 
-// Tirer vers le bas pour actualiser, dans la version navigateur de l'appli (RefreshControl n'y fonctionne pas)
-function useTirerPourActualiser(rafraichir: (() => void) | undefined, enChargement: boolean) {
+// Tirer vers le bas pour actualiser, dans la version navigateur de l'appli (RefreshControl n'y fonctionne pas).
+// Tout se fait directement sur la page pendant le geste, pour que ça suive le doigt sans saccade.
+const SEUIL = 72;
+function useTirerPourActualiser(rafraichir: (() => void) | undefined, enChargement: boolean, accent: string, fond: string, bord: string, haut: number) {
   const defil = useRef<any>(null);
-  const [tirage, setTirage] = useState(0);
-  const [actif, setActif] = useState(false);
-  const etat = useRef({ depart: -1, tirage: 0 });
   const appel = useRef(rafraichir);
   appel.current = rafraichir;
-  useEffect(() => { if (!enChargement && actif) { const t = setTimeout(() => setActif(false), 400); return () => clearTimeout(t); } }, [enChargement, actif]);
+  const fini = useRef<() => void>(() => {});
+  useEffect(() => { if (!enChargement) fini.current(); }, [enChargement]);
   useEffect(() => {
-    if (Platform.OS !== 'web' || !rafraichir) return;
+    if (Platform.OS !== 'web' || !rafraichir || typeof document === 'undefined') return;
     const noeud: HTMLElement | null = defil.current?.getScrollableNode?.() ?? null;
-    if (!noeud) return;
+    const contenu = noeud?.firstElementChild as HTMLElement | null;
+    if (!noeud || !contenu) return;
     noeud.style.overscrollBehaviorY = 'contain';
-    const debut = (e: TouchEvent) => { etat.current.depart = noeud.scrollTop <= 0 ? e.touches[0].clientY : -1; etat.current.tirage = 0; };
+    if (!document.getElementById('tirer-style')) {
+      const st = document.createElement('style'); st.id = 'tirer-style';
+      st.textContent = '@keyframes tirer-tourne{to{transform:rotate(360deg)}}';
+      document.head.appendChild(st);
+    }
+    const rond = document.createElement('div');
+    rond.style.cssText = `position:absolute;left:50%;top:${haut + 8}px;width:40px;height:40px;margin-left:-20px;border-radius:20px;background:${fond};border:1px solid ${bord};box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;z-index:20;pointer-events:none;opacity:0;transform:translateY(-60px)`;
+    rond.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>`;
+    rond.style.color = '#8a99a3';
+    const svg = rond.firstElementChild as HTMLElement;
+    noeud.parentElement?.appendChild(rond);
+
+    let depart = -1, departX = 0, tirage = 0, verrou: '' | 'v' | 'h' = '', charge = false;
+    const poser = (t: number, anime: boolean) => {
+      const tr = anime ? 'transform .28s cubic-bezier(.2,.8,.2,1), opacity .2s' : 'none';
+      contenu.style.transition = tr; rond.style.transition = tr;
+      contenu.style.transform = t ? `translateY(${t}px)` : '';
+      rond.style.transform = `translateY(${Math.min(t, SEUIL) - 60 + Math.min(t, SEUIL) * 0.35}px)`;
+      rond.style.opacity = String(Math.min(1, t / (SEUIL * 0.6)));
+    };
+    const relacher = () => { charge = false; svg.style.animation = ''; rond.style.color = '#8a99a3'; poser(0, true); };
+    fini.current = () => { if (charge) setTimeout(relacher, 350); };
+    const debut = (e: TouchEvent) => {
+      if (charge || noeud.scrollTop > 0) { depart = -1; return; }
+      depart = e.touches[0].clientY; departX = e.touches[0].clientX; tirage = 0; verrou = '';
+    };
     const bouge = (e: TouchEvent) => {
-      if (etat.current.depart < 0) return;
-      const d = e.touches[0].clientY - etat.current.depart;
-      if (d <= 0 || noeud.scrollTop > 0) { if (etat.current.tirage) { etat.current.tirage = 0; setTirage(0); } return; }
+      if (depart < 0) return;
+      const dy = e.touches[0].clientY - depart, dx = e.touches[0].clientX - departX;
+      if (!verrou) { if (Math.abs(dy) < 6 && Math.abs(dx) < 6) return; verrou = Math.abs(dy) > Math.abs(dx) && dy > 0 ? 'v' : 'h'; }
+      if (verrou !== 'v' || noeud.scrollTop > 0) { if (tirage) { tirage = 0; poser(0, true); } depart = -1; return; }
       if (e.cancelable) e.preventDefault();
-      const t = Math.min(110, d * 0.5);
-      if (t >= 70 && etat.current.tirage < 70) vibrer();
-      etat.current.tirage = t; setTirage(t);
+      // Résistance : de plus en plus dur à tirer
+      const t = Math.min(130, dy * 0.55 - Math.max(0, dy * 0.55 - SEUIL) * 0.45);
+      if (t >= SEUIL && tirage < SEUIL) { vibrer(); rond.style.color = accent; }
+      if (t < SEUIL && tirage >= SEUIL) rond.style.color = '#8a99a3';
+      tirage = t;
+      svg.style.transform = `rotate(${(t / SEUIL) * 270}deg)`;
+      poser(t, false);
     };
     const fin = () => {
-      if (etat.current.tirage >= 70 && appel.current) { setActif(true); appel.current(); setTimeout(() => setActif(false), 8000); }
-      etat.current = { depart: -1, tirage: 0 }; setTirage(0);
+      if (depart < 0 && !tirage) return;
+      depart = -1;
+      if (tirage >= SEUIL && appel.current) {
+        charge = true; poser(56, true);
+        svg.style.transform = ''; svg.style.animation = 'tirer-tourne .8s linear infinite'; rond.style.color = accent;
+        try { appel.current(); } catch { /* rien */ }
+        setTimeout(() => fini.current(), 900);
+        setTimeout(() => { if (charge) relacher(); }, 8000);
+      } else poser(0, true);
+      tirage = 0;
     };
     noeud.addEventListener('touchstart', debut, { passive: true });
     noeud.addEventListener('touchmove', bouge, { passive: false });
     noeud.addEventListener('touchend', fin);
     noeud.addEventListener('touchcancel', fin);
-    return () => { noeud.removeEventListener('touchstart', debut); noeud.removeEventListener('touchmove', bouge); noeud.removeEventListener('touchend', fin); noeud.removeEventListener('touchcancel', fin); };
-  }, [!!rafraichir]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { defil, tirage, actif: actif };
+    return () => {
+      noeud.removeEventListener('touchstart', debut); noeud.removeEventListener('touchmove', bouge);
+      noeud.removeEventListener('touchend', fin); noeud.removeEventListener('touchcancel', fin);
+      rond.remove(); contenu.style.transform = '';
+    };
+  }, [!!rafraichir, accent, fond, bord, haut]); // eslint-disable-line react-hooks/exhaustive-deps
+  return defil;
 }
 
 // Bouton rond en haut d'écran

@@ -25,29 +25,55 @@ function gpsDemo(): Gps {
   return { actif: true, demo: true, raison: null, parVehicule: Object.fromEntries(l.map((x) => [x.vehicule_id, x])) };
 }
 
+// Coupure demandée : l'écran l'affiche tout de suite, sur tous les écrans ouverts, sans attendre le prochain relevé
+const attendus = new Map<string, { coupe: boolean; jusqua: number }>();
+const abonnes = new Set<() => void>();
+function appliquer(g: Gps): Gps {
+  if (!attendus.size) return g;
+  const parVehicule = { ...g.parVehicule };
+  for (const [id, a] of attendus) {
+    const e = parVehicule[id];
+    if (Date.now() > a.jusqua) { attendus.delete(id); continue; }
+    if (!e) continue;
+    if (e.moteur_coupe === a.coupe) { attendus.delete(id); continue; }
+    parVehicule[id] = { ...e, moteur_coupe: a.coupe, etat: a.coupe ? 'coupe' : e.vitesse > 0 ? 'roule' : 'arret', vitesse: a.coupe ? 0 : e.vitesse };
+  }
+  return { ...g, parVehicule };
+}
+
 export async function chargerGps(): Promise<Gps> {
   if (DEMO) return gpsDemo();
   try {
     const r = await api<{ actif: boolean; demo: boolean; raison: string | null; vehicules: EtatGps[] }>('mobile/gps');
     const g = { actif: r.actif, demo: r.demo, raison: r.raison, parVehicule: Object.fromEntries(r.vehicules.map((v) => [v.vehicule_id, v])) };
     garder('gps', g).catch(() => {});
-    return g;
+    return appliquer(g);
   } catch {
-    return (await relire<Gps>('gps'))?.valeur ?? vide;
+    return appliquer((await relire<Gps>('gps'))?.valeur ?? vide);
   }
 }
 
 export async function commanderMoteur(vehiculeId: string, couper: boolean) {
-  if (DEMO) { await new Promise((r) => setTimeout(r, 900)); couper ? coupes.add(vehiculeId) : coupes.delete(vehiculeId); return { enLigne: true }; }
-  return api<{ ok: boolean; enLigne: boolean }>('mobile/moteur', { vehicule_id: vehiculeId, couper });
+  if (DEMO) { await new Promise((r) => setTimeout(r, 900)); couper ? coupes.add(vehiculeId) : coupes.delete(vehiculeId); abonnes.forEach((f) => f()); return { enLigne: true }; }
+  const r = await api<{ ok: boolean; enLigne: boolean }>('mobile/moteur', { vehicule_id: vehiculeId, couper });
+  attendus.set(vehiculeId, { coupe: couper, jusqua: Date.now() + 60000 });
+  abonnes.forEach((f) => f());
+  return r;
 }
 
 // Actualisé toutes les 30 s tant que l'écran est affiché
 export function useGps() {
   const [gps, setGps] = useState<Gps>(vide);
   const actif = useRef(false);
-  const lancer = useCallback(() => { chargerGps().then(setGps).catch(() => {}); }, []);
+  const numero = useRef(0);
+  // Seule la réponse la plus récente compte : un ancien relevé arrivé en retard n'écrase pas l'état après une coupure
+  const lancer = useCallback(() => { const n = ++numero.current; chargerGps().then((g) => { if (n === numero.current) setGps(g); }).catch(() => {}); }, []);
   useEffect(() => { lancer(); }, [lancer]);
+  useEffect(() => {
+    const maj = () => { numero.current++; setGps((g) => appliquer(DEMO ? gpsDemo() : g)); lancer(); };
+    abonnes.add(maj);
+    return () => { abonnes.delete(maj); };
+  }, [lancer]);
   useFocusEffect(useCallback(() => {
     actif.current = true; lancer();
     const t = setInterval(() => actif.current && lancer(), 30000);
