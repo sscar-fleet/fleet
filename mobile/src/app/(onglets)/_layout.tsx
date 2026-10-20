@@ -30,7 +30,7 @@ export default function Onglets() {
           </View>
         ),
       }} />
-      <Tabs.Screen name="flotte" options={{ title: 'Flotte', tabBarIcon: ({ color }) => <Icone nom="flotte" couleur={String(color)} /> }} />
+      <Tabs.Screen name="flotte" options={{ title: 'Suivi', tabBarIcon: ({ color }) => <Icone nom="carte" couleur={String(color)} /> }} />
       <Tabs.Screen name="amendes" options={{ title: 'Amendes', tabBarIcon: ({ color }) => <Icone nom="amendes" couleur={String(color)} /> }} />
     </Tabs>
   );

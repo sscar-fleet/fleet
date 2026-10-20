@@ -11,13 +11,13 @@ const versPixel = (lat: number, lng: number, z: number) => {
   return { x: ((lng + 180) / 360) * n, y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n };
 };
 
-export default function MiniCarte({ points, hauteur = 190, zoomMax = 16, onPress }: { points: Point[]; hauteur?: number; zoomMax?: number; onPress?: () => void }) {
+export default function MiniCarte({ points, hauteur = 190, zoomMax = 16, onPress, centre }: { points: Point[]; hauteur?: number; zoomMax?: number; onPress?: () => void; centre?: { lat: number; lng: number; zoom: number } | null }) {
   const c = useCouleurs();
   const [largeur, setLargeur] = useState(0);
   if (!points.length) return null;
   // Plus grand zoom où tous les points tiennent avec une marge
-  let z = zoomMax;
-  if (largeur) {
+  let z = centre ? centre.zoom : zoomMax;
+  if (largeur && !centre) {
     for (; z > 3; z--) {
       const px = points.map((p) => versPixel(p.lat, p.lng, z));
       const w = Math.max(...px.map((p) => p.x)) - Math.min(...px.map((p) => p.x));
@@ -26,8 +26,9 @@ export default function MiniCarte({ points, hauteur = 190, zoomMax = 16, onPress
     }
   }
   const px = points.map((p) => ({ ...p, ...versPixel(p.lat, p.lng, z) }));
-  const cx = (Math.min(...px.map((p) => p.x)) + Math.max(...px.map((p) => p.x))) / 2;
-  const cy = (Math.min(...px.map((p) => p.y)) + Math.max(...px.map((p) => p.y))) / 2;
+  const vise = centre ? versPixel(centre.lat, centre.lng, z) : null;
+  const cx = vise ? vise.x : (Math.min(...px.map((p) => p.x)) + Math.max(...px.map((p) => p.x))) / 2;
+  const cy = vise ? vise.y : (Math.min(...px.map((p) => p.y)) + Math.max(...px.map((p) => p.y))) / 2;
   const x0 = cx - largeur / 2, y0 = cy - hauteur / 2;
   const tuiles: { x: number; y: number }[] = [];
   if (largeur) for (let tx = Math.floor(x0 / TUILE); tx <= Math.floor((x0 + largeur) / TUILE); tx++) for (let ty = Math.floor(y0 / TUILE); ty <= Math.floor((y0 + hauteur) / TUILE); ty++) tuiles.push({ x: tx, y: ty });

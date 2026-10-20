@@ -28,6 +28,7 @@ function Navigation() {
         <Stack.Screen name="client/[id]" />
         <Stack.Screen name="clients" />
         <Stack.Screen name="carte" />
+        <Stack.Screen name="vehicules" />
         <Stack.Screen name="compte" />
       </Stack.Protected>
     </Stack>
