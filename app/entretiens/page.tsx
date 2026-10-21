@@ -48,7 +48,7 @@ export default async function Entretiens({ searchParams }: { searchParams: { fil
               return (
                 <tr key={e.id}>
                   <td><a className="bloc" href={`/vehicules/${e.vehicules?.id}`}><b>{plaque(e.vehicules?.immatriculation)}</b><br /><span className="gris">{[e.vehicules?.marque, e.vehicules?.modele].filter(Boolean).join(' ')}</span></a></td>
-                  <td>{typesMaintenance[e.type] ?? 'Entretien'}<br /><span className="gris">{[e.raison, e.garage, e.cout ? 'coût ' + euros(e.cout) : '', e.montant_recu ? 'reçu ' + euros(e.montant_recu) : ''].filter(Boolean).join(' · ')}</span></td>
+                  <td><a className="bloc" href={`/entretiens/${e.id}`}><b>{typesMaintenance[e.type] ?? 'Entretien'}</b> <span className="lien">· ouvrir la fiche</span></a><br /><span className="gris">{[e.raison, e.garage, e.cout ? 'coût ' + euros(e.cout) : '', e.montant_recu ? 'reçu ' + euros(e.montant_recu) : ''].filter(Boolean).join(' · ')}</span></td>
                   <td><span className={`pastille ${retard ? 'retard' : e.statut}`}>{retard ? 'En retard' : statutEntretien[e.statut]}</span></td>
                   <td className="masque-mobile">{e.statut === 'termine' ? `Fini le ${date(e.fin)}` : dateHeure(e.retour_prevu)}</td>
                   <td>

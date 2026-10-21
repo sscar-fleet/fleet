@@ -223,7 +223,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
         {entretiens?.map((e: any) => (
           <div key={e.id} className="entretien">
             <div className="ligne" style={{ justifyContent: 'space-between' }}>
-              <span><span className={`pastille ${e.statut}`}>{typesMaintenance[e.type] ?? 'Entretien'} · {e.raison}</span>
+              <span><a href={`/entretiens/${e.id}`} className={`pastille ${e.statut}`}>{typesMaintenance[e.type] ?? 'Entretien'} · {e.raison} ›</a>
                 <br /><span className="gris">{statutEntretien[e.statut]}{e.garage ? ' · ' + e.garage : ''}{e.retour_prevu ? ' · retour ' + dateHeure(e.retour_prevu) : ''}{e.cout ? ' · coût ' + euros(e.cout) : ''}{e.montant_recu ? ' · reçu ' + euros(e.montant_recu) : ''}</span></span>
               <span className="ligne">
                 {e.statut === 'prevu' && <Formulaire action={A.demarrerEntretien.bind(null, e.id)}><Envoyer className="bouton petit">Démarrer</Envoyer></Formulaire>}

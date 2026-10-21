@@ -685,3 +685,16 @@ td.libre:hover .case-libre { color: var(--turquoise); }
 .glisser-confirme { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; max-width: calc(100vw - 32px); padding: 14px 16px; border-radius: 16px; background: var(--panneau); border: 1px solid var(--turquoise); box-shadow: var(--ombre); }
 .glisser-confirme > div:first-child { display: grid; gap: 3px; text-align: left; }
 .glisser-confirme .erreur { color: var(--rouge); font-size: 13px; }
+/* Fiche maintenance */
+.deux-colonnes { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .deux-colonnes { grid-template-columns: 1fr; } }
+.chiffres b.rouge { color: var(--rouge); }
+.chiffres small { display: block; margin-top: 2px; font-size: 12px; }
+.fil-suivi { list-style: none; margin: 16px 0 0; padding: 0 0 0 16px; border-left: 2px solid var(--bord); display: grid; gap: 14px; }
+.fil-suivi li { position: relative; display: grid; gap: 3px; }
+.fil-suivi li::before { content: ''; position: absolute; left: -22px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--gris); }
+.fil-suivi li.appel::before { background: var(--turquoise); }
+.fil-suivi li.date::before { background: var(--orange); }
+.fil-suivi li.debut::before { background: var(--orange); box-shadow: 0 0 0 3px rgba(245,158,11,.25); }
+.planning .resa.maintenance { background: rgba(245,158,11,.3); border-color: rgba(245,158,11,.6); }
+.planning .resa.maintenance:hover { background: rgba(245,158,11,.42); }

@@ -10,7 +10,7 @@ export async function chargerPlanning(supabase: any, jour0: string, nb: number) 
     supabase.from('vehicules').select('id, immatriculation, marque, modele, statut').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
     supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, clients(nom)')
       .in('statut', ['reservee', 'en_cours', 'terminee']).lt('debut', fin.toISOString()).gt('fin_prevue', debut.toISOString()),
-    supabase.from('entretiens').select('vehicule_id, type, garage, debut, retour_prevu, statut').eq('statut', 'en_cours'),
+    supabase.from('entretiens').select('id, vehicule_id, type, garage, raison, debut, retour_prevu, statut').eq('statut', 'en_cours'),
   ]);
   const occupation = (vid: string, j: Date): any => {
     const a = j.getTime(); const b = a + JOUR;
@@ -77,9 +77,19 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                 i += n - 1;
                 continue;
               }
-              if (o?.type === 'ent') { cases.push(o.e?.type === 'transfert'
-                ? <td key={i} className="occupe maintenance" title={`${jour} · transféré${o.e.garage ? ' à ' + o.e.garage : ''}`}>⇄{serre ? '' : ' ' + (o.e.garage ?? '')}</td>
-                : <td key={i} className="occupe maintenance" title={`${jour} · maintenance`}>{serre ? '' : '🔧'}</td>); continue; }
+              if (o?.type === 'ent') {
+                // Maintenance : une barre cliquable vers la fiche (suivi, factures, date de sortie)
+                let n = 1;
+                while (i + n < p.jours.length && p.occupation(v.id, p.jours[i + n])?.e?.id === o.e.id) n++;
+                const transfert = o.e?.type === 'transfert';
+                const libelle = transfert ? `⇄ ${o.e.garage ?? 'Transfert'}` : `🔧 ${o.e.garage || o.e.raison || 'Maintenance'}`;
+                cases.push(
+                  <td key={i} colSpan={n} className="barre-case" title={`${transfert ? 'Transfert' : 'Maintenance'}${o.e.garage ? ' · ' + o.e.garage : ''}${o.e.retour_prevu ? ' · sortie prévue ' + new Date(o.e.retour_prevu).toLocaleDateString('fr-FR', tz) : ''} · ouvrir la fiche`}>
+                    <a href={`/entretiens/${o.e.id}`} className="resa maintenance"><span className="resa-nom">{serre && n < 3 ? '\u00a0' : libelle}</span></a>
+                  </td>);
+                i += n - 1;
+                continue;
+              }
               cases.push(<td key={i} className={`libre ${we ? 'weekend' : ''}`} title={`${jour} · nouvelle location`}><a href={`/locations/nouvelle?vehicule=${v.id}&jour=${versJour(j)}`} className="case-libre">+</a></td>);
             }
             return (

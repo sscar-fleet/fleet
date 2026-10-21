@@ -209,6 +209,39 @@ async function _terminerEntretien(id: string, formData?: FormData) {
   rafraichir();
 }
 
+// Fiche maintenance : notes de suivi (appel au garage, nouvelle date de sortie…) et infos du garage
+async function _noteEntretien(id: string, formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const txt = texte(formData.get('texte'));
+  const genre = String(formData.get('genre') || 'note');
+  champAutorise(genre, ['note', 'appel', 'date']);
+  const nouvelle = depuisParis(texte(formData.get('retour_prevu')));
+  if (!txt && !nouvelle) throw new Error('Écrivez une note ou choisissez une nouvelle date.');
+  const { data: e } = await supabase.from('entretiens').select('vehicule_id, retour_prevu').eq('id', id).single();
+  verifier((await supabase.from('entretien_suivi').insert({ agence_id: profil.agence_id, entretien_id: id, genre: nouvelle && !txt ? 'date' : genre, texte: txt, retour_prevu: nouvelle, auteur: profil.id })).error);
+  if (nouvelle) {
+    verifier((await supabase.from('entretiens').update({ retour_prevu: nouvelle }).eq('id', id)).error);
+    await journal(null, e?.vehicule_id ?? null, 'Maintenance : nouvelle date de sortie', `${txt ? txt + ' · ' : ''}${new Date(nouvelle).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'short', timeStyle: 'short' })}`);
+  }
+  rafraichir();
+}
+
+async function _majEntretien(id: string, formData: FormData) {
+  const { supabase } = await utilisateurCourant();
+  const type = texte(formData.get('type'));
+  if (type) champAutorise(type, ['entretien', 'reparation', 'carrosserie', 'controle', 'nettoyage', 'transfert', 'autre']);
+  verifier((await supabase.from('entretiens').update({
+    ...(type ? { type } : {}),
+    raison: texte(formData.get('raison')) ?? 'Entretien',
+    garage: texte(formData.get('garage')),
+    garage_tel: telephoneSaisi(formData.get('garage_tel')),
+    cout: nombre(formData.get('cout')),
+    km: nombre(formData.get('km')),
+    commentaire: texte(formData.get('commentaire')),
+  }).eq('id', id)).error);
+  rafraichir();
+}
+
 async function _devisEntretien(id: string, chemin: string) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('entretiens').update({ devis_path: chemin }).eq('id', id)).error);
@@ -878,6 +911,8 @@ export const ajouterEntretien = proteger(_ajouterEntretien);
 export const demarrerEntretien = proteger(_demarrerEntretien);
 export const terminerEntretien = proteger(_terminerEntretien);
 export const devisEntretien = proteger(_devisEntretien);
+export const noteEntretien = proteger(_noteEntretien);
+export const majEntretien = proteger(_majEntretien);
 export const ajouterDommage = proteger(_ajouterDommage);
 export const photoDommage = proteger(_photoDommage);
 export const statutDommage = proteger(_statutDommage);
