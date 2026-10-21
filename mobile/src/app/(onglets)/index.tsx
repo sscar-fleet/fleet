@@ -9,7 +9,8 @@ import CarteLocation from '@/composants/CarteLocation';
 import LogoMarque from '@/composants/LogoMarque';
 import Synchro from '@/composants/Synchro';
 import Logo from '@/composants/Logo';
-import { chargerAujourdhui, voyantsDepart, type LocationLigne } from '@/lib/donnees';
+import { chargerAujourdhui, chargerStock, voyantsDepart, type LocationLigne } from '@/lib/donnees';
+import Icone from '@/composants/Icone';
 import { useDonnees } from '@/lib/useDonnees';
 import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
@@ -24,6 +25,11 @@ export default function Aujourdhui() {
   const { profil } = useSession();
   const { gps } = useGps();
   const { donnees, horsLigne, majLe, erreur, enChargement, recharger } = useDonnees(chargerAujourdhui);
+  const stock = useDonnees(chargerStock).donnees;
+  const enLoc = (id: string) => stock?.locations.some((l) => l.statut === 'en_cours' && l.vehicules?.id === id);
+  const nbAtelier = stock?.vehicules.filter((v) => v.statut === 'maintenance' || v.statut === 'hors_service').length ?? 0;
+  const nbDehors = stock?.vehicules.filter((v) => !(v.statut === 'maintenance' || v.statut === 'hors_service') && (v.statut === 'loue' || enLoc(v.id))).length ?? 0;
+  const nbLibres = (stock?.vehicules.length ?? 0) - nbAtelier - nbDehors;
   const departs = donnees?.departs ?? [];
   const retours = donnees?.retours ?? [];
   const retards = retours.filter((l) => enRetard(l.fin_prevue));
@@ -57,6 +63,19 @@ export default function Aujourdhui() {
             <Text style={{ color: c.gris, fontSize: 15, textAlign: 'center' }}>{donnees.demain.length ? `${donnees.demain.length} départ${donnees.demain.length > 1 ? 's' : ''} demain.` : 'Un client au comptoir ? Créez la location en 30 secondes.'}</Text>
             <GrosBouton titre="Nouvelle location" icone="ajout" onPress={() => router.push('/nouvelle')} style={{ alignSelf: 'stretch' }} />
           </Carte>
+        )}
+
+        {stock && stock.vehicules.length > 0 && (
+          <Pressable onPress={() => router.push('/stock')} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, opacity: pressed ? 0.85 : 1 })}>
+            <Icone nom="voiture" couleur={c.texte2} taille={22} />
+            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2 }}>
+              <Text style={{ color: c.vert, fontWeight: '800', fontSize: 15 }}>{nbLibres} au parking</Text>
+              <Text style={{ color: c.accent, fontWeight: '800', fontSize: 15 }}>{nbDehors} en location</Text>
+              {nbAtelier > 0 && <Text style={{ color: c.orange, fontWeight: '800', fontSize: 15 }}>{nbAtelier} à l’atelier</Text>}
+            </View>
+            <Text style={{ color: c.gris, fontWeight: '700', fontSize: 13.5 }}>Stock</Text>
+            <Icone nom="chevron" couleur={c.gris} taille={16} />
+          </Pressable>
         )}
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>

@@ -30,6 +30,7 @@ function Navigation() {
         <Stack.Screen name="carte" />
         <Stack.Screen name="vehicules" />
         <Stack.Screen name="assistant" />
+        <Stack.Screen name="stock" />
         <Stack.Screen name="compte" />
       </Stack.Protected>
     </Stack>

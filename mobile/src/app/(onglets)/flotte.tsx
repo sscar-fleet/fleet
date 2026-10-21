@@ -72,7 +72,7 @@ export default function EspaceSuivi() {
   return (
     <Ecran titre="Suivi" sousTitre={gps.actif ? `${suivis.length} suivie${suivis.length > 1 ? 's' : ''} · ${nb('roule')} en route${gps.demo ? ' · aperçu' : ''}` : 'Positions des voitures'}
       rafraichir={() => { recharger(); rafraichirGps(); }} enChargement={enChargement && !!donnees}
-      actions={<BoutonRond icone="voiture" label="Tous les véhicules" onPress={() => router.push('/vehicules')} />}>
+      actions={<BoutonRond icone="voiture" label="Stock" onPress={() => router.push('/stock')} />}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       {!donnees ? <Chargement /> : !gps.actif ? (
         <Vide icone="carte" titre="Suivi GPS pas encore activé" texte={gps.raison ?? 'Le suivi s’active avec les traceurs posés par SS CAR SYSTEM.'} />

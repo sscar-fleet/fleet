@@ -175,3 +175,9 @@ export async function retrouverConducteur(vehiculeId: string, quand: string) {
     .eq('vehicule_id', vehiculeId).neq('statut', 'annulee').lte('debut', quand).order('debut', { ascending: false }).limit(5);
   return ((data ?? []) as any[]).find((l) => new Date(l.fin_reelle ?? l.fin_prevue) >= new Date(quand)) ?? null;
 }
+
+// Stock : véhicules et locations en cours ou réservées, pour l'écran Stock et le bandeau de Journée
+export async function chargerStock() {
+  const [v, l] = await Promise.all([chargerVehicules(), chargerLocations()]);
+  return { donnees: { vehicules: v.donnees as VehiculeLigne[], locations: l.donnees as LocationLigne[] }, horsLigne: v.horsLigne || l.horsLigne, majLe: v.majLe ?? l.majLe };
+}
