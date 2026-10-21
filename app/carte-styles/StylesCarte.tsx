@@ -1,34 +1,47 @@
 'use client';
 import { useEffect, useRef } from 'react';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import 'leaflet/dist/leaflet.css';
 
-const STYLES = [
-  { nom: 'A · Voyager', note: 'Clair et coloré, proche de Google Maps. Gratuit (CARTO).', url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attr: '&copy; OpenStreetMap &copy; CARTO' },
-  { nom: 'B · Positron', note: 'Très épuré, gris clair : les véhicules ressortent. Gratuit (CARTO).', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attr: '&copy; OpenStreetMap &copy; CARTO' },
-  { nom: 'C · Dark Matter', note: 'Sombre, pour le mode nuit. Gratuit (CARTO).', url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attr: '&copy; OpenStreetMap &copy; CARTO' },
-  { nom: 'D · Satellite', note: 'Vue satellite, utile pour retrouver un véhicule dans un parking. Gratuit (Esri).', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: 'Esri, Maxar' },
-  { nom: 'Actuelle', note: 'La carte d’aujourd’hui (OpenStreetMap brut).', url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '&copy; OpenStreetMap' },
+type Style = { nom: string; note: string; vecteur?: string; tuiles?: string; attr?: string };
+const STYLES: Style[] = [
+  { nom: 'A · Liberty', note: 'Coloré et lisible, proche de Google Maps, bâtiments en relief au zoom. Gratuit (OpenFreeMap).', vecteur: 'https://tiles.openfreemap.org/styles/liberty' },
+  { nom: 'B · Bright', note: 'Plus contrasté, routes très visibles. Gratuit (OpenFreeMap).', vecteur: 'https://tiles.openfreemap.org/styles/bright' },
+  { nom: 'C · Positron', note: 'Très épuré, gris clair : les véhicules ressortent. Gratuit (OpenFreeMap).', vecteur: 'https://tiles.openfreemap.org/styles/positron' },
+  { nom: 'D · Nuit', note: 'Sombre, pour le mode nuit de l’appli. Gratuit (OpenFreeMap).', vecteur: 'https://tiles.openfreemap.org/styles/fiord' },
+  { nom: 'E · Satellite', note: 'Vue satellite, pour retrouver un véhicule dans un parking. Gratuit (Esri).', tuiles: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: 'Esri, Maxar' },
+  { nom: 'Actuelle', note: 'La carte d’aujourd’hui (OpenStreetMap brut).', tuiles: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap' },
 ];
 const POS: [number, number] = [48.844983, 2.300712];
 
-function Carte({ s }: { s: typeof STYLES[number] }) {
+function Carte({ s }: { s: Style }) {
   const boite = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let carte: any; let annule = false;
     (async () => {
-      const L = (await import('leaflet')).default;
-      if (annule || !boite.current) return;
-      carte = L.map(boite.current).setView(POS, 16);
-      L.tileLayer(s.url, { maxZoom: 19, subdomains: 'abcd', attribution: s.attr, detectRetina: false }).addTo(carte);
-      const icone = L.divIcon({ className: 'suivi-repere', html: '<span style="background:#19c3a6"></span><b>FZ-348-WR</b>', iconSize: [0, 0] });
-      L.marker(POS, { icon: icone }).addTo(carte);
+      if (!boite.current) return;
+      const el = document.createElement('div');
+      el.className = 'suivi-repere'; el.innerHTML = '<span style="background:#19c3a6"></span><b>FZ-348-WR</b>';
+      if (s.vecteur) {
+        const maplibre = (await import('maplibre-gl')).default;
+        if (annule) return;
+        carte = new maplibre.Map({ container: boite.current, style: s.vecteur, center: [POS[1], POS[0]], zoom: 15.5, attributionControl: { compact: true } });
+        carte.addControl(new maplibre.NavigationControl({ showCompass: false }), 'bottom-right');
+        new maplibre.Marker({ element: el, anchor: 'left' }).setLngLat([POS[1], POS[0]]).addTo(carte);
+      } else {
+        const L = (await import('leaflet')).default;
+        if (annule) return;
+        carte = L.map(boite.current).setView(POS, 16);
+        L.tileLayer(s.tuiles!, { maxZoom: 19, attribution: s.attr }).addTo(carte);
+        L.marker(POS, { icon: L.divIcon({ className: 'suivi-repere', html: el.innerHTML, iconSize: [0, 0] }) }).addTo(carte);
+      }
     })();
     return () => { annule = true; carte?.remove(); };
-  }, [s.url, s.attr]);
+  }, [s]);
   return (
     <section className="carte" style={{ padding: 12, display: 'grid', gap: 8 }}>
       <div><b style={{ fontSize: 17 }}>{s.nom}</b><div className="gris" style={{ fontSize: 13.5 }}>{s.note}</div></div>
-      <div ref={boite} style={{ height: 340, borderRadius: 12, overflow: 'hidden' }} />
+      <div ref={boite} style={{ height: 340, borderRadius: 12, overflow: 'hidden', position: 'relative' }} />
     </section>
   );
 }
