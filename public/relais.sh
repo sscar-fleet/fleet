@@ -16,6 +16,9 @@ $DOMAINE {
 		request_header -X-Relais-Cle
 		reverse_proxy https://www.whatsgps.com {
 			header_up Host www.whatsgps.com
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Proto
 		}
 	}
 	handle {
