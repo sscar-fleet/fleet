@@ -219,7 +219,9 @@ export async function etatsDuCompte(compteId?: number | string | null): Promise<
 // Coupure (couper = true) ou remise en route du moteur. Renvoie si le boîtier était en ligne.
 export async function commandeMoteur(imei: string, couper: boolean): Promise<{ enLigne: boolean; numero: string | null }> {
   if (whatsgpsDemo()) return { enLigne: true, numero: 'demo' };
-  const data = await appel('/remoteControl/controlPoil.do', { corps: { imei, on: couper ? 1 : 0 } });
+  // La documentation WhatsGPS demande aussi le jeton dans le corps de la requête
+  const s = await connexion();
+  const data = await appel('/remoteControl/controlPoil.do', { corps: { imei, on: couper ? 1 : 0, token: s.token } });
   memoire.clear();
   return { enLigne: data?.online !== false, numero: data?.serNO ?? null };
 }
