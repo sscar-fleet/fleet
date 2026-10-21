@@ -192,7 +192,7 @@ export function resumeSimple(liste: Notif[]) {
 
 export async function resumeDuJour(supabase: any, agenceId: string, role: string, liste: Notif[]) {
   const jour = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
-  const empreinte = liste.filter((n) => n.niveau !== 'gris').map((n) => n.cle).sort().join('|').slice(0, 2000);
+  const empreinte = 'v2|' + liste.filter((n) => n.niveau !== 'gris').map((n) => n.cle).sort().join('|').slice(0, 2000);
   const { data: deja } = await supabase.from('notifications_resume').select('texte, empreinte').eq('agence_id', agenceId).eq('jour', jour).eq('role', role).maybeSingle();
   if (deja && deja.empreinte === empreinte) return deja.texte as string;
   const cle = process.env.ANTHROPIC_API_KEY;
@@ -204,7 +204,7 @@ export async function resumeDuJour(supabase: any, agenceId: string, role: string
         headers: { 'x-api-key': cle, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({
           model: process.env.IA_MODELE || 'claude-haiku-4-5-20251001', max_tokens: 160,
-          messages: [{ role: 'user', content: `Tu es l'assistant d'un loueur de voitures. Écris en français, en 2 phrases maximum, sans emoji ni liste, le point du jour à partir de ces rappels (du plus urgent au moins urgent). Dis ce qu'il faut faire en premier et le montant en jeu s'il y en a. Tutoiement interdit, ton direct et calme.\n\n${liste.filter((n) => n.niveau !== 'gris').slice(0, 12).map((n) => `- [${n.niveau}] ${n.titre} — ${n.detail}`).join('\n')}` }],
+          messages: [{ role: 'user', content: `Tu es l'assistant d'un loueur de voitures. Écris en français, en 2 phrases courtes (35 mots maximum au total), sans emoji ni liste, le point du jour à partir de ces rappels (du plus urgent au moins urgent). Dis ce qu'il faut faire en premier et le montant en jeu s'il y en a. Tutoiement interdit, ton direct et calme.\n\n${liste.filter((n) => n.niveau !== 'gris').slice(0, 12).map((n) => `- [${n.niveau}] ${n.titre} — ${n.detail}`).join('\n')}` }],
         }),
       });
       if (r.ok) { const j = await r.json(); const t = j?.content?.find((c: any) => c.type === 'text')?.text?.trim(); if (t) texte = t; }
