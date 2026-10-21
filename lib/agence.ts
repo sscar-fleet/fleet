@@ -21,6 +21,9 @@ export const utilisateurCourant = cache(async () => {
     .eq('id', auth.user.id)
     .maybeSingle();
   if (!data) redirect('/bienvenue');
+  // Employé qui n'a accès qu'à l'appli téléphone
+  const { data: a } = await supabase.from('utilisateurs').select('acces').eq('id', auth.user.id).maybeSingle();
+  if ((a as any)?.acces === 'appli') redirect('/acces-appli');
   return { supabase, profil: data as unknown as Profil };
 });
 

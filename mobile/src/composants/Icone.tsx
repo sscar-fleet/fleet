@@ -49,7 +49,7 @@ export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { no
       {nom === 'envoyer' && <Path d="M21 3L10 14M21 3l-7 18-4-7-7-4z" {...p} />}
       {nom === 'nuage' && <Path d="M7 18.5a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5 4 4 0 0 1-.5 7.5z" {...p} />}
       {nom === 'eclair' && <Path d="M13 2.5L4.5 13.5H12l-1 8 8.5-11H12z" {...p} />}
-      {nom === 'outil' && <Path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3l7.5-7.5zM14.5 6.5L17 4" {...p} />}
+      {nom === 'outil' && <Path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" {...p} />}
       {nom === 'depart' && <><Path d="M5 21V4M5 4h11l-2 3.5 2 3.5H5" {...p} /></>}
       {nom === 'arrivee' && <><Path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z" {...p} /><Circle cx={12} cy={10} r={2.3} {...p} /></>}
       {nom === 'prolonger' && <><Circle cx={11} cy={12} r={7.5} {...p} /><Path d="M11 8v4l2.5 1.5M19 4v4h-4" {...p} /></>}

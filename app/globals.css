@@ -719,3 +719,9 @@ td.libre:hover .case-libre { color: var(--turquoise); }
 .compteur small { font-size: 12.5px; font-weight: 600; color: var(--gris); }
 .compteur small.hausse { color: var(--vert); }
 .compteur small.baisse { color: var(--rouge); }
+.choix-acces { display: inline-flex; gap: 0; border: 1px solid var(--bord); border-radius: 10px; overflow: hidden; }
+.choix-acces .bouton { border: 0; border-radius: 0; }
+.choix-acces-invit { border: 1px solid var(--bord); border-radius: 12px; padding: 10px 14px; display: grid; gap: 10px; }
+.choix-acces-invit legend { color: var(--texte2); font-size: 14px; padding: 0 6px; }
+.choix-acces-invit label.case { align-items: flex-start; font-size: 14.5px; }
+.choix-acces-invit label.case input { margin-top: 2px; }

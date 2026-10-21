@@ -784,7 +784,20 @@ async function _inviterEmploye(formData: FormData) {
   const email = (texte(formData.get('email')) ?? '').toLowerCase();
   const nom = texte(formData.get('nom'));
   if (!email || !nom) throw new Error('Indiquez le nom et l\u2019e-mail de l\u2019employé.');
-  verifier((await supabase.from('invitations').insert({ agence_id: profil.agence_id, email, nom, role: 'employe' })).error, 'Invitation');
+  const acces = String(formData.get('acces') || 'les_deux');
+  champAutorise(acces, ['logiciel', 'appli', 'les_deux']);
+  let r = await supabase.from('invitations').insert({ agence_id: profil.agence_id, email, nom, role: 'employe', acces });
+  if (r.error && /acces/.test(r.error.message)) r = await supabase.from('invitations').insert({ agence_id: profil.agence_id, email, nom, role: 'employe' });
+  verifier(r.error, 'Invitation');
+  rafraichir();
+}
+
+async function _changerAcces(utilisateur: string, formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') throw new Error('Seul le gérant peut changer les accès.');
+  const acces = String(formData.get('acces') || '');
+  champAutorise(acces, ['logiciel', 'appli', 'les_deux']);
+  verifier((await supabase.rpc('changer_acces', { utilisateur, nouvel_acces: acces })).error, 'Accès');
   rafraichir();
 }
 
@@ -975,6 +988,7 @@ export const statutDevis = proteger(_statutDevis);
 export const transformerDevis = proteger(_transformerDevis);
 export const inviterEmploye = proteger(_inviterEmploye);
 export const annulerInvitation = proteger(_annulerInvitation);
+export const changerAcces = proteger(_changerAcces);
 export const retirerAcces = proteger(_retirerAcces);
 export const sortirVehicule = proteger(_sortirVehicule);
 export const photoModele = proteger(_photoModele);

@@ -10,14 +10,15 @@ import Signature from '../_c/Signature';
 import Deconnexion from './Deconnexion';
 import ChampAdresse from '../_c/ChampAdresse';
 
+const ACCES: [string, string][] = [['appli', 'Appli'], ['logiciel', 'Logiciel'], ['les_deux', 'Les deux']];
 export const dynamic = 'force-dynamic';
 
 export default async function Parametres() {
   const { supabase, profil } = await utilisateurCourant();
   const [{ data: a }, { data: utilisateurs }, { data: invitations }] = await Promise.all([
     supabase.from('agences').select('*').eq('id', profil.agence_id).single(),
-    supabase.from('utilisateurs').select('id, nom, role, email').order('created_at'),
-    supabase.from('invitations').select('id, nom, email, jeton').eq('utilisee', false).order('created_at'),
+    supabase.from('utilisateurs').select('*').order('created_at'),
+    supabase.from('invitations').select('*').eq('utilisee', false).order('created_at'),
   ]);
   const h = headers();
   const origine = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`;
@@ -82,7 +83,15 @@ export default async function Parametres() {
         {utilisateurs?.map((u: any) => (
           <div key={u.id} className="fichier">
             <span>{u.nom}{u.email ? <span className="gris"> · {u.email}</span> : null}</span>
-            <span className="ligne"><span className="gris">{u.role === 'gerant' ? 'Gérant' : 'Employé'}</span>
+            <span className="ligne"><span className="gris">{u.role === 'gerant' ? 'Gérant · logiciel et appli' : 'Employé'}</span>
+              {gerant && u.role !== 'gerant' && (
+                <Formulaire action={A.changerAcces.bind(null, u.id)} succes="Accès modifié" className="choix-acces">
+                  {ACCES.map(([k, t]) => (
+                    <button key={k} type="submit" name="acces" value={k} className={`bouton petit ${(u.acces ?? 'les_deux') === k ? 'principal' : ''}`}>{t}</button>
+                  ))}
+                </Formulaire>
+              )}
+              {!gerant && u.role !== 'gerant' && <span className="gris">· {ACCES.find(([k]) => k === (u.acces ?? 'les_deux'))?.[1]}</span>}
               {gerant && u.role !== 'gerant' && <Formulaire action={A.retirerAcces.bind(null, u.id)} succes="Accès retiré" confirmer={`Retirer l'accès de ${u.nom} ?`}><Envoyer className="bouton petit danger">Retirer l&apos;accès</Envoyer></Formulaire>}</span>
           </div>
         ))}
@@ -91,7 +100,7 @@ export default async function Parametres() {
           const message = `Bonjour ${i.nom}, voici ton accès à SS CAR FLEET pour ${a.nom} : ${lien}`;
           return (
             <div key={i.id} className="fichier">
-              <span>{i.nom} <span className="gris">· {i.email} · invitation en attente</span><br /><span className="gris" style={{ fontSize: 12.5, wordBreak: 'break-all' }}>{lien}</span></span>
+              <span>{i.nom} <span className="gris">· {i.email} · {ACCES.find(([k]) => k === (i.acces ?? 'les_deux'))?.[1].toLowerCase()} · invitation en attente</span><br /><span className="gris" style={{ fontSize: 12.5, wordBreak: 'break-all' }}>{lien}</span></span>
               <span className="ligne">
                 <a className="bouton petit" href={lienWhatsApp(null, message)} target="_blank" rel="noreferrer">WhatsApp</a>
                 <a className="bouton petit" href={`mailto:${i.email}?subject=${encodeURIComponent('Ton accès SS CAR FLEET')}&body=${encodeURIComponent(message)}`}>E-mail</a>
@@ -106,9 +115,15 @@ export default async function Parametres() {
             <Formulaire vider action={A.inviterEmploye} className="grille" succes="Invitation créée : envoyez le lien">
               <label>Prénom et nom<input name="nom" required /></label>
               <label>E-mail<input name="email" type="email" required /></label>
+              <fieldset className="pleine choix-acces-invit">
+                <legend>Accès</legend>
+                <label className="case"><input type="radio" name="acces" value="appli" /><span><b>Appli seulement</b><br /><span className="gris">Départs, retours et états des lieux sur le téléphone. Idéal pour un employé terrain.</span></span></label>
+                <label className="case"><input type="radio" name="acces" value="logiciel" /><span><b>Logiciel seulement</b><br /><span className="gris">Sur ordinateur : planning, locations, clients, amendes.</span></span></label>
+                <label className="case"><input type="radio" name="acces" value="les_deux" defaultChecked /><span><b>Logiciel et appli</b><br /><span className="gris">Les deux, comme un associé.</span></span></label>
+              </fieldset>
               <Envoyer className="bouton">Créer l&apos;invitation</Envoyer>
             </Formulaire>
-            <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Fleet crée un lien personnel à envoyer par WhatsApp ou e-mail. L&apos;employé choisit son mot de passe. Il voit les locations, véhicules, clients et états des lieux, mais pas le pilotage ni les réglages.</p>
+            <p className="gris" style={{ fontSize: 13, marginBottom: 0 }}>Fleet crée un lien personnel à envoyer par WhatsApp ou e-mail. L&apos;employé choisit son mot de passe. Un employé ne voit jamais le pilotage (argent) ni les réglages. Vous pouvez changer son accès à tout moment ci-dessus.</p>
           </details>
         )}
         <p className="gris" style={{ fontSize: 12.5, marginBottom: 0, marginTop: 12 }}><a href="/confidentialite">Confidentialité</a> · <a href="/conditions">Conditions d&apos;utilisation</a></p>
