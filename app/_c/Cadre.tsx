@@ -1,5 +1,6 @@
 import BarreRecherche from './BarreRecherche';
 import FleetAI from './FleetAI';
+import Cloche from './Cloche';
 import Logo from './Logo';
 import { utilisateurCourant } from '@/lib/agence';
 import Navigation from './Navigation';
@@ -32,6 +33,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
         <header className="entete">
           <a href="/" className="logo"><Logo /></a>
           <BarreRecherche />
+          <Cloche />
           <span className="droite">
             <span className="agence">{profil.nom}<br /><span className="gris">{profil.agences?.nom}</span></span>
             <BoutonTheme />

@@ -5,7 +5,7 @@ export type NomIcone =
   | 'jour' | 'locations' | 'flotte' | 'amendes' | 'plus' | 'tel' | 'message' | 'whatsapp' | 'mail' | 'photo' | 'carte' | 'itineraire'
   | 'moteur' | 'cle' | 'ok' | 'alerte' | 'ajout' | 'chevron' | 'retour' | 'horloge' | 'euro' | 'bouclier' | 'doc' | 'signature'
   | 'jauge' | 'carburant' | 'recherche' | 'actualiser' | 'client' | 'voiture' | 'calendrier' | 'cadenas' | 'envoyer' | 'nuage'
-  | 'fermer' | 'eclair' | 'outil' | 'depart' | 'arrivee' | 'prolonger' | 'degat' | 'carteId' | 'sync' | 'site' | 'sortie' | 'micro';
+  | 'fermer' | 'eclair' | 'outil' | 'depart' | 'arrivee' | 'prolonger' | 'degat' | 'carteId' | 'sync' | 'site' | 'sortie' | 'micro' | 'cloche';
 
 export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { nom: NomIcone; couleur: string; taille?: number; epaisseur?: number }) {
   const p = { stroke: couleur, strokeWidth: epaisseur, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -19,6 +19,7 @@ export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { no
       {nom === 'amendes' && <><Path d="M6 3h9l4 4v14H6z" {...p} /><Path d="M14.5 3v4.5H19M9 12h7M9 16h5" {...p} /></>}
       {nom === 'doc' && <><Path d="M6 3h9l4 4v14H6z" {...p} /><Path d="M14.5 3v4.5H19M9 12h7M9 16h7" {...p} /></>}
       {nom === 'plus' && <><Circle cx={5} cy={12} r={1.6} {...plein} /><Circle cx={12} cy={12} r={1.6} {...plein} /><Circle cx={19} cy={12} r={1.6} {...plein} /></>}
+      {nom === 'cloche' && <><Path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" {...p} /><Path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" {...p} /></>}
       {nom === 'micro' && <><Rect x={9} y={3} width={6} height={11} rx={3} {...p} /><Path d="M5 11a7 7 0 0 0 14 0M12 18v3" {...p} /></>}
       {nom === 'tel' && <Path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" {...p} />}
       {nom === 'message' && <Path d="M4 5h16v11H9l-5 4z" {...p} />}
