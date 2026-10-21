@@ -73,6 +73,27 @@ function empreintes() {
   return `appkey ${e(process.env.WHATSGPS_APP_KEY)} secret ${e(process.env.WHATSGPS_SECRET_KEY)} compte ${e(process.env.WHATSGPS_COMPTE)} mdp ${e(process.env.WHATSGPS_MOT_DE_PASSE)}`;
 }
 
+// WhatsGPS limite le nombre d'appels par seconde (erreur 429 C08006) : on espace les appels
+// d'au moins 1,1 s dans une même instance et on retente une fois après une pause si la limite est atteinte.
+let dernierAppel = 0;
+let file: Promise<unknown> = Promise.resolve();
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+function fetchEspace(url: string, init: RequestInit): Promise<Response> {
+  const tache = file.then(async () => {
+    for (let essai = 0; essai < 3; essai++) {
+      const attente = dernierAppel + 1100 - Date.now();
+      if (attente > 0) await pause(attente);
+      dernierAppel = Date.now();
+      const rep = await fetchEspace(url, init);
+      if (rep.status !== 429 || essai === 2) return rep;
+      await pause(1500 * (essai + 1));
+    }
+    throw new Error('WhatsGPS : trop de demandes.');
+  });
+  file = tache.catch(() => {});
+  return tache;
+}
+
 async function lire(rep: Response) {
   const texte = await rep.text();
   let json: any = null;
@@ -88,7 +109,7 @@ async function connexion(forcer = false) {
     name: process.env.WHATSGPS_COMPTE!.trim(), password: process.env.WHATSGPS_MOT_DE_PASSE!.trim(),
     lang: 'fr', timeZoneSecond: String(2 * 3600),
   });
-  const json = await lire(await fetch(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'no-store' }));
+  const json = await lire(await fetchEspace(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'no-store' }));
   if (json.ret !== 1 || !json.data?.token) throw new Error(`Connexion WhatsGPS refusée : ${json.msg || 'identifiants à vérifier'}.`);
   session = { token: json.data.token, userId: Number(json.data.userId), expire: Date.now() + 6 * 3600 * 1000 };
   return session;
@@ -99,7 +120,7 @@ async function appel(chemin: string, init: { query?: Record<string, string>; cor
   for (let essai = 0; essai < 2; essai++) {
     const s = await connexion(essai > 0);
     const url = `${BASE}${chemin}${init.query ? '?' + new URLSearchParams(init.query) : ''}`;
-    const rep = await fetch(url, init.corps
+    const rep = await fetchEspace(url, init.corps
       ? { method: 'POST', headers: { ...entetes(s.token), 'Content-Type': 'application/json' }, body: JSON.stringify(init.corps), cache: 'no-store' }
       : { headers: entetes(s.token), cache: 'no-store' });
     if (rep.status === 401 && essai === 0) { session = null; continue; }
@@ -147,7 +168,7 @@ export async function etatsDuCompte(compteId?: number | string | null): Promise<
   if (whatsgpsDemo()) return etatsDemo();
   const cle = String(compteId ?? 'principal');
   const m = memoire.get(cle);
-  if (m && Date.now() - m.quand < 15_000) return m.etats;
+  if (m && Date.now() - m.quand < 30_000) return m.etats;
   const s = await connexion();
   const data = await appel('/carStatus/getByUserId.do', { query: { targetUserId: String(compteId || s.userId), mapType: '2' } });
   const etats = (Array.isArray(data) ? data : []).map(etat).filter((e) => e.imei);
