@@ -47,7 +47,9 @@ function papiersClient(formData: FormData, agenceId: string) {
 // Véhicule prêté par un confrère : pas de coût ; les colonnes du prêt ne sont écrites que si besoin
 function champsPret(formData: FormData, _modification = false) {
   if (texte(formData.get('financement')) === 'pret') {
-    return { cout_mensuel: null, prix_achat: null, pret_par: texte(formData.get('pret_par')), pret_retour: texte(formData.get('pret_retour')) };
+    const unite = texte(formData.get('pret_unite'));
+    return { cout_mensuel: null, prix_achat: null, pret_par: texte(formData.get('pret_par')), pret_retour: texte(formData.get('pret_retour')),
+      pret_tarif: nombre(formData.get('pret_tarif')), pret_unite: unite && ['jour', 'mois', 'forfait'].includes(unite) ? unite : null };
   }
   return {};
 }
@@ -187,6 +189,53 @@ async function _ajouterEntretien(formData: FormData) {
   rafraichir();
 }
 
+// Prêter un de mes véhicules à un confrère : il sort de ma flotte disponible jusqu'au retour, le prix entre dans mon chiffre
+async function _preterVehicule(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const vehicule_id = String(formData.get('vehicule_id') || '');
+  const loueur = texte(formData.get('loueur'));
+  if (!vehicule_id || !loueur) throw new Error('Choisissez le véhicule et le confrère.');
+  const debut = depuisParis(texte(formData.get('debut'))) ?? new Date().toISOString();
+  const retour = depuisParis(texte(formData.get('retour_prevu')));
+  const tarif = nombre(formData.get('tarif'));
+  const unite = String(formData.get('tarif_unite') || 'jour') === 'forfait' ? 'forfait' : 'jour';
+  const jours = retour ? Math.max(1, Math.ceil((new Date(retour).getTime() - new Date(debut).getTime()) / JOUR)) : null;
+  const prevu = tarif == null ? null : unite === 'forfait' ? tarif : jours ? tarif * jours : null;
+  const conflit = await supabase.from('locations').select('numero').eq('vehicule_id', vehicule_id).in('statut', ['reservee', 'en_cours'])
+    .lt('debut', retour ?? '9999-12-31').gt('fin_prevue', debut).limit(1);
+  if (conflit.data?.length) throw new Error(`Ce véhicule a une location sur ces dates (n° ${conflit.data[0].numero}) : changez-la de voiture d'abord.`);
+  const maintenant = new Date(debut).getTime() <= Date.now() + 3600e3;
+  verifier((await supabase.from('entretiens').insert({
+    agence_id: profil.agence_id, vehicule_id, type: 'transfert', raison: `Prêt à ${loueur}`, garage: loueur, garage_tel: telephoneSaisi(formData.get('telephone')),
+    debut, retour_prevu: retour, tarif, tarif_unite: unite, montant_recu: prevu, commentaire: texte(formData.get('commentaire')),
+    statut: maintenant ? 'en_cours' : 'prevu',
+  })).error, 'Prêt');
+  if (maintenant) await supabase.from('vehicules').update({ statut: 'maintenance' }).eq('id', vehicule_id);
+  await journal(null, vehicule_id, 'Prêté à un confrère', `${loueur}${retour ? ' · retour prévu ' + new Date(retour).toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' }) : ''}`);
+  rafraichir();
+}
+
+async function _encaisserPret(id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('entretiens').update({ encaisse: true }).eq('id', id)).error);
+  rafraichir();
+}
+async function _reglerEmprunt(vehicule_id: string) {
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ pret_regle: true }).eq('id', vehicule_id)).error);
+  rafraichir();
+}
+// Véhicule emprunté rendu au confrère : il sort de la flotte (historique et chiffres conservés)
+async function _rendreEmprunt(vehicule_id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data: l } = await supabase.from('locations').select('numero').eq('vehicule_id', vehicule_id).in('statut', ['reservee', 'en_cours']).limit(1);
+  if (l?.length) throw new Error(`Ce véhicule a encore une location (n° ${l[0].numero}) : changez-la de voiture ou terminez-la d'abord.`);
+  verifier((await supabase.from('vehicules').update({ statut: 'sorti', date_sortie: versJourSrv() }).eq('id', vehicule_id)).error);
+  await journal(null, vehicule_id, 'Rendu au confrère');
+  rafraichir();
+}
+const versJourSrv = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+
 async function _demarrerEntretien(id: string) {
   const { supabase } = await utilisateurCourant();
   const { data, error } = await supabase.from('entretiens')
@@ -203,6 +252,12 @@ async function _terminerEntretien(id: string, formData?: FormData) {
   const maj: any = { statut: 'termine', fin: new Date().toISOString() };
   if (cout !== null) maj.cout = cout;
   if (recu !== null) maj.montant_recu = recu;
+  else {
+    // Prêt à un confrère facturé au jour : le montant suit la durée réelle
+    const { data: e0 } = await supabase.from('entretiens').select('*').eq('id', id).single();
+    if ((e0 as any)?.tarif && (e0 as any)?.tarif_unite === 'jour' && (e0 as any)?.debut)
+      maj.montant_recu = Number((e0 as any).tarif) * Math.max(1, Math.ceil((Date.now() - new Date((e0 as any).debut).getTime()) / JOUR));
+  }
   const { data, error } = await supabase.from('entretiens').update(maj).eq('id', id).select('vehicule_id').single();
   verifier(error);
   const { data: v } = await supabase.from('vehicules').select('statut').eq('id', data!.vehicule_id).single();
@@ -946,6 +1001,10 @@ export const demarrerEntretien = proteger(_demarrerEntretien);
 export const terminerEntretien = proteger(_terminerEntretien);
 export const devisEntretien = proteger(_devisEntretien);
 export const noteEntretien = proteger(_noteEntretien);
+export const preterVehicule = proteger(_preterVehicule);
+export const encaisserPret = proteger(_encaisserPret);
+export const reglerEmprunt = proteger(_reglerEmprunt);
+export const rendreEmprunt = proteger(_rendreEmprunt);
 export const majEntretien = proteger(_majEntretien);
 export const ajouterDommage = proteger(_ajouterDommage);
 export const photoDommage = proteger(_photoDommage);

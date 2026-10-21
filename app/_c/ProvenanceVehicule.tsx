@@ -25,7 +25,9 @@ export default function ProvenanceVehicule({ v = {} as any }: { v?: any }) {
           <input type="hidden" name="financement" value="pret" />
           <label>Loueur qui prête le véhicule<input name="pret_par" defaultValue={v.pret_par ?? ''} placeholder="Nom de l'agence" autoComplete="off" /></label>
           <label>À lui rendre le<input name="pret_retour" type="date" defaultValue={v.pret_retour ?? ''} /></label>
-          <p className="gris pleine" style={{ margin: 0, fontSize: 13.5 }}>Pas de prix d&apos;achat ni de leasing : le véhicule ne compte pas dans vos coûts de flotte.</p>
+          <label>Ce que je lui paie (€)<input name="pret_tarif" type="number" step="0.01" min={0} defaultValue={v.pret_tarif ?? ''} placeholder="0 si gratuit" /></label>
+          <label>Par<select name="pret_unite" defaultValue={v.pret_unite ?? 'jour'}><option value="jour">jour</option><option value="mois">mois</option><option value="forfait">forfait (une fois)</option></select></label>
+          <p className="gris pleine" style={{ margin: 0, fontSize: 13.5 }}>Les locations de ce véhicule comptent dans votre chiffre ; ce que vous payez au confrère compte dans vos coûts. Retrouvez tous vos prêts dans « Prêts confrères ».</p>
         </div>
       ) : (
         <label data-cout-select>Financement<select name="financement" defaultValue={v.financement && v.financement !== 'pret' ? v.financement : ''}><option value="">—</option>

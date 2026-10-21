@@ -89,6 +89,14 @@ export default async function Accueil() {
     if (c) alertes.push({ texte: `${plaque(v.immatriculation)} : contrôle technique ${c === 'depasse' ? 'dépassé' : 'à faire'} le ${date(v.ct_echeance)}`, lien: `/vehicules/${v.id}`, niveau: c });
   });
   (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: e.id ? `/entretiens/${e.id}` : '/entretiens', niveau: 'proche' }));
+  // Prêts entre loueurs : véhicule emprunté à rendre sous 2 jours, véhicule prêté pas revenu
+  const [{ data: emprunts }, { data: pretsRetard }] = await Promise.all([
+    supabase.from('vehicules').select('*').eq('financement', 'pret').neq('statut', 'sorti'),
+    supabase.from('entretiens').select('id, garage, retour_prevu, vehicules(immatriculation)').eq('type', 'transfert').eq('statut', 'en_cours').lt('retour_prevu', new Date().toISOString()),
+  ]);
+  (emprunts ?? []).filter((v: any) => v.pret_retour && new Date(v.pret_retour).getTime() - Date.now() < 2 * 864e5)
+    .forEach((v: any) => alertes.push({ texte: `${plaque(v.immatriculation)} : à rendre à ${v.pret_par ?? 'son propriétaire'} le ${date(v.pret_retour)}`, lien: '/prets', niveau: new Date(v.pret_retour).getTime() < Date.now() ? 'depasse' : 'proche' }));
+  (pretsRetard ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : prêté à ${e.garage ?? 'un confrère'}, devait revenir le ${date(e.retour_prevu)}`, lien: '/prets', niveau: 'depasse' }));
   // Kbis de plus de 3 mois (date lue par l'IA au dépôt)
   const { data: agK } = await supabase.from("agences").select("*").eq("id", profil.agence_id).single();
   if ((agK as any)?.kbis_date && Date.now() - new Date((agK as any).kbis_date).getTime() > 92 * 864e5)

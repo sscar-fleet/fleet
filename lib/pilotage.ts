@@ -5,12 +5,12 @@ export type Granularite = 'jour' | 'semaine' | 'mois';
 
 export type Poste = {
   locations: number; kmSup: number; cautions: number; transferts: number; // recettes
-  vehicules: number; entretien: number; degats: number; depenses: number; amendes: number; // coûts
+  vehicules: number; prets: number; entretien: number; degats: number; depenses: number; amendes: number; // coûts
   departs: number; retours: number; joursLoues: number;
 };
 export type Periode = Poste & { debut: Date; fin: Date; libelle: string; recettes: number; couts: number; resultat: number };
 
-const vide = (): Poste => ({ locations: 0, kmSup: 0, cautions: 0, transferts: 0, vehicules: 0, entretien: 0, degats: 0, depenses: 0, amendes: 0, departs: 0, retours: 0, joursLoues: 0 });
+const vide = (): Poste => ({ locations: 0, kmSup: 0, cautions: 0, transferts: 0, vehicules: 0, prets: 0, entretien: 0, degats: 0, depenses: 0, amendes: 0, departs: 0, retours: 0, joursLoues: 0 });
 const minuit = (jour: string) => new Date(depuisParis(jour + 'T00:00')!);
 const plusJours = (d: Date, n: number) => minuit(versJour(new Date(d.getTime() + n * JOUR + 12 * 3600 * 1000)));
 
@@ -53,7 +53,7 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
   const dJour = versJour(debut); const fJour = versJour(fin);
 
   const [{ data: vehicules }, { data: locations }, { data: entretiens }, { data: dommages }, { data: depenses }, { data: amendes }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, cout_mensuel, prix_achat, financement, date_entree, date_sortie, created_at, statut').order('immatriculation'),
+    supabase.from('vehicules').select('*').order('immatriculation'),
     supabase.from('locations').select('id, vehicule_id, debut, fin_prevue, fin_reelle, statut, prix_total, km_depart, km_retour, km_inclus, prix_km_sup, caution_retenue, caution_statut')
       .in('statut', ['en_cours', 'terminee']).lt('debut', fIso).gte('fin_prevue', new Date(debut.getTime() - 60 * JOUR).toISOString()),
     supabase.from('entretiens').select('vehicule_id, type, cout, montant_recu, debut, fin, created_at'),
@@ -104,6 +104,16 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
   // Coût mensuel du véhicule (leasing, crédit, amortissement), au jour près, depuis son entrée dans la flotte
   (vehicules ?? []).forEach((v: any) => {
     // Acheté comptant sans coût mensuel saisi : prix d'achat amorti sur 3 ans
+    // Véhicule emprunté à un confrère : ce qu'on lui paie, au jour, au mois ou en forfait
+    if (v.financement === 'pret') {
+      const tarif = Number(v.pret_tarif ?? 0);
+      if (!tarif) return;
+      const ent = minuit(v.date_entree ?? versJour(v.created_at)).getTime();
+      const fini = Math.min(v.pret_retour ? minuit(v.pret_retour).getTime() + JOUR : Infinity, v.date_sortie ? minuit(v.date_sortie).getTime() : Infinity, Date.now() + JOUR);
+      if (v.pret_unite === 'forfait') ajouter(v.id, ent, 'prets', tarif);
+      else repartir(v.id, Math.max(ent, debut.getTime()), Math.min(fin.getTime(), fini), 'prets', v.pret_unite === 'mois' ? (tarif * 12) / 365 : tarif, true);
+      return;
+    }
     const mensuel = v.cout_mensuel ? Number(v.cout_mensuel) : v.prix_achat ? Number(v.prix_achat) / 36 : 0;
     if (!mensuel) return;
     const entree = minuit(v.date_entree ?? versJour(v.created_at)).getTime();
@@ -123,7 +133,7 @@ export async function calculerPilotage(supabase: any, g: Granularite) {
 
   const finir = (p: Poste, i: number): Periode => {
     const recettes = p.locations + p.kmSup + p.cautions + p.transferts;
-    const couts = p.vehicules + p.entretien + p.degats + p.depenses + p.amendes;
+    const couts = p.vehicules + p.prets + p.entretien + p.degats + p.depenses + p.amendes;
     return { ...p, ...liste[i], recettes, couts, resultat: recettes - couts };
   };
   return {

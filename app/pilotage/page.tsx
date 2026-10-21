@@ -30,8 +30,8 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
     supabase.from('depenses').select('id, categorie, montant, date, libelle, vehicules(immatriculation)').order('date', { ascending: false }).limit(10),
   ]);
 
-  const recettes: [string, number][] = [['Locations', p.locations], ['Kilomètres en trop', p.kmSup], ['Retenues sur caution', p.cautions], ['Transferts à d\u2019autres loueurs', p.transferts]];
-  const couts: [string, number][] = [['Véhicules (leasing, crédit, achat)', p.vehicules], ['Entretien', p.entretien], ['Dégâts', p.degats],
+  const recettes: [string, number][] = [['Locations', p.locations], ['Kilomètres en trop', p.kmSup], ['Retenues sur caution', p.cautions], ['Véhicules prêtés à des confrères', p.transferts]];
+  const couts: [string, number][] = [['Véhicules (leasing, crédit, achat)', p.vehicules], ['Véhicules empruntés à des confrères', p.prets], ['Entretien', p.entretien], ['Dégâts', p.degats],
     ['Fourrière et autres dépenses', p.depenses], ['Amendes payées par l’agence', p.amendes]];
   const libelleG = { jour: 'jour', semaine: 'semaine', mois: 'mois' }[g];
   const lien = (k: number) => `/pilotage?g=${g}&i=${k}`;
