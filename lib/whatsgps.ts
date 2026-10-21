@@ -193,15 +193,14 @@ function etat(d: any): EtatTraceur {
     vitesse: Number(d.speed ?? 0) || 0,
     contact: d.accStatus === 1 ? true : d.accStatus === 0 ? false : null,
     enLigne: Number(d.online) === 1,
-    enMouvement: Number(d.run) === 1 || Number(d.speed ?? 0) > 3,
+    // « run » reste à 1 longtemps après l'arrêt : seule la vitesse dit vraiment si le véhicule roule
+    enMouvement: Number(d.speed ?? 0) > 3,
     le: iso(d.pointTime),
     signal: iso(d.heartTime),
     kmTraceur: versKm(d.totalMileage),
     alerte: d.alarm ? String(d.alarm) : null,
   };
 }
-
-export let champsVus: Record<string, string> | null = null;
 
 // Toute la flotte d'un compte WhatsGPS en un seul appel. compteId vide = compte principal.
 export async function etatsDuCompte(compteId?: number | string | null): Promise<EtatTraceur[]> {
@@ -212,8 +211,6 @@ export async function etatsDuCompte(compteId?: number | string | null): Promise<
   const s = await connexion();
   const data = await appel('/carStatus/getByUserId.do', { query: { targetUserId: String(compteId || s.userId), mapType: '2' } });
   const brut = Array.isArray(data) ? data : [];
-  if (brut[0]) console.log('[whatsgps] champs carStatus', Object.keys(brut[0]).join(','));
-  champsVus = brut[0] ? Object.fromEntries(Object.entries(brut[0]).filter(([, v]) => typeof v !== 'object').map(([k, v]) => [k, String(v).slice(0, 30)])) : null;
   const etats = brut.map(etat).filter((e) => e.imei);
   memoire.set(cle, { quand: Date.now(), etats });
   return etats;

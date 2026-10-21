@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { clientApi } from '@/lib/api';
 import { suiviAgence, kmEstime } from '@/lib/telematique';
-import { champsVus } from '@/lib/whatsgps';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 40;
@@ -20,7 +19,6 @@ export async function GET(request: Request) {
     return { vehicule_id: v.id, imei: t.imei, etat, moteur_coupe: !!t.moteur_coupe, lat: e?.lat ?? null, lng: e?.lng ?? null,
       vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null, le: e?.le ?? null, km_estime: kmEstime(t, e), alerte: e?.alerte ?? null };
   });
-  return NextResponse.json({ actif: suivi.actif, demo: suivi.actif ? suivi.demo : false, raison: suivi.raison ?? null, vehicules: liste,
-    ...(new URL(request.url).searchParams.has('champs') ? { champs: champsVus, boitiers: suivi.disponibles.map((d) => [d.imei, d.nom, d.enLigne]) } : {}) },
+  return NextResponse.json({ actif: suivi.actif, demo: suivi.actif ? suivi.demo : false, raison: suivi.raison ?? null, vehicules: liste },
     { headers: { 'cache-control': 'no-store' } });
 }
