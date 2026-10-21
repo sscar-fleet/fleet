@@ -4,7 +4,7 @@
 //   WHATSGPS_COMPTE, WHATSGPS_MOT_DE_PASSE : compte WhatsGPS principal de SS CAR SYSTEM
 //   WHATSGPS_UNITE_KM (facultatif) : « m » ou « km » si le kilométrage remonté est mal interprété
 
-import { unstable_cache, revalidateTag } from 'next/cache';
+import { revalidateTag } from 'next/cache';
 
 // Les appels passent par le relais à IP fixe (exigé par Seeworld) quand il est configuré
 const BASE = (process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com').trim().replace(/\/$/, '');
@@ -110,15 +110,21 @@ async function lire(rep: Response) {
 
 // Le jeton est partagé entre toutes les instances du serveur via le cache de Vercel :
 // WhatsGPS limite le nombre de connexions (C08006 Login rate limit exceeded), on se connecte donc au plus toutes les 3 h.
-const jetonPartage = unstable_cache(async () => {
+async function jetonPartage() {
   const q = new URLSearchParams({
     name: process.env.WHATSGPS_COMPTE!.trim(), password: process.env.WHATSGPS_MOT_DE_PASSE!.trim(),
     lang: 'fr', timeZoneSecond: String(2 * 3600),
   });
-  const json = await lire(await fetchEspace(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'no-store' }));
-  if (json.ret !== 1 || !json.data?.token) throw new Error(`Connexion WhatsGPS refusée : ${json.msg || 'identifiants à vérifier'}.`);
+  // Cache de données Vercel, partagé par toutes les pages et routes (clé = adresse + en-têtes)
+  const rep = await fetch(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'force-cache', next: { revalidate: 3 * 3600, tags: ['whatsgps-jeton'] } });
+  let json: any = null;
+  try { json = await lire(rep); } catch (e) { try { revalidateTag('whatsgps-jeton'); } catch { /* */ } throw e; }
+  if (json.ret !== 1 || !json.data?.token) {
+    try { revalidateTag('whatsgps-jeton'); } catch { /* */ }
+    throw new Error(`Connexion WhatsGPS refusée : ${json.msg || 'identifiants à vérifier'}.`);
+  }
   return { token: String(json.data.token), userId: Number(json.data.userId) };
-}, ['whatsgps-jeton-v1'], { revalidate: 3 * 3600, tags: ['whatsgps-jeton'] });
+}
 
 async function connexion(forcer = false) {
   if (!whatsgpsConfigure()) throw new Error('Le suivi GPS n’est pas encore branché (clés WhatsGPS manquantes).');
