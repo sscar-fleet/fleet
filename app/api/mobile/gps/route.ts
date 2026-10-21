@@ -3,6 +3,7 @@ import { clientApi } from '@/lib/api';
 import { suiviAgence, kmEstime } from '@/lib/telematique';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 40;
 
 // Positions des véhicules de l'agence pour l'appli téléphone
 export async function GET(request: Request) {
