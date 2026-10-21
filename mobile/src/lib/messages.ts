@@ -1,10 +1,20 @@
 // Messages prêts à envoyer : WhatsApp s'ouvre avec le texte, c'est vous qui appuyez sur Envoyer
-import { Linking } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import { heure, jour, nomVehicule, prenom, telInternational, euros } from './format';
 import type { LocationLigne } from './donnees';
 
 export const ouvrirWhatsApp = (tel: string | null | undefined, texte: string) =>
   Linking.openURL(tel ? `https://wa.me/${telInternational(tel)}?text=${encodeURIComponent(texte)}` : `https://wa.me/?text=${encodeURIComponent(texte)}`);
+// Sur iPhone (navigateur), un lien ouvert après une attente est bloqué : on ouvre l'onglet tout de suite au toucher,
+// puis on y met l'adresse quand elle est prête.
+export function fenetreEnAttente() {
+  const w = Platform.OS === 'web' && typeof window !== 'undefined' ? window.open('about:blank', '_blank') : null;
+  return {
+    aller: (url: string) => { if (w && !w.closed) w.location.href = url; else Linking.openURL(url); },
+    fermer: () => { try { w?.close(); } catch {} },
+  };
+}
+export const urlWhatsApp = (tel: string | null | undefined, texte: string) => tel ? `https://wa.me/${telInternational(tel)}?text=${encodeURIComponent(texte)}` : `https://wa.me/?text=${encodeURIComponent(texte)}`;
 export const ouvrirSms = (tel: string, texte: string) => Linking.openURL(`sms:${tel}${/iPhone|iPad/.test(globalThis.navigator?.userAgent ?? '') ? '&' : '?'}body=${encodeURIComponent(texte)}`);
 export const appeler = (tel: string) => Linking.openURL(`tel:${tel.replace(/\s/g, '')}`);
 

@@ -120,15 +120,22 @@ export default function EtatDesLieux() {
   }
 
   // Récapitulatif WhatsApp avec le lien du PDF (photos, compteur, carburant)
-  async function envoyerRecap() {
+  // Le PDF se prépare dès la fin de l'état des lieux ; l'envoi ouvre WhatsApp directement au toucher
+  // (l'iPhone bloque WhatsApp s'il s'ouvre après une attente, d'où le PDF prêt à l'avance)
+  const [pdf, setPdf] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!fini || !l || pdf !== undefined || recap) return;
+    setRecap('Préparation du PDF…');
+    lienPdfEdl(l.id, type, (n) => setRecap(n ? `Envoi des photos (${n} restant${n > 1 ? 's' : ''})…` : 'Préparation du PDF…'))
+      .then((lien) => setPdf(lien ?? null))
+      .catch(() => setPdf(null))
+      .finally(() => setRecap(null));
+  }, [fini, l]); // eslint-disable-line react-hooks/exhaustive-deps
+  function envoyerRecap() {
     if (!l?.clients?.telephone) return;
     const carb = Math.round((carburant / 8) * 100);
-    setRecap('Préparation du PDF…');
-    let lien: string | null = null;
-    try { lien = await lienPdfEdl(l.id, type, (n) => setRecap(n ? `Envoi des photos (${n} restant${n > 1 ? 's' : ''})…` : 'Préparation du PDF…')); }
-    catch (e: any) { toast(e?.message ?? 'PDF impossible pour le moment', 'alerte'); }
+    const lien = pdf ?? null;
     if (!lien) toast('PDF pas encore prêt : message envoyé sans le lien', 'alerte');
-    setRecap(null);
     ouvrirWhatsApp(l.clients.telephone, retour ? msg.recapRetour(l, kmNum, kmFaits, supplement, carb, lien) : msg.recapDepart(l, kmNum, carb, lien));
   }
 
@@ -136,7 +143,7 @@ export default function EtatDesLieux() {
   if (fini && l) return (
     <Ecran titre={retour ? 'Voiture rendue' : 'Bonne route !'} sousTitre={`${nomClient(l.clients)} · ${nomVehicule(l.vehicules)}`}
       bas={<>
-        {l.clients?.telephone ? <GrosBouton icone="whatsapp" desactive={!!recap} titre={recap ?? 'Envoyer le récapitulatif et le PDF'} sousTitre={recap ? undefined : 'Photos, kilométrage et carburant'} onPress={envoyerRecap} /> : null}
+        {l.clients?.telephone ? <GrosBouton icone="whatsapp" desactive={!!recap} titre={recap ?? 'Envoyer le récapitulatif et le PDF'} sousTitre={recap ? 'Quelques secondes' : pdf ? 'PDF prêt · photos, kilométrage et carburant' : 'Photos, kilométrage et carburant'} onPress={envoyerRecap} /> : null}
         <GrosBouton secondaire titre="Retour à la journée" onPress={() => router.dismissTo('/')} />
       </>}>
       <View style={{ alignItems: 'center', paddingVertical: 20, gap: 12 }}>

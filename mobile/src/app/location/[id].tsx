@@ -23,7 +23,7 @@ import { prolonger, lienDocument } from '@/lib/edl';
 import { useGps, libelleGps, couleurGps, depuis, itineraire, commanderMoteur } from '@/lib/gps';
 import { signatureDistance } from '@/lib/capacites';
 import { urlSite } from '@/lib/site';
-import { appeler, ouvrirWhatsApp, ouvrirSms, msg } from '@/lib/messages';
+import { appeler, ouvrirWhatsApp, ouvrirSms, msg, fenetreEnAttente, urlWhatsApp } from '@/lib/messages';
 import { euros, heure, jour, km, nomClient, nomVehicule, relatif, enRetard, nbJours, plaque } from '@/lib/format';
 
 const CAUTION: Record<string, string> = { a_prendre: 'à prendre', prise: 'prise', rendue: 'rendue', encaissee: 'encaissée', litige: 'en litige' };
@@ -121,12 +121,13 @@ export default function FicheLocation() {
   const NOMS_DOC = { contrat: 'votre contrat de location', facture: 'votre facture', edl_depart: 'l’état des lieux de départ (photos, kilométrage, carburant)', edl_retour: 'l’état des lieux de retour (photos, kilométrage, carburant)' } as const;
   async function documentPdf(genre: keyof typeof NOMS_DOC, envoyer: boolean) {
     setDocEnCours(genre + (envoyer ? '-envoi' : ''));
+    const fen = fenetreEnAttente();
     try {
       const lien = await lienDocument(l.id, genre);
-      if (!lien) toast('Photos encore en cours d’envoi, réessayez dans un instant', 'alerte');
-      else if (envoyer) ouvrirWhatsApp(tel, `Bonjour ${cl?.prenom ?? ''}, voici ${NOMS_DOC[genre]} pour la ${nomVehicule(v)} : ${lien}`);
-      else Linking.openURL(lien);
-    } catch (e: any) { toast(e?.message ?? 'PDF impossible', 'alerte'); }
+      if (!lien) { fen.fermer(); toast('Photos encore en cours d’envoi, réessayez dans un instant', 'alerte'); }
+      else if (envoyer) fen.aller(urlWhatsApp(tel, `Bonjour ${cl?.prenom ?? ''}, voici ${NOMS_DOC[genre]} pour la ${nomVehicule(v)} : ${lien}`));
+      else fen.aller(lien);
+    } catch (e: any) { fen.fermer(); toast(e?.message ?? 'PDF impossible', 'alerte'); }
     setDocEnCours(null);
   }
   const DocActions = ({ genre }: { genre: keyof typeof NOMS_DOC }) => (
