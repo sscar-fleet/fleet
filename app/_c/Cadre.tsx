@@ -27,7 +27,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
   return (
     <div className="coque">
       <MenuLateral gerant={profil.role === 'gerant'} compteurs={{ '/locations': retards.count ?? 0, '/amendes': amendes.count ?? 0, '/fps': fps.count ?? 0 }} pied={pied} />
-      <FleetAI />
+      <FleetAI prenom={String(profil.nom ?? '').split(' ')[0]} />
       <main className="page">
         <header className="entete">
           <a href="/" className="logo"><Logo /></a>
