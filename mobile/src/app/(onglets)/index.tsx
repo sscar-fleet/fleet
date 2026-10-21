@@ -66,15 +66,26 @@ export default function Aujourdhui() {
         )}
 
         {stock && stock.vehicules.length > 0 && (
-          <Pressable onPress={() => router.push('/stock')} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, opacity: pressed ? 0.85 : 1 })}>
-            <Icone nom="voiture" couleur={c.texte2} taille={22} />
-            <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2 }}>
-              <Text style={{ color: c.vert, fontWeight: '800', fontSize: 15 }}>{nbLibres} disponible{nbLibres > 1 ? 's' : ''}</Text>
-              <Text style={{ color: c.accent, fontWeight: '800', fontSize: 15 }}>{nbDehors} en location</Text>
-              {nbAtelier > 0 && <Text style={{ color: c.orange, fontWeight: '800', fontSize: 15 }}>{nbAtelier} en maintenance</Text>}
+          <Pressable onPress={() => router.push('/stock')} style={({ pressed }) => ({ padding: 14, gap: 12, borderRadius: 20, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, opacity: pressed ? 0.9 : 1 })}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>Ma flotte <Text style={{ color: c.gris, fontWeight: '600', fontSize: 15 }}>· {stock.vehicules.length} véhicules</Text></Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <Text style={{ color: c.accent, fontWeight: '800', fontSize: 14 }}>Voir le stock</Text>
+                <Icone nom="chevron" couleur={c.accent} taille={16} />
+              </View>
             </View>
-            <Text style={{ color: c.gris, fontWeight: '700', fontSize: 13.5 }}>Stock</Text>
-            <Icone nom="chevron" couleur={c.gris} taille={16} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[
+                { n: nbLibres, libelle: nbLibres > 1 ? 'Disponibles' : 'Disponible', couleur: c.vert },
+                { n: nbDehors, libelle: 'En location', couleur: c.accent },
+                { n: nbAtelier, libelle: 'En maintenance', couleur: c.orange },
+              ].map((x) => (
+                <View key={x.libelle} style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 14, backgroundColor: x.couleur + (x.n ? '1f' : '0d'), borderWidth: 1, borderColor: x.couleur + (x.n ? '55' : '22'), gap: 2 }}>
+                  <Text style={{ color: x.n ? x.couleur : c.gris, fontSize: 30, fontWeight: '900', fontVariant: ['tabular-nums'], lineHeight: 34 }}>{x.n}</Text>
+                  <Text numberOfLines={1} adjustsFontSizeToFit style={{ color: x.n ? c.texte : c.gris, fontSize: 13, fontWeight: '700' }}>{x.libelle}</Text>
+                </View>
+              ))}
+            </View>
           </Pressable>
         )}
 
