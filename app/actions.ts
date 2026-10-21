@@ -1,6 +1,7 @@
 'use server';
 // Toutes les actions qui modifient les données. Les règles d'accès de la base (RLS)
 // garantissent qu'un loueur ne touche qu'aux données de son agence.
+import { deplacerReservation as deplacerReservationLib } from '@/lib/reservation';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { utilisateurCourant, verifier } from '@/lib/agence';
@@ -368,6 +369,12 @@ async function _changerVoiture(id: string, formData: FormData) {
     await supabase.from('vehicules').update({ statut: 'loue' }).eq('id', nouveau);
   }
   await journal(id, nouveau, 'Changement de voiture', `${(l as any).vehicules?.immatriculation ?? ''} → ${v?.immatriculation ?? ''}`);
+  rafraichir();
+}
+
+async function _deplacerReservation(id: string, vehicule_id: string) {
+  const { supabase, profil } = await utilisateurCourant();
+  await deplacerReservationLib(supabase, profil.agence_id, profil.id, id, vehicule_id);
   rafraichir();
 }
 
@@ -881,6 +888,7 @@ export const listeNoire = proteger(_listeNoire);
 export const creerLocation = proteger(_creerLocation);
 export const prolonger = proteger(_prolonger);
 export const changerVoiture = proteger(_changerVoiture);
+export const deplacerReservation = proteger(_deplacerReservation);
 export const annulerLocation = proteger(_annulerLocation);
 export const cautionLocation = proteger(_cautionLocation);
 export const signatureContrat = proteger(_signatureContrat);

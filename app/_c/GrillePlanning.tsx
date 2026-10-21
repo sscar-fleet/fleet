@@ -1,4 +1,5 @@
 import { depuisParis, versJour, JOUR, plaque } from '@/lib/format';
+import GlisserResa from './GlisserResa';
 
 // Calendrier à jauge : une ligne par véhicule, une colonne par jour, jauge de remplissage en haut
 export async function chargerPlanning(supabase: any, jour0: string, nb: number) {
@@ -39,7 +40,7 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
   });
   const largeur = serre ? 150 + p.jours.length * 30 : undefined;
   return (
-    <div className="planning">
+    <div className="planning" data-glisser>
       <table style={{ minWidth: largeur ?? (compact ? 640 : 900) }} className={serre ? 'serre' : ''}>
         <thead>
           <tr><th></th>{mois.map((m, i) => <th key={i} colSpan={m.n} className="mois">{m.libelle}</th>)}</tr>
@@ -52,27 +53,46 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
           ))}</tr>
         </thead>
         <tbody>
-          {p.vehicules.map((v: any) => (
-            <tr key={v.id}>
-              <td><a href={`/vehicules/${v.id}`}><b>{plaque(v.immatriculation)}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}</span></a></td>
-              {p.jours.map((j, i) => {
-                const o = p.occupation(v.id, j);
-                const we = [0, 6].includes(new Date(j.getTime() + 12 * 3600 * 1000).getUTCDay());
-                const jour = j.toLocaleDateString('fr-FR', { ...tz, weekday: 'short', day: 'numeric', month: 'short' });
-                if (o?.type === 'loc') return (
-                  <td key={i} className={`occupe ${o.l.statut}`} title={`${jour} · N° ${o.l.numero} · ${o.l.clients?.nom ?? ''}`}>
-                    <a href={`/locations/${o.l.id}`} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{serre ? '\u00a0' : o.l.clients?.nom ?? ''}</a>
+          {p.vehicules.map((v: any) => {
+            const cases: React.ReactNode[] = [];
+            for (let i = 0; i < p.jours.length; i++) {
+              const j = p.jours[i];
+              const o = p.occupation(v.id, j);
+              const we = [0, 6].includes(new Date(j.getTime() + 12 * 3600 * 1000).getUTCDay());
+              const jour = j.toLocaleDateString('fr-FR', { ...tz, weekday: 'short', day: 'numeric', month: 'short' });
+              if (o?.type === 'loc') {
+                // Une réservation = une seule barre sur toute sa durée
+                let n = 1;
+                while (i + n < p.jours.length && p.occupation(v.id, p.jours[i + n])?.l?.id === o.l.id) n++;
+                const resa = o.l.statut === 'reservee';
+                const nom = o.l.clients?.nom ?? '';
+                cases.push(
+                  <td key={i} colSpan={n} className="barre-case" title={`N° ${o.l.numero} · ${nom}${resa ? ' · glissez sur une autre voiture pour changer' : ''}`}>
+                    <a href={`/locations/${o.l.id}`} className={`resa ${o.l.statut}`} draggable={resa || undefined} data-resa={resa ? o.l.id : undefined}
+                      data-libelle={resa ? `n° ${o.l.numero}${nom ? ' · ' + nom : ''}` : undefined} data-vehicule-actuel={v.id}>
+                      {resa && <span className="poignee" aria-hidden="true">⋮⋮</span>}
+                      <span className="resa-nom">{serre && n < 3 ? '\u00a0' : nom || `N° ${o.l.numero}`}</span>
+                    </a>
                   </td>);
-                if (o?.type === 'ent') return o.e?.type === 'transfert'
-                  ? <td key={i} className="occupe maintenance" title={`${jour} · transféré${o.e.garage ? ' à ' + o.e.garage : ''}`}>⇄{serre ? '' : ' ' + (o.e.garage ?? '')}</td>
-                  : <td key={i} className="occupe maintenance" title={`${jour} · maintenance`}>{serre ? '' : '🔧'}</td>;
-                return <td key={i} className={`libre ${we ? 'weekend' : ''}`} title={`${jour} · nouvelle location`}><a href={`/locations/nouvelle?vehicule=${v.id}&jour=${versJour(j)}`} className="case-libre">+</a></td>;
-              })}
-            </tr>
-          ))}
+                i += n - 1;
+                continue;
+              }
+              if (o?.type === 'ent') { cases.push(o.e?.type === 'transfert'
+                ? <td key={i} className="occupe maintenance" title={`${jour} · transféré${o.e.garage ? ' à ' + o.e.garage : ''}`}>⇄{serre ? '' : ' ' + (o.e.garage ?? '')}</td>
+                : <td key={i} className="occupe maintenance" title={`${jour} · maintenance`}>{serre ? '' : '🔧'}</td>); continue; }
+              cases.push(<td key={i} className={`libre ${we ? 'weekend' : ''}`} title={`${jour} · nouvelle location`}><a href={`/locations/nouvelle?vehicule=${v.id}&jour=${versJour(j)}`} className="case-libre">+</a></td>);
+            }
+            return (
+              <tr key={v.id} data-vehicule={v.id} data-plaque={`${plaque(v.immatriculation)} ${[v.marque, v.modele].filter(Boolean).join(' ')}`} data-statut={v.statut}>
+                <td><a href={`/vehicules/${v.id}`}><b>{plaque(v.immatriculation)}</b><br /><span className="gris">{[v.marque, v.modele].filter(Boolean).join(' ')}{v.statut === 'maintenance' ? ' · maintenance' : ''}</span></a></td>
+                {cases}
+              </tr>
+            );
+          })}
           {!p.nbV && <tr><td colSpan={p.jours.length + 1} className="vide">Ajoutez des véhicules pour voir le planning.</td></tr>}
         </tbody>
       </table>
+      <GlisserResa />
     </div>
   );
 }

@@ -45,7 +45,7 @@ export default async function Planning({ searchParams }: { searchParams: { debut
         <div><span>Locations sur la période</span><b>{p.locations.length}</b></div>
       </section>
       <GrillePlanning p={p} />
-      <p className="gris" style={{ fontSize: 13 }}>Cliquez sur une case vide pour créer une location sur cette voiture, à cette date. Sur les longues périodes, passer sur une case affiche le client. Turquoise clair : réservée ou terminée · foncé : en cours · orange : maintenance ou transfert (⇄). Jusqu&apos;à 4 mois d&apos;un coup.</p>
+      <p className="gris" style={{ fontSize: 13 }}>Cliquez sur une case vide pour créer une location. Pour changer la voiture d&apos;une réservation, attrapez sa barre et lâchez-la sur la ligne d&apos;une autre voiture. Sur les longues périodes, passer sur une case affiche le client. Turquoise clair : réservée ou terminée · foncé : en cours · orange : maintenance ou transfert (⇄). Jusqu&apos;à 4 mois d&apos;un coup.</p>
     </Cadre>
   );
 }

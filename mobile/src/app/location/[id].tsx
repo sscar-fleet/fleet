@@ -1,7 +1,10 @@
 // Fiche d'une location : où on en est, ce qui manque (et le bouton pour le régler), la voiture en direct,
 // le client à un geste. Le gros bouton en bas lance l'étape suivante.
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import Icone from '@/composants/Icone';
+import { api } from '@/lib/site';
+type Voiture = { id: string; immatriculation: string; marque: string | null; modele: string | null; libre: boolean; raison: string | null };
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, GrosBouton, Carte, Ligne, Texte, Titre, Chargement, BandeauHorsLigne, Rangee, Etiquette, Barre, Action, BoutonRond } from '@/composants/ui';
 import { Puce, Puces } from '@/composants/champs';
@@ -38,6 +41,8 @@ export default function FicheLocation() {
   const { gps, rafraichirGps } = useGps();
   const [local, setLocal] = useState<Record<string, any>>({});
   const [distance, setDistance] = useState(false);
+  const [changement, setChangement] = useState<null | 'charge' | Voiture[]>(null);
+  const [envoiChangement, setEnvoiChangement] = useState('');
   const [question, setQuestion] = useState<null | 'moteur' | 'manque' | { prevenir: { fin: string; prix: number | null } }>(null);
   const [envoiMoteur, setEnvoiMoteur] = useState(false);
   const [feuilleFin, setFeuilleFin] = useState<Date | null>(null);
@@ -82,6 +87,21 @@ export default function FicheLocation() {
     toast(`Prolongée jusqu’au ${jour(r.fin)} ${heure(r.fin)}`);
     if (tel) setQuestion({ prevenir: r });
   }
+  // Réservation : passer sur une autre voiture (accident, panne, voiture pas rentrée…)
+  async function ouvrirChangement() {
+    setChangement('charge');
+    try { setChangement((await api<{ voitures: Voiture[] }>('mobile/reservation', { location_id: l.id })).voitures); }
+    catch (e: any) { setChangement(null); toast(e?.message ?? 'Pas de réseau : réessayez', 'alerte'); }
+  }
+  async function changerPour(nv: Voiture) {
+    setEnvoiChangement(nv.id);
+    try {
+      const r = await api<{ message: string }>('mobile/reservation', { location_id: l.id, vehicule_id: nv.id });
+      toast(r.message, 'ok'); setChangement(null); recharger();
+    } catch (e: any) { toast(e?.message ?? 'Changement impossible', 'alerte'); }
+    setEnvoiChangement('');
+  }
+
   async function moteur() {
     if (!v || !etatGps) return;
     setQuestion(null); setEnvoiMoteur(true);
@@ -171,6 +191,12 @@ export default function FicheLocation() {
             <Plaque immat={plaque(v?.immatriculation)} taille={0.85} />
           </View>
         </View>
+        {reservee && (
+          <Pressable onPress={ouvrirChangement} style={({ pressed }) => ({ marginTop: 10, minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: c.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: pressed ? 0.8 : 1 })}>
+            <Icone nom="sync" couleur={c.accent} taille={18} />
+            <Text style={{ color: c.accent, fontWeight: '800', fontSize: 15 }}>Changer de voiture</Text>
+          </Pressable>
+        )}
       </Carte>
 
       {/* Les dates */}
@@ -275,6 +301,21 @@ export default function FicheLocation() {
         <Action icone="message" titre="SMS" couleur={c.bleu} onPress={() => ouvrirSms(tel, reservee ? msg.rappelDepart(l) : msg.rappelRetour(l))} />
         {!finie && distance && lienSignature && !contratSigne ? <Action icone="signature" titre="Lien contrat" couleur={c.orange} onPress={() => ouvrirWhatsApp(tel, msg.signature(l, lienSignature))} /> : null}
       </View> : null}
+
+      <Feuille visible={!!changement} titre="Changer de voiture" onFermer={() => setChangement(null)}>
+        <Texte gris taille={14}>{`Du ${jour(l.debut)} ${heure(l.debut)} au ${jour(l.fin_prevue)} ${heure(l.fin_prevue)}. Le prix et le client ne changent pas.`}</Texte>
+        {changement === 'charge' ? <Chargement /> : Array.isArray(changement) && (changement.length ? changement.map((x) => (
+          <Pressable key={x.id} disabled={!x.libre || !!envoiChangement} onPress={() => changerPour(x)}
+            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: x.libre ? c.bord : c.bord, backgroundColor: x.libre ? (pressed ? c.panneau2 : c.panneau) : c.fond, opacity: x.libre ? 1 : 0.55 })}>
+            <LogoMarque marque={x.marque} modele={x.modele} taille={40} />
+            <View style={{ flex: 1, gap: 3 }}>
+              <Text numberOfLines={1} style={{ color: c.texte, fontWeight: '800', fontSize: 16 }}>{nomVehicule(x)}</Text>
+              <Text style={{ color: x.libre ? c.vert : c.gris, fontSize: 13, fontWeight: '700' }}>{x.libre ? `${plaque(x.immatriculation)} · libre sur ces dates` : `${plaque(x.immatriculation)} · ${x.raison}`}</Text>
+            </View>
+            {x.libre && (envoiChangement === x.id ? <ActivityIndicator color={c.accent} /> : <Text style={{ color: c.accent, fontWeight: '800' }}>Choisir</Text>)}
+          </Pressable>
+        )) : <Texte gris>Aucune autre voiture dans la flotte.</Texte>)}
+      </Feuille>
 
       <Feuille visible={!!feuilleFin} titre="Nouvelle date de retour" onFermer={() => setFeuilleFin(null)}>
         {feuilleFin && <>
