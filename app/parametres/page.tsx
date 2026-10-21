@@ -63,6 +63,13 @@ export default async function Parametres() {
           {doc('Logo de l’agence (PNG ou JPG)', 'logo_path', 'image/png,image/jpeg')}
           {doc('Tampon de la société (PNG ou JPG)', 'tampon_path', 'image/png,image/jpeg')}
           {doc('Extrait Kbis', 'kbis_path')}
+          {a.kbis_path && (() => {
+            const age = a.kbis_date ? Math.floor((Date.now() - new Date(a.kbis_date).getTime()) / 864e5) : null;
+            if (age == null) return <p className="gris" style={{ fontSize: 13, margin: '4px 0 0' }}>Date du Kbis non lue : redéposez-le en PDF ou en photo bien nette.</p>;
+            return age > 92
+              ? <div className="alerte-caution" style={{ display: 'block', margin: '6px 0 0', fontSize: 14 }}><b>Kbis de plus de 3 mois</b> (délivré le {new Date(a.kbis_date).toLocaleDateString('fr-FR')}). Les fourrières et certains partenaires le refusent : téléchargez un extrait récent sur infogreffe.fr ou monidenum.fr, puis déposez-le ici.</div>
+              : <p style={{ fontSize: 13, margin: '4px 0 0', color: 'var(--vert)' }}>Kbis du {new Date(a.kbis_date).toLocaleDateString('fr-FR')} : valable encore {92 - age} jours.</p>;
+          })()}
           {doc('Pièce d’identité du gérant', 'gerant_piece_identite_path')}
           <div style={{ marginTop: 14 }}>
             <Signature agenceId={profil.agence_id} dossier="agence" lien={liens[a.signature_path]} libelle="Signature du gérant"

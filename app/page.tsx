@@ -88,7 +88,11 @@ export default async function Accueil() {
     if (a) alertes.push({ texte: `${plaque(v.immatriculation)} : assurance ${a === 'depasse' ? 'expirée' : 'expire'} le ${date(v.assurance_echeance)}`, lien: `/vehicules/${v.id}`, niveau: a });
     if (c) alertes.push({ texte: `${plaque(v.immatriculation)} : contrôle technique ${c === 'depasse' ? 'dépassé' : 'à faire'} le ${date(v.ct_echeance)}`, lien: `/vehicules/${v.id}`, niveau: c });
   });
-  (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: '/entretiens', niveau: 'proche' }));
+  (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: e.id ? `/entretiens/${e.id}` : '/entretiens', niveau: 'proche' }));
+  // Kbis de plus de 3 mois (date lue par l'IA au dépôt)
+  const { data: agK } = await supabase.from("agences").select("*").eq("id", profil.agence_id).single();
+  if ((agK as any)?.kbis_date && Date.now() - new Date((agK as any).kbis_date).getTime() > 92 * 864e5)
+    alertes.push({ texte: `Extrait Kbis de plus de 3 mois (du ${date((agK as any).kbis_date)}) : à renouveler`, lien: '/parametres', niveau: 'depasse' });
   (departs ?? []).forEach((l: any) => {
     if (new Date(l.debut).getTime() < Date.now() - 2 * 3600 * 1000)
       alertes.push({ texte: `Contrat ${l.numero} : départ prévu à ${heure(l.debut)} ${new Date(l.debut) < new Date(aujourdhui) ? 'le ' + date(l.debut) : ''} pas encore fait`, lien: `/locations/${l.id}`, niveau: 'proche' });

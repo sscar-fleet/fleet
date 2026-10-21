@@ -2,6 +2,7 @@
 // Toutes les actions qui modifient les données. Les règles d'accès de la base (RLS)
 // garantissent qu'un loueur ne touche qu'aux données de son agence.
 import { deplacerReservation as deplacerReservationLib } from '@/lib/reservation';
+import { lireDocument } from '@/lib/lecture';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { utilisateurCourant, verifier } from '@/lib/agence';
@@ -832,6 +833,26 @@ async function _documentAgence(champ: string, chemin: string) {
   const { supabase, profil } = await utilisateurCourant();
   if (profil.role !== 'gerant') throw new Error('Seul le gérant peut modifier ces documents.');
   verifier((await supabase.from('agences').update({ [champ]: chemin }).eq('id', profil.agence_id)).error);
+  // Kbis : l'IA lit sa date (alerte au-delà de 3 mois) et complète l'identité de l'agence si elle est vide
+  if (champ === 'kbis_path') {
+    try {
+      const { data: f } = await supabase.storage.from('documents').download(chemin);
+      if (f) {
+        const type = f.type || (chemin.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const r = await lireDocument(`data:${type.startsWith('image/') ? type : 'application/pdf'};base64,${Buffer.from(await f.arrayBuffer()).toString('base64')}`, 'kbis');
+        const c = r.champs as any;
+        if (c) {
+          const { data: a } = await supabase.from('agences').select('rcs, forme_juridique, siret, adresse').eq('id', profil.agence_id).single();
+          const maj: Record<string, unknown> = {};
+          if (typeof c.date_kbis === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.date_kbis)) maj.kbis_date = c.date_kbis;
+          if (!a?.rcs && c.rcs) maj.rcs = c.rcs;
+          if (!a?.forme_juridique && c.forme_juridique) maj.forme_juridique = c.forme_juridique;
+          if (!a?.adresse && c.adresse) maj.adresse = c.adresse;
+          if (Object.keys(maj).length) await supabase.from('agences').update(maj).eq('id', profil.agence_id);
+        }
+      }
+    } catch { /* lecture facultative */ }
+  }
   rafraichir();
 }
 

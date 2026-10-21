@@ -8,6 +8,8 @@ export const consignes: Record<string, string> = {
 {"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_infraction": date et heure de l'infraction au format AAAA-MM-JJTHH:MM, "lieu": lieu de l'infraction, "type": nature de l'infraction en quelques mots (ex. "Excès de vitesse", "Stationnement"), "montant": montant de l'amende forfaitaire en euros (nombre), "numero_avis": numéro de l'avis}`,
   fps: `Avis de paiement de forfait post-stationnement (FPS) français. Renvoie uniquement ce JSON :
 {"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_constat": date et heure de constatation au format AAAA-MM-JJTHH:MM, "lieu": adresse du stationnement (rue, code postal, ville), "collectivite": nom de la collectivité (ex. "Ville de Paris"), "montant": montant du FPS en euros (nombre), "numero_avis": numéro de l'avis de paiement en chiffres sans espaces ni clé, "date_avis": date d'envoi de l'avis au format AAAA-MM-JJ, "limite_paiement": date limite de paiement au format AAAA-MM-JJ}`,
+  kbis: `Extrait Kbis français (extrait d'immatriculation au RCS). Renvoie uniquement ce JSON :
+{"date_kbis": date à laquelle l'extrait a été délivré / mis à jour ("à jour au", "extrait délivré le"), format AAAA-MM-JJ, "denomination": dénomination sociale, "siren": numéro SIREN (9 chiffres), "forme_juridique": forme juridique (SAS, SARL…), "rcs": greffe et numéro, ex. "RCS Paris 123 456 789", "adresse": adresse du siège}`,
   identite: `Pièce d'identité (carte d'identité ou passeport). Renvoie uniquement ce JSON :
 {"nom": nom de famille, "prenom": premier prénom, "date_naissance": format AAAA-MM-JJ, "adresse": adresse si elle figure sur le document sinon null}`,
 };
