@@ -8,7 +8,7 @@ export async function chargerPlanning(supabase: any, jour0: string, nb: number) 
   const fin = new Date(jours[nb - 1].getTime() + JOUR);
   const [{ data: vehicules }, { data: locations }, { data: entretiens }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele, statut').not('statut', 'in', '(hors_service,sorti)').order('immatriculation'),
-    supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, clients(nom)')
+    supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, prix_total, caution_statut, caution_montant, clients(nom, prenom, telephone)')
       .in('statut', ['reservee', 'en_cours', 'terminee']).lt('debut', fin.toISOString()).gt('fin_prevue', debut.toISOString()),
     supabase.from('entretiens').select('id, vehicule_id, type, garage, raison, debut, retour_prevu, statut').eq('statut', 'en_cours'),
   ]);
@@ -67,8 +67,10 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                 const resa = o.l.statut === 'reservee';
                 const nom = o.l.clients?.nom ?? '';
                 cases.push(
-                  <td key={i} colSpan={n} className="barre-case" title={`N° ${o.l.numero} · ${nom}${resa ? ' · glissez sur une autre voiture pour changer' : ''}`}>
-                    <a href={`/locations/${o.l.id}`} className={`resa ${o.l.statut}`} draggable={resa || undefined} data-resa={resa ? o.l.id : undefined}
+                  <td key={i} colSpan={n} className="barre-case">
+                    <a href={`/locations/${o.l.id}`} data-info={JSON.stringify({ genre: 'loc', numero: o.l.numero, client: [o.l.clients?.prenom, nom].filter(Boolean).join(' '), tel: o.l.clients?.telephone ?? null,
+                      debut: o.l.debut, fin: o.l.fin_reelle ?? o.l.fin_prevue, statut: o.l.statut, prix: o.l.prix_total, caution: o.l.caution_montant ? { montant: o.l.caution_montant, statut: o.l.caution_statut } : null,
+                      voiture: `${plaque(v.immatriculation)} · ${[v.marque, v.modele].filter(Boolean).join(' ')}` })} className={`resa ${o.l.statut}`} draggable={resa || undefined} data-resa={resa ? o.l.id : undefined}
                       data-libelle={resa ? `n° ${o.l.numero}${nom ? ' · ' + nom : ''}` : undefined} data-vehicule-actuel={v.id}>
                       {resa && <span className="poignee" aria-hidden="true">⋮⋮</span>}
                       <span className="resa-nom">{serre && n < 3 ? '\u00a0' : nom || `N° ${o.l.numero}`}</span>
@@ -84,8 +86,9 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                 const transfert = o.e?.type === 'transfert';
                 const libelle = transfert ? `⇄ ${o.e.garage ?? 'Transfert'}` : `🔧 ${o.e.garage || o.e.raison || 'Maintenance'}`;
                 cases.push(
-                  <td key={i} colSpan={n} className="barre-case" title={`${transfert ? 'Transfert' : 'Maintenance'}${o.e.garage ? ' · ' + o.e.garage : ''}${o.e.retour_prevu ? ' · sortie prévue ' + new Date(o.e.retour_prevu).toLocaleDateString('fr-FR', tz) : ''} · ouvrir la fiche`}>
-                    <a href={`/entretiens/${o.e.id}`} className="resa maintenance"><span className="resa-nom">{serre && n < 3 ? '\u00a0' : libelle}</span></a>
+                  <td key={i} colSpan={n} className="barre-case">
+                    <a href={`/entretiens/${o.e.id}`} className="resa maintenance" data-info={JSON.stringify({ genre: transfert ? 'transfert' : 'maintenance', garage: o.e.garage, raison: o.e.raison, debut: o.e.debut, fin: o.e.retour_prevu,
+                      voiture: `${plaque(v.immatriculation)} · ${[v.marque, v.modele].filter(Boolean).join(' ')}` })}><span className="resa-nom">{serre && n < 3 ? '\u00a0' : libelle}</span></a>
                   </td>);
                 i += n - 1;
                 continue;

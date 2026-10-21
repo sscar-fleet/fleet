@@ -702,3 +702,20 @@ td.libre:hover .case-libre { color: var(--turquoise); }
 .fil-suivi li.debut::before { background: var(--orange); box-shadow: 0 0 0 3px rgba(245,158,11,.25); }
 .planning .resa.maintenance { background: rgba(245,158,11,.3); border-color: rgba(245,158,11,.6); }
 .planning .resa.maintenance:hover { background: rgba(245,158,11,.42); }
+.infobulle-resa { position: fixed; z-index: 70; width: 290px; padding: 12px 14px; border-radius: 14px; background: var(--panneau); border: 1px solid var(--bord); box-shadow: var(--ombre); pointer-events: none; display: grid; gap: 6px; font-size: 13.5px; text-align: left; }
+.infobulle-resa .ib-haut { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 15px; }
+.infobulle-resa .ib-statut { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: rgba(25,247,214,.18); color: var(--texte); white-space: nowrap; }
+.infobulle-resa .ib-statut.en_cours { background: rgba(25,247,214,.45); }
+.infobulle-resa .ib-statut.terminee { background: rgba(138,153,163,.2); }
+.infobulle-resa .ib-statut.maintenance { background: rgba(245,158,11,.3); }
+.infobulle-resa .ib-dates { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin-top: 2px; }
+.infobulle-resa .ib-dates span { color: var(--gris); }
+.infobulle-resa .ib-pied { color: var(--gris); font-size: 12px; border-top: 1px solid var(--bord); padding-top: 6px; }
+/* Compteurs (pilotage, accueil) : chiffres alignés, jamais coupés */
+.compteurs { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); align-items: stretch; }
+.compteur { display: flex !important; flex-direction: column; gap: 4px; min-width: 0; }
+.compteur span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compteur b { font-size: clamp(22px, 2.1vw, 30px) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; margin-top: auto !important; line-height: 1.15; }
+.compteur small { font-size: 12.5px; font-weight: 600; color: var(--gris); }
+.compteur small.hausse { color: var(--vert); }
+.compteur small.baisse { color: var(--rouge); }

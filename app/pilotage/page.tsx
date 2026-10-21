@@ -65,8 +65,9 @@ export default async function Pilotage({ searchParams }: { searchParams: { g?: s
       <section className="compteurs">
         <div className="compteur"><span>Encaissé</span><b style={{ color: 'var(--texte)' }}>{euros(p.recettes)}</b></div>
         <div className="compteur"><span>Dépenses</span><b style={{ color: 'var(--texte)' }}>{euros(p.couts)}</b></div>
-        <div className="compteur"><span>Bénéfice{evolution !== null ? ` (${evolution >= 0 ? '+' : ''}${evolution} % vs ${libelleG} précédent${g === 'semaine' ? 'e' : ''})` : ''}</span>
-          <b style={{ color: p.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{p.resultat >= 0 ? '+' : ''}{euros(p.resultat)}</b></div>
+        <div className="compteur"><span>Bénéfice</span>
+          <b style={{ color: p.resultat >= 0 ? 'var(--vert)' : 'var(--rouge)' }}>{p.resultat >= 0 ? '+' : ''}{euros(p.resultat)}</b>
+          {evolution !== null && <small className={evolution >= 0 ? 'hausse' : 'baisse'}>{evolution >= 0 ? '↑ +' : '↓ '}{evolution} % vs {libelleG} précédent{g === 'semaine' ? 'e' : ''}</small>}</div>
         <div className="compteur"><span>Marge</span><b style={{ color: 'var(--texte)' }}>{p.recettes ? marge + ' %' : '—'}</b></div>
         <div className="compteur"><span>Occupation {g === 'jour' ? 'du jour' : g === 'semaine' ? 'de la semaine' : 'du mois'}</span><b style={{ color: 'var(--texte)' }}>{occupation} %</b></div>
         <div className="compteur"><span>Départs · retours</span><b style={{ color: 'var(--texte)' }}>{p.departs} · {p.retours}</b></div>
