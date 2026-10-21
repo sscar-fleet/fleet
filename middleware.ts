@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(cible);
   }
   const { data } = await supabase.auth.getUser();
-  const publique = ['/app', '/sscs', '/api/ics', '/api/mobile', '/api/lire', '/login', '/auth', '/mot-de-passe', '/invitation', '/signer', '/scan', '/api/scans', '/confidentialite', '/conditions']
+  const publique = ['/app', '/sscs', '/api/ics', '/api/mobile', '/api/lire', '/login', '/auth', '/mot-de-passe', '/invitation', '/signer', '/scan', '/api/scans', '/confidentialite', '/conditions', '/relais.sh']
     .some((p) => request.nextUrl.pathname.startsWith(p));
   if (!data.user && !publique) {
     return NextResponse.redirect(new URL('/login', request.url));
@@ -34,5 +34,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo-.*\\.svg).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|relais\\.sh|logo-.*\\.svg).*)'],
 };
