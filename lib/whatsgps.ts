@@ -66,11 +66,18 @@ function entetes(token?: string): Record<string, string> {
   return h;
 }
 
+// Empreintes courtes (8 premiers caractères du SHA-256) pour comparer les valeurs sans jamais les afficher
+function empreintes() {
+  const { createHash } = require('crypto');
+  const e = (v?: string) => createHash('sha256').update((v ?? '').trim()).digest('hex').slice(0, 8);
+  return `appkey ${e(process.env.WHATSGPS_APP_KEY)} secret ${e(process.env.WHATSGPS_SECRET_KEY)} compte ${e(process.env.WHATSGPS_COMPTE)} mdp ${e(process.env.WHATSGPS_MOT_DE_PASSE)}`;
+}
+
 async function lire(rep: Response) {
   const texte = await rep.text();
   let json: any = null;
   try { json = JSON.parse(texte); } catch { /* réponse non JSON */ }
-  if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${BASE.includes('relais') ? 'via relais' : 'en direct'}, clé ${(process.env.WHATSGPS_SECRET_KEY ?? '').trim().length} car., ${rep.status}${json?.code ? ' ' + json.code : ''}${json?.msg ? ' : ' + json.msg : texte && !json ? ' : ' + texte.slice(0, 80) : ''}).`);
+  if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${BASE.includes('relais') ? 'via relais' : 'en direct'}, ${empreintes()}, ${rep.status}${json?.code ? ' ' + json.code : ''}${json?.msg ? ' : ' + json.msg : texte && !json ? ' : ' + texte.slice(0, 80) : ''}).`);
   return json;
 }
 
