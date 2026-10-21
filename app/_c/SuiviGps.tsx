@@ -21,7 +21,7 @@ export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any |
             <Formulaire action={A.relierTraceur.bind(null, v.id)} className="grille" succes="Traceur relié">
               <label>Boîtier<select name="imei" required defaultValue="">
                 <option value="" disabled>Choisir…</option>
-                {suivi.disponibles.map((d) => <option key={d.imei} value={d.imei}>IMEI {d.imei}{d.enLigne ? ' · en ligne' : ''}</option>)}
+                {[...suivi.disponibles].sort((a, b) => (a.nom ?? '~').localeCompare(b.nom ?? '~')).map((d) => <option key={d.imei} value={d.imei}>{d.nom ? `${d.nom} · ` : ''}IMEI {d.imei}{d.enLigne ? ' · en ligne' : ''}</option>)}
               </select></label>
               <label>Compteur du véhicule (km)<input name="km" type="number" min={0} inputMode="numeric" defaultValue={v.km ?? ''} /></label>
               <Envoyer className="bouton principal">Relier le traceur</Envoyer>

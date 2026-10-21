@@ -11,6 +11,7 @@ const BASE = (process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com').tri
 
 export type EtatTraceur = {
   imei: string;
+  nom: string | null;         // nom donné au boîtier sur WhatsGPS (ex. « X-ADV Singh »)
   carId: number | null;
   lat: number | null;
   lng: number | null;
@@ -36,7 +37,7 @@ function etatsDemo(): EtatTraceur[] {
     const roule = i % 3 === 0;
     const derive = roule ? 0.004 : 0.0003;
     return {
-      imei: `86000000000000${i + 1}`, carId: i + 1,
+      imei: `86000000000000${i + 1}`, nom: null, carId: i + 1,
       lat: lat + Math.sin(t / 90 + i) * derive, lng: lng + Math.cos(t / 90 + i) * derive,
       vitesse: roule ? 35 + Math.round(Math.abs(Math.sin(t / 30 + i)) * 40) : 0,
       contact: roule || i === 1, enLigne: i !== 5, enMouvement: roule,
@@ -169,6 +170,7 @@ function etat(d: any): EtatTraceur {
   const lat = Number(d.latc ?? d.lat), lng = Number(d.lonc ?? d.lon);
   return {
     imei: String(d.imei ?? ''),
+    nom: String(d.machineName ?? d.carName ?? d.carNO ?? d.plateNo ?? d.name ?? '').trim() || null,
     carId: d.carId != null ? Number(d.carId) : null,
     lat: isFinite(lat) && lat !== 0 ? lat : null,
     lng: isFinite(lng) && lng !== 0 ? lng : null,
