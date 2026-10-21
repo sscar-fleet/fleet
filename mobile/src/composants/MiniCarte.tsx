@@ -11,7 +11,7 @@ const versPixel = (lat: number, lng: number, z: number) => {
   return { x: ((lng + 180) / 360) * n, y: (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * n };
 };
 
-export default function MiniCarte({ points, hauteur = 190, zoomMax = 16, onPress, centre }: { points: Point[]; hauteur?: number; zoomMax?: number; onPress?: () => void; centre?: { lat: number; lng: number; zoom: number } | null }) {
+export default function MiniCarte({ points, hauteur = 190, zoomMax = 16, onPress, centre }: { points: Point[]; hauteur?: number; zoomMax?: number; onPress?: () => void; centre?: { lat: number; lng: number; zoom: number } | null; interactif?: boolean }) {
   const c = useCouleurs();
   const [largeur, setLargeur] = useState(0);
   if (!points.length) return null;

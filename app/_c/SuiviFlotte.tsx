@@ -1,4 +1,5 @@
 'use client';
+import { ajouterFond } from '@/lib/fondCarte';
 // Suivi GPS en tableau de bord : liste compacte à gauche, carte à droite, tout synchronisé.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -78,7 +79,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial }: 
       if (!carte.current) {
         carte.current = L.map(boite.current, { zoomControl: false, attributionControl: true, scrollWheelZoom: !compact }).setView([48.8566, 2.3522], 11);
         L.control.zoom({ position: 'bottomright' }).addTo(carte.current);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, className: 'suivi-tuiles', attribution: '&copy; OpenStreetMap' }).addTo(carte.current);
+        await ajouterFond(L, carte.current);
         calque.current = L.layerGroup().addTo(carte.current);
       }
       calque.current.clearLayers(); reperes.current = {};

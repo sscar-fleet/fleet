@@ -26,7 +26,7 @@ export default function CarteFlotte() {
     <Ecran retour titre="Carte GPS" sousTitre={`${suivis.length} véhicule${suivis.length > 1 ? 's' : ''} suivi${suivis.length > 1 ? 's' : ''} · ${roulent} en mouvement`} rafraichir={rafraichirGps}>
       {!gps.actif && <Vide icone="carte" titre="Suivi GPS pas encore activé" texte={gps.raison ?? 'Le suivi s’active avec les traceurs posés par SS CAR SYSTEM.'} />}
       {gps.demo && <Etiquette titre="Aperçu avec des positions fictives" couleur={c.bleu} />}
-      {points.length > 0 && <MiniCarte points={points} hauteur={380} zoomMax={15} onPress={() => {}} />}
+      {points.length > 0 && <MiniCarte points={points} hauteur={380} zoomMax={15} interactif />}
       {points.length > 0 && <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
         {(['roule', 'arret', 'coupe', 'hors_ligne'] as const).map((k) => <Etiquette key={k} titre={{ roule: 'Roule', arret: 'À l’arrêt', coupe: 'Moteur coupé', hors_ligne: 'Hors ligne' }[k]} couleur={couleurGps({ etat: k } as any, c)} />)}
       </View>}

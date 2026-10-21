@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import 'leaflet/dist/leaflet.css';
+import { ajouterFond } from '@/lib/fondCarte';
 
 export type PointGps = {
   id: string; lat: number; lng: number; titre: string; detail?: string; lien?: string;
@@ -10,7 +11,7 @@ export type PointGps = {
 
 const couleurs: Record<PointGps['etat'], string> = { roule: '#22c55e', arret: '#19f7d6', coupe: '#ef4444', hors_ligne: '#8a99a3' };
 
-// Carte OpenStreetMap des véhicules, rafraîchie toute seule toutes les 30 secondes
+// Carte des véhicules (plan ou satellite), rafraîchie toute seule toutes les 30 secondes
 export default function CarteGps({ points, hauteur = 420, rafraichir = 30 }: { points: PointGps[]; hauteur?: number; rafraichir?: number }) {
   const boite = useRef<HTMLDivElement>(null);
   const carte = useRef<any>(null);
@@ -31,9 +32,7 @@ export default function CarteGps({ points, hauteur = 420, rafraichir = 30 }: { p
       if (annule || !boite.current) return;
       if (!carte.current) {
         carte.current = L.map(boite.current, { zoomControl: true, attributionControl: true }).setView([48.8566, 2.3522], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19, attribution: '&copy; OpenStreetMap',
-        }).addTo(carte.current);
+        await ajouterFond(L, carte.current);
         calque.current = L.layerGroup().addTo(carte.current);
       }
       calque.current.clearLayers();
