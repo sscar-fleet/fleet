@@ -185,6 +185,8 @@ function etat(d: any): EtatTraceur {
   };
 }
 
+export let champsVus: Record<string, string> | null = null;
+
 // Toute la flotte d'un compte WhatsGPS en un seul appel. compteId vide = compte principal.
 export async function etatsDuCompte(compteId?: number | string | null): Promise<EtatTraceur[]> {
   if (whatsgpsDemo()) return etatsDemo();
@@ -193,7 +195,10 @@ export async function etatsDuCompte(compteId?: number | string | null): Promise<
   if (m && Date.now() - m.quand < 30_000) return m.etats;
   const s = await connexion();
   const data = await appel('/carStatus/getByUserId.do', { query: { targetUserId: String(compteId || s.userId), mapType: '2' } });
-  const etats = (Array.isArray(data) ? data : []).map(etat).filter((e) => e.imei);
+  const brut = Array.isArray(data) ? data : [];
+  if (brut[0]) console.log('[whatsgps] champs carStatus', Object.keys(brut[0]).join(','));
+  champsVus = brut[0] ? Object.fromEntries(Object.entries(brut[0]).filter(([, v]) => typeof v !== 'object').map(([k, v]) => [k, String(v).slice(0, 30)])) : null;
+  const etats = brut.map(etat).filter((e) => e.imei);
   memoire.set(cle, { quand: Date.now(), etats });
   return etats;
 }
