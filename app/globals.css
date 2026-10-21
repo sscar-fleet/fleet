@@ -126,7 +126,11 @@ td a.bloc { display: block; }
 /* Formulaires */
 form.grille, .grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; }
 .pleine { grid-column: 1 / -1; }
-label { display: grid; gap: 6px; font-size: 14px; color: var(--texte2); font-weight: 500; }
+label { display: grid; gap: 6px; font-size: 14px; color: var(--texte2); font-weight: 500; min-width: 0; }
+/* Champs date : jamais plus larges que leur case (sinon le calendrier passe sous le champ voisin) */
+input, select { min-width: 0; max-width: 100%; }
+input[type=datetime-local], input[type=date] { padding-right: 8px; }
+.grille label:has(input[type=datetime-local]) { min-width: 210px; }
 label.case { display: flex; align-items: center; gap: 10px; color: var(--texte); font-size: 15px; }
 label.case input { width: 22px; height: 22px; accent-color: var(--turquoise); }
 input, select, textarea {
