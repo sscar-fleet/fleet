@@ -110,7 +110,7 @@ export default function FleetAI({ initiale, page = false }: { initiale?: string;
       <form className="ia-saisie" onSubmit={(e) => { e.preventDefault(); envoyer(saisie); }}>
         {dictee.dispo && <button type="button" className={`ia-micro ${dictee.ecoute ? 'actif' : ''}`} aria-label={dictee.ecoute ? 'Arrêter la dictée' : 'Dicter'} title={dictee.ecoute ? 'Arrêter' : 'Dicter (parlez, ça s’envoie quand vous vous arrêtez)'}
           onClick={() => dictee.basculer(saisie)}><Micro /></button>}
-        <textarea ref={champ} rows={1} value={saisie} placeholder={dictee.ecoute ? 'Je vous écoute…' : 'Demandez à Fleet AI…'} onChange={(e) => setSaisie(e.target.value)}
+        <textarea ref={champ} rows={1} value={saisie} placeholder={dictee.ecoute ? 'Je vous écoute… (pause de 2 s pour envoyer)' : dictee.erreur || 'Demandez à Fleet AI…'} onChange={(e) => setSaisie(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyer(saisie); } }} />
         <button type="submit" className="bouton principal" disabled={attente || !saisie.trim()}>Envoyer</button>
       </form>
