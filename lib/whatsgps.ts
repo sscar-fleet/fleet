@@ -59,7 +59,7 @@ function entetes(token?: string): Record<string, string> {
     'X-Auth-Version': '1',
     'X-App-Key': process.env.WHATSGPS_APP_KEY ?? '',
     'X-Secret-Key': process.env.WHATSGPS_SECRET_KEY ?? '',
-    'Accept-Language': 'fr',
+    'Accept-Language': 'en',
   };
   if (token) h.Token = token;
   if (process.env.WHATSGPS_RELAIS_CLE) h['X-Relais-Cle'] = process.env.WHATSGPS_RELAIS_CLE;
@@ -70,7 +70,7 @@ async function lire(rep: Response) {
   const texte = await rep.text();
   let json: any = null;
   try { json = JSON.parse(texte); } catch { /* réponse non JSON */ }
-  if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${rep.status}).`);
+  if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${rep.status}${json?.code ? ' ' + json.code : ''}${json?.msg ? ' : ' + json.msg : texte && !json ? ' : ' + texte.slice(0, 80) : ''}).`);
   return json;
 }
 
