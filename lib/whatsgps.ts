@@ -5,7 +5,7 @@
 //   WHATSGPS_UNITE_KM (facultatif) : « m » ou « km » si le kilométrage remonté est mal interprété
 
 // Les appels passent par le relais à IP fixe (exigé par Seeworld) quand il est configuré
-const BASE = process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com';
+const BASE = (process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com').trim().replace(/\/$/, '');
 
 export type EtatTraceur = {
   imei: string;
@@ -57,12 +57,12 @@ const memoire = new Map<string, { quand: number; etats: EtatTraceur[] }>();
 function entetes(token?: string): Record<string, string> {
   const h: Record<string, string> = {
     'X-Auth-Version': '1',
-    'X-App-Key': process.env.WHATSGPS_APP_KEY ?? '',
-    'X-Secret-Key': process.env.WHATSGPS_SECRET_KEY ?? '',
+    'X-App-Key': (process.env.WHATSGPS_APP_KEY ?? '').trim(),
+    'X-Secret-Key': (process.env.WHATSGPS_SECRET_KEY ?? '').trim(),
     'Accept-Language': 'en',
   };
   if (token) h.Token = token;
-  if (process.env.WHATSGPS_RELAIS_CLE) h['X-Relais-Cle'] = process.env.WHATSGPS_RELAIS_CLE;
+  if (process.env.WHATSGPS_RELAIS_CLE) h['X-Relais-Cle'] = process.env.WHATSGPS_RELAIS_CLE.trim();
   return h;
 }
 
@@ -78,7 +78,7 @@ async function connexion(forcer = false) {
   if (!whatsgpsConfigure()) throw new Error('Le suivi GPS n’est pas encore branché (clés WhatsGPS manquantes).');
   if (session && !forcer && session.expire > Date.now()) return session;
   const q = new URLSearchParams({
-    name: process.env.WHATSGPS_COMPTE!, password: process.env.WHATSGPS_MOT_DE_PASSE!,
+    name: process.env.WHATSGPS_COMPTE!.trim(), password: process.env.WHATSGPS_MOT_DE_PASSE!.trim(),
     lang: 'fr', timeZoneSecond: String(2 * 3600),
   });
   const json = await lire(await fetch(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'no-store' }));
