@@ -84,7 +84,11 @@ function fetchEspace(url: string, init: RequestInit): Promise<Response> {
       const attente = dernierAppel + 1100 - Date.now();
       if (attente > 0) await pause(attente);
       dernierAppel = Date.now();
-      const rep = await fetchEspace(url, init);
+      const t0 = Date.now();
+      let rep: Response;
+      try { rep = await fetch(url, { ...init, signal: AbortSignal.timeout(12_000) }); }
+      catch { throw new Error(`Suivi GPS indisponible (pas de réponse de WhatsGPS en 12 s : ${url.split('?')[0].replace(BASE, '')}).`); }
+      console.log('[whatsgps]', url.split('?')[0].replace(BASE, ''), rep.status, Date.now() - t0, 'ms');
       if (rep.status !== 429 || essai === 2) return rep;
       await pause(1500 * (essai + 1));
     }
