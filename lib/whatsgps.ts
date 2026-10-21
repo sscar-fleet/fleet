@@ -104,7 +104,7 @@ async function lire(rep: Response) {
   const texte = await rep.text();
   let json: any = null;
   try { json = JSON.parse(texte); } catch { /* réponse non JSON */ }
-  if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${BASE.includes('relais') ? 'via relais' : 'en direct'}, ${empreintes()}, ${rep.status}${json?.code ? ' ' + json.code : ''}${json?.msg ? ' : ' + json.msg : texte && !json ? ' : ' + texte.slice(0, 80) : ''}).`);
+  if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${rep.status}${json?.code ? ' ' + json.code : ''}${json?.msg ? ' : ' + json.msg : texte && !json ? ' : ' + texte.slice(0, 80) : ''}).`);
   return json;
 }
 
