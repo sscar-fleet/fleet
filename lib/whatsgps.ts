@@ -4,8 +4,6 @@
 //   WHATSGPS_COMPTE, WHATSGPS_MOT_DE_PASSE : compte WhatsGPS principal de SS CAR SYSTEM
 //   WHATSGPS_UNITE_KM (facultatif) : « m » ou « km » si le kilométrage remonté est mal interprété
 
-import { revalidateTag } from 'next/cache';
-
 // Les appels passent par le relais à IP fixe (exigé par Seeworld) quand il est configuré
 const BASE = (process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com').trim().replace(/\/$/, '');
 
@@ -111,27 +109,45 @@ async function lire(rep: Response) {
 
 // Le jeton est partagé entre toutes les instances du serveur via le cache de Vercel :
 // WhatsGPS limite le nombre de connexions (C08006 Login rate limit exceeded), on se connecte donc au plus toutes les 3 h.
-async function jetonPartage() {
+// Jeton partagé par toutes les instances du serveur, gardé en base (migration 0020).
+// WhatsGPS limite les connexions (C08006 Login rate limit exceeded) : une connexion au plus toutes les 3 h,
+// et après un refus on attend 2 min avant de réessayer, pour ne pas prolonger le blocage.
+const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL!, ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+async function rpc(fn: string, args: Record<string, unknown>) {
+  try {
+    const r = await fetch(`${SUPA}/rest/v1/rpc/${fn}`, { method: 'POST', cache: 'no-store',
+      headers: { apikey: ANON, Authorization: `Bearer ${ANON}`, 'Content-Type': 'application/json' }, body: JSON.stringify(args) });
+    return r.ok ? await r.json().catch(() => null) : null;
+  } catch { return null; }
+}
+const cleSecrete = () => (process.env.WHATSGPS_SECRET_KEY ?? '').trim() + '|' + (process.env.WHATSGPS_COMPTE ?? '').trim();
+
+async function jetonPartage(forcer: boolean) {
+  const lu = (await rpc('whatsgps_jeton_lire', { p_cle: cleSecrete() }))?.[0];
+  if (!forcer && lu?.token && new Date(lu.expire).getTime() > Date.now()) return { token: String(lu.token), userId: Number(lu.user_id) };
+  if (lu?.echec_jusqua && new Date(lu.echec_jusqua).getTime() > Date.now())
+    throw new Error('Suivi GPS momentanément indisponible (WhatsGPS limite les connexions, nouvel essai dans 2 min).');
   const q = new URLSearchParams({
     name: process.env.WHATSGPS_COMPTE!.trim(), password: process.env.WHATSGPS_MOT_DE_PASSE!.trim(),
     lang: 'fr', timeZoneSecond: String(2 * 3600),
   });
-  // Cache de données Vercel, partagé par toutes les pages et routes (clé = adresse + en-têtes)
-  const rep = await fetch(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'force-cache', next: { revalidate: 3 * 3600, tags: ['whatsgps-jeton'] } });
-  let json: any = null;
-  try { json = await lire(rep); } catch (e) { try { revalidateTag('whatsgps-jeton'); } catch { /* */ } throw e; }
-  if (json.ret !== 1 || !json.data?.token) {
-    try { revalidateTag('whatsgps-jeton'); } catch { /* */ }
-    throw new Error(`Connexion WhatsGPS refusée : ${json.msg || 'identifiants à vérifier'}.`);
+  let json: any;
+  try {
+    json = await lire(await fetchEspace(`${BASE}/user/login.do?${q}`, { headers: entetes(), cache: 'no-store' }));
+    if (json.ret !== 1 || !json.data?.token) throw new Error(`Connexion WhatsGPS refusée : ${json.msg || 'identifiants à vérifier'}.`);
+  } catch (e) {
+    await rpc('whatsgps_jeton_ecrire', { p_cle: cleSecrete(), p_token: null, p_user_id: null, p_expire: new Date().toISOString(), p_echec_jusqua: new Date(Date.now() + 120_000).toISOString() });
+    throw e;
   }
-  return { token: String(json.data.token), userId: Number(json.data.userId) };
+  const j = { token: String(json.data.token), userId: Number(json.data.userId) };
+  await rpc('whatsgps_jeton_ecrire', { p_cle: cleSecrete(), p_token: j.token, p_user_id: j.userId, p_expire: new Date(Date.now() + 3 * 3600_000).toISOString(), p_echec_jusqua: null });
+  return j;
 }
 
 async function connexion(forcer = false) {
   if (!whatsgpsConfigure()) throw new Error('Le suivi GPS n’est pas encore branché (clés WhatsGPS manquantes).');
   if (session && !forcer && session.expire > Date.now()) return session;
-  if (forcer) { try { revalidateTag('whatsgps-jeton'); } catch { /* hors requête */ } }
-  const j = await jetonPartage();
+  const j = await jetonPartage(forcer);
   session = { ...j, expire: Date.now() + 3 * 3600 * 1000 };
   return session;
 }
