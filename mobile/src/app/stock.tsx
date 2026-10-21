@@ -1,4 +1,4 @@
-// Stock : d'un coup d'œil, ce qui est au parking (libre), dehors (en location) et à l'atelier.
+// Stock : d'un coup d'œil, les véhicules disponibles, en location et en maintenance.
 // Libres : la prochaine réservation et un bouton Louer. Dehors : le client et l'heure du retour.
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -34,9 +34,9 @@ export default function Stock() {
   parGroupe.libres.sort((a, b) => (prochaine(b.id)?.debut ?? '9').localeCompare(prochaine(a.id)?.debut ?? '9'));
 
   const GROUPES: { cle: Groupe; titre: string; couleur: string; icone: any }[] = [
-    { cle: 'libres', titre: 'Au parking', couleur: c.vert, icone: 'voiture' },
+    { cle: 'libres', titre: 'Disponibles', couleur: c.vert, icone: 'voiture' },
     { cle: 'dehors', titre: 'En location', couleur: c.accent, icone: 'cle' },
-    { cle: 'atelier', titre: 'À l’atelier', couleur: c.orange, icone: 'outil' },
+    { cle: 'atelier', titre: 'En maintenance', couleur: c.orange, icone: 'outil' },
   ];
 
   const Compteur = ({ g }: { g: typeof GROUPES[number] }) => {
@@ -56,7 +56,7 @@ export default function Stock() {
     const retard = loc && new Date(loc.fin_prevue).getTime() < maintenant;
     const papiers = echeance(v.assurance_echeance) === 'depasse' || echeance(v.ct_echeance) === 'depasse';
     const detail = g.cle === 'dehors' && loc ? `${nomClient(loc.clients)} · ${retard ? 'devait rentrer' : 'retour'} ${quand(loc.fin_prevue)}`
-      : g.cle === 'libres' ? (suite ? `Réservée ${quand(suite.debut)}` : 'Libre, aucune réservation')
+      : g.cle === 'libres' ? (suite ? `Réservée ${quand(suite.debut)}` : 'Aucune réservation à venir')
       : v.statut === 'hors_service' ? 'Hors service' : 'En maintenance';
     return (
       <Carte accent={retard ? c.rouge : g.couleur} onPress={() => (loc ? router.push({ pathname: '/location/[id]', params: { id: loc.id } }) : router.push({ pathname: '/vehicule/[id]', params: { id: v.id } }))}>
@@ -92,7 +92,7 @@ export default function Stock() {
             <Titre>{`${g.titre} · ${parGroupe[g.cle].length}`}</Titre>
             {parGroupe[g.cle].map((v) => <Ligne key={v.id} v={v} g={g} />)}
           </View>
-        ) : ouvert === g.cle ? <Vide key={g.cle} icone="voiture" titre={`Aucun véhicule ${g.cle === 'libres' ? 'au parking' : g.cle === 'dehors' ? 'en location' : 'à l’atelier'}`} /> : null)}
+        ) : ouvert === g.cle ? <Vide key={g.cle} icone="voiture" titre={`Aucun véhicule ${g.cle === 'libres' ? 'disponible' : g.cle === 'dehors' ? 'en location' : 'en maintenance'}`} /> : null)}
       </>}
     </Ecran>
   );

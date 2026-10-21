@@ -69,9 +69,9 @@ export default function Aujourdhui() {
           <Pressable onPress={() => router.push('/stock')} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, opacity: pressed ? 0.85 : 1 })}>
             <Icone nom="voiture" couleur={c.texte2} taille={22} />
             <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 2 }}>
-              <Text style={{ color: c.vert, fontWeight: '800', fontSize: 15 }}>{nbLibres} au parking</Text>
+              <Text style={{ color: c.vert, fontWeight: '800', fontSize: 15 }}>{nbLibres} disponible{nbLibres > 1 ? 's' : ''}</Text>
               <Text style={{ color: c.accent, fontWeight: '800', fontSize: 15 }}>{nbDehors} en location</Text>
-              {nbAtelier > 0 && <Text style={{ color: c.orange, fontWeight: '800', fontSize: 15 }}>{nbAtelier} à l’atelier</Text>}
+              {nbAtelier > 0 && <Text style={{ color: c.orange, fontWeight: '800', fontSize: 15 }}>{nbAtelier} en maintenance</Text>}
             </View>
             <Text style={{ color: c.gris, fontWeight: '700', fontSize: 13.5 }}>Stock</Text>
             <Icone nom="chevron" couleur={c.gris} taille={16} />
