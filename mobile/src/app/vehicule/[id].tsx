@@ -8,8 +8,11 @@ import LogoMarque from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import MiniCarte from '@/composants/MiniCarte';
 import Fenetre from '@/composants/Fenetre';
+import Feuille from '@/composants/Feuille';
 import { useToast } from '@/composants/Toast';
-import { chargerVehicule } from '@/lib/donnees';
+import { chargerVehicule, lienDocument } from '@/lib/donnees';
+import { prendrePhoto } from '@/lib/photo';
+import { useSession } from '@/lib/session';
 import { useDonnees } from '@/lib/useDonnees';
 import { mettreEnFile } from '@/lib/hors-ligne';
 import { useCouleurs } from '@/lib/theme';
@@ -26,6 +29,9 @@ export default function FicheVehicule() {
   const [statutLocal, setStatutLocal] = useState<string>();
   const [question, setQuestion] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  const { profil } = useSession();
+  const [cgLocale, setCgLocale] = useState<string>();
+  const [choixCg, setChoixCg] = useState(false);
   if (!donnees?.vehicule) return <Ecran retour titre="Véhicule"><Chargement /></Ecran>;
   const v = { ...donnees.vehicule, statut: statutLocal ?? donnees.vehicule.statut };
   const { locations } = donnees;
@@ -43,6 +49,23 @@ export default function FicheVehicule() {
       rafraichirGps();
     } catch (err: any) { toast(err.message, 'alerte'); }
     setEnvoi(false);
+  }
+  const cg = cgLocale ?? v.carte_grise_path ?? null;
+  async function photoCarteGrise() {
+    setChoixCg(false);
+    if (!profil) return;
+    const p = await prendrePhoto();
+    if (!p) return;
+    const chemin = `${profil.agence_id}/vehicules/${v.id}/carte_grise-${Date.now()}.jpg`;
+    await mettreEnFile({ genre: 'fichier', chemin, uri: p.uri, type: 'image/jpeg', ensuite: { genre: 'maj', table: 'vehicules', id: v.id, champs: { carte_grise_path: chemin } } });
+    setCgLocale(chemin);
+    toast('Carte grise enregistrée');
+  }
+  async function voirCarteGrise() {
+    setChoixCg(false);
+    if (!cg) return;
+    const lien = await lienDocument(cg).catch(() => null);
+    if (lien) Linking.openURL(lien); else toast('Carte grise pas encore envoyée : réessayez dans un instant', 'alerte');
   }
   const couleurStatut: Record<string, string> = { disponible: c.vert, loue: c.accent, maintenance: c.orange, hors_service: c.rouge };
 
@@ -80,12 +103,19 @@ export default function FicheVehicule() {
         <Rangee icone="jauge" couleur={c.accent} titre="Kilométrage" sous={e?.km_estime != null ? `Estimé par le traceur · fiche : ${km(v.km)}` : undefined} droite={km(e?.km_estime ?? v.km)} />
         <Rangee icone="euro" couleur={c.accent} titre="Prix par jour" droite={euros(v.prix_jour)} />
         <Rangee icone="bouclier" couleur={couleurEch(v.assurance_echeance)} titre="Assurance" droite={<Text style={{ color: v.assurance_echeance ? couleurEch(v.assurance_echeance) : c.gris, fontWeight: '800' }}>{dateCourte(v.assurance_echeance)}</Text>} />
-        <Rangee fin icone="outil" couleur={couleurEch(v.ct_echeance)} titre="Contrôle technique" droite={<Text style={{ color: v.ct_echeance ? couleurEch(v.ct_echeance) : c.gris, fontWeight: '800' }}>{dateCourte(v.ct_echeance)}</Text>} />
+        <Rangee icone="outil" couleur={couleurEch(v.ct_echeance)} titre="Contrôle technique" droite={<Text style={{ color: v.ct_echeance ? couleurEch(v.ct_echeance) : c.gris, fontWeight: '800' }}>{dateCourte(v.ct_echeance)}</Text>} />
+        <Rangee fin icone="doc" couleur={cg ? c.accent : c.orange} titre="Carte grise" sous={cg ? undefined : 'Pas encore enregistrée'}
+          droite={<Text style={{ color: cg ? c.accent : c.orange, fontWeight: '800' }}>{cg ? 'Voir' : 'Photographier'}</Text>}
+          onPress={() => (cg ? setChoixCg(true) : photoCarteGrise())} />
       </Carte>
 
       {locations.length > 0 && <><Titre>Locations</Titre>{locations.map((l) => <CarteLocation key={l.id} l={l} genre={l.statut === 'en_cours' ? 'retour' : 'depart'} gps={e} />)}</>}
       {v.statut === 'disponible' && <GrosBouton secondaire icone="outil" titre="Envoyer à l'atelier" onPress={() => statut('maintenance')} />}
 
+      <Feuille visible={choixCg} titre="Carte grise" onFermer={() => setChoixCg(false)}>
+        <GrosBouton icone="doc" titre="Voir la carte grise" onPress={voirCarteGrise} />
+        <GrosBouton secondaire icone="photo" titre="Remplacer par une nouvelle photo" onPress={photoCarteGrise} />
+      </Feuille>
       <Fenetre visible={question} danger icone="moteur" question={`Couper le moteur de ${plaque(v.immatriculation)} ?`}
         detail="La voiture ne pourra plus redémarrer. La coupure se fait à l’arrêt ou à vitesse lente, selon le boîtier." non="Annuler" oui="Couper le moteur" onNon={() => setQuestion(false)} onOui={moteur} />
     </Ecran>

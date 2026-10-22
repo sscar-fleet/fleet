@@ -120,9 +120,9 @@ export function voyantsDepart(l: LocationLigne) {
 export const chevauche = (a1: string | Date, a2: string | Date, b1: string, b2: string) => new Date(a1) < new Date(b2) && new Date(b1) < new Date(a2);
 
 // --- Flotte
-export type VehiculeLigne = { id: string; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null;
+export type VehiculeLigne = { id: string; carte_grise_path?: string | null; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null;
   prix_jour: number | null; assurance_echeance: string | null; ct_echeance: string | null };
-const CHAMPS_V = 'id, immatriculation, marque, modele, statut, km, prix_jour, assurance_echeance, ct_echeance';
+const CHAMPS_V = 'id, immatriculation, marque, modele, statut, km, prix_jour, assurance_echeance, ct_echeance, carte_grise_path';
 
 export function chargerVehicules() {
   return avecCache('vehicules', async () => {
@@ -180,4 +180,10 @@ export async function retrouverConducteur(vehiculeId: string, quand: string) {
 export async function chargerStock() {
   const [v, l] = await Promise.all([chargerVehicules(), chargerLocations()]);
   return { donnees: { vehicules: v.donnees as VehiculeLigne[], locations: l.donnees as LocationLigne[] }, horsLigne: v.horsLigne || l.horsLigne, majLe: v.majLe ?? l.majLe };
+}
+
+// Lien temporaire (1 h) vers un document rangé dans l'espace de l'agence
+export async function lienDocument(chemin: string): Promise<string | null> {
+  const { data } = await supabase.storage.from('documents').createSignedUrl(chemin, 3600);
+  return data?.signedUrl ?? null;
 }
