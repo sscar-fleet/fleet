@@ -11,6 +11,7 @@ const telephoneSaisi = (v: FormDataEntryValue | null) => { const t = texte(v); r
 import { chercherPhotoModele } from '@/lib/photoModele';
 import { imeiDeLAgence } from '@/lib/telematique';
 import { commandeMoteur } from '@/lib/sourceGps';
+import { inscrireTraccar } from '@/lib/traccar';
 
 const rafraichir = () => revalidatePath('/', 'layout');
 
@@ -1091,6 +1092,18 @@ async function _moteur(vehicule_id: string, couper: boolean) {
   if (!r.enLigne) throw new Error(`Commande enregistrée, mais le boîtier est hors ligne : elle s'appliquera dès qu'il se reconnecte.`);
 }
 
+async function _passerDirect(vehicule_id: string) {
+  const { supabase } = await utilisateurCourant();
+  const { data: v } = await supabase.from('vehicules').select('immatriculation, marque, modele, traceurs(imei)').eq('id', vehicule_id).single();
+  const imei = (v as any)?.traceurs?.imei;
+  if (!imei) throw new Error('Aucun traceur relié à ce véhicule.');
+  await imeiDeLAgence(supabase, imei);
+  const nom = [v!.immatriculation, v!.marque, v!.modele].filter(Boolean).join(' ');
+  const r = await inscrireTraccar(String(imei), nom);
+  if (r === 'cree') await journal(null, vehicule_id, 'Inscrit sur le serveur GPS SS CAR SYSTEM', `IMEI ${imei} · en attente de la première position`);
+  rafraichir();
+}
+
 async function _reporterKm(vehicule_id: string, kmCompteur: number) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('vehicules').update({ km: Math.round(kmCompteur) }).eq('id', vehicule_id)).error);
@@ -1163,6 +1176,7 @@ export const remettreVehicule = proteger(_remettreVehicule);
 export const documentAgence = proteger(_documentAgence);
 export const relierTraceur = proteger(_relierTraceur);
 export const delierTraceur = proteger(_delierTraceur);
+export const passerDirect = proteger(_passerDirect);
 export const importerVehicules = proteger(_importerVehicules);
 export const statutAmendes = proteger(_statutAmendes);
 

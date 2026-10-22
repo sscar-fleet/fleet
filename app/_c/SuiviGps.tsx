@@ -1,5 +1,6 @@
 // Encart « Suivi GPS » de la fiche véhicule : position, état du moteur, kilométrage, coupure à distance.
 import { sansCoupure } from '@/lib/sourceGps';
+import { appareilTraccar } from '@/lib/traccar';
 import Formulaire from './Formulaire';
 import Envoyer from './Envoyer';
 import CarteGps from './CarteGps';
@@ -7,7 +8,7 @@ import * as A from '../actions';
 import { km, dateHeure, plaque } from '@/lib/format';
 import { kmEstime, depuis, type Suivi, type AlerteVehicule } from '@/lib/telematique';
 
-export default function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; traceur: any | null; suivi: Suivi; alertes?: AlerteVehicule[] }) {
+export default async function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; traceur: any | null; suivi: Suivi; alertes?: AlerteVehicule[] }) {
   const e = traceur ? suivi.etats.get(String(traceur.imei)) : undefined;
   const estime = kmEstime(traceur, e);
 
@@ -32,6 +33,7 @@ export default function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; 
     );
   }
 
+  const direct = suivi.actif && !suivi.demo ? await appareilTraccar(String(traceur.imei)) : null;
   const etat = !e ? null : traceur.moteur_coupe ? 'coupe' : !e.enLigne ? 'hors_ligne' : e.enMouvement ? 'roule' : 'arret';
   const libelle = { roule: `Roule · ${e?.vitesse ?? 0} km/h`, arret: e?.contact ? 'À l’arrêt · moteur allumé' : 'À l’arrêt · moteur éteint', coupe: 'Moteur coupé à distance', hors_ligne: 'Boîtier hors ligne' };
 
@@ -39,11 +41,20 @@ export default function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; 
     <section className="carte" id="suivi-gps">
       <div className="titre" style={{ marginBottom: 10 }}>
         <h2 style={{ margin: 0 }}>Suivi GPS</h2>
-        {etat && <span className={`pastille gps-${etat}`}>{libelle[etat]}</span>}
+        <span className="ligne" style={{ gap: 6 }}>
+          {e?.source === 'direct' && <span className="pastille gps-roule">En direct</span>}
+          {etat && <span className={`pastille gps-${etat}`}>{libelle[etat]}</span>}
+        </span>
       </div>
       {!suivi.actif && <p className="gris">{suivi.raison}</p>}
       {suivi.actif && suivi.demo && <p className="gris" style={{ marginTop: 0 }}>Aperçu : position et kilométrage fictifs, la coupure moteur ne fait rien.</p>}
       {suivi.actif && !e && <p className="gris">Le boîtier IMEI {traceur.imei} ne répond pas sur le compte de suivi.</p>}
+      {direct && e?.source !== 'direct' && (direct.inscrit
+        ? <p className="gris" style={{ marginTop: 0 }}>Inscrit sur le serveur SS CAR SYSTEM. Le boîtier passera en direct (position en temps réel, sans quota) dès qu’il aura reçu le réglage double serveur.</p>
+        : <Formulaire action={A.passerDirect.bind(null, v.id)} succes="Boîtier inscrit sur le serveur SS CAR SYSTEM" style={{ marginBottom: 12 }}>
+            <Envoyer className="bouton petit principal">Passer sur SS CAR SYSTEM</Envoyer>
+            <span className="gris" style={{ fontSize: 13, marginLeft: 8 }}>Position en temps réel et alertes instantanées</span>
+          </Formulaire>)}
       {e?.lat != null && e.lng != null && (
         <CarteGps hauteur={260} points={[{ id: v.id, lat: e.lat, lng: e.lng, titre: v.immatriculation, detail: depuis(e.le), etat: etat ?? 'arret' }]} />
       )}

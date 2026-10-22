@@ -79,6 +79,26 @@ export async function alertesTraccar(heures = 48): Promise<AlerteBoitier[]> {
   }).sort((x, y) => (y.le ?? '').localeCompare(x.le ?? ''));
 }
 
+// Inscription d'un boîtier sur notre serveur (« Passer sur SS CAR SYSTEM »)
+export async function appareilTraccar(imei: string): Promise<{ inscrit: boolean; enLigne: boolean; position: boolean } | null> {
+  if (!traccarConfigure()) return null;
+  try {
+    const { appareils, positions } = await photo();
+    const a = appareils.find((x) => String(x.uniqueId) === imei);
+    if (!a) return { inscrit: false, enLigne: false, position: false };
+    return { inscrit: true, enLigne: a.status === 'online', position: positions.some((p: any) => p.deviceId === a.id) };
+  } catch { return null; }
+}
+
+export async function inscrireTraccar(imei: string, nom: string): Promise<'deja' | 'cree'> {
+  if (!traccarConfigure()) throw new Error('Le serveur GPS SS CAR SYSTEM n’est pas encore branché.');
+  const { appareils } = await photo();
+  if (appareils.some((x) => String(x.uniqueId) === imei)) return 'deja';
+  await appel('/api/devices', { method: 'POST', body: JSON.stringify({ name: nom.slice(0, 120), uniqueId: imei }) });
+  memoire = null;
+  return 'cree';
+}
+
 // Commande envoyée au boîtier par notre serveur (texte brut, ex. RELAY,1#)
 export async function commandeTraccar(imei: string, texte: string): Promise<{ enLigne: boolean } | null> {
   if (!traccarConfigure()) return null;
