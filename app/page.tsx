@@ -4,6 +4,8 @@ import { debutJour, heure, date, echeance, JOUR, plaque } from '@/lib/format';
 import Cadre from './_c/Cadre';
 import SuiviFlotte, { type LigneSuivi } from './_c/SuiviFlotte';
 import { suiviAgence, kmEstime, alertesAgence, depuis } from '@/lib/telematique';
+import { etatDecouverte } from '@/lib/decouverte';
+import ParcoursDecouverte from './_c/ParcoursDecouverte';
 import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
 import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
@@ -61,13 +63,7 @@ export default async function Accueil() {
     supabase.from('clients').select('id', { count: 'exact', head: true }),
     supabase.from('locations').select('id', { count: 'exact', head: true }),
   ]);
-  const etapesDemarrage = [
-    { fait: !!(ag?.adresse && ag?.gerant_nom && ag?.signature_path), titre: 'Renseigner l\u2019agence (adresse, gérant, signature)', lien: '/parametres', bouton: 'Réglages' },
-    { fait: (vehicules ?? []).length > 0, titre: 'Ajouter un premier véhicule', lien: '/vehicules', bouton: 'Ajouter' },
-    { fait: (nbClients ?? 0) > 0, titre: 'Créer un premier client', lien: '/clients', bouton: 'Ajouter' },
-    { fait: (nbLocations ?? 0) > 0, titre: 'Faire une première location', lien: '/locations/nouvelle', bouton: 'Commencer' },
-  ];
-  const demarrageFini = etapesDemarrage.every((e) => e.fait);
+  const decouverte = await etatDecouverte(supabase, profil.agence_id);
   // FPS à suivre : à régler avant la majoration, ou client à relancer
   const { data: fpsOuverts } = await supabase.from('fps').select('id, statut, montant, frais_gestion, date_constat, limite_paiement, paye_tresor, refacture_le, relance1_le, relance2_le, mise_en_demeure_le, vehicules(immatriculation, marque, modele), clients(prenom, nom, telephone)')
     .in('statut', ['a_refacturer', 'client_inconnu', 'refacture', 'conteste']);
@@ -155,17 +151,7 @@ export default async function Accueil() {
     <Cadre titre={<>Bonjour {profil.nom.split(' ')[0]} <span className="gris" style={{ fontWeight: 400, fontSize: 16 }}>· {jourTexte}</span></>}
       tables={['locations', 'vehicules', 'amendes', 'entretiens', 'etats_des_lieux']}
 >
-      {profil.role === 'gerant' && !demarrageFini && (
-        <section className="carte demarrage">
-          <h2>Pour bien démarrer ({etapesDemarrage.filter((e) => e.fait).length}/4)</h2>
-          <ol>{etapesDemarrage.map((e) => (
-            <li key={e.titre} className={e.fait ? 'fait' : ''}>
-              <span style={{ display: 'flex', alignItems: 'center' }}><span className="coche">{e.fait ? '✓' : ''}</span>{e.titre}</span>
-              {!e.fait && <a className="bouton petit principal" href={e.lien}>{e.bouton}</a>}
-            </li>
-          ))}</ol>
-        </section>
-      )}
+      {profil.role === 'gerant' && !decouverte.fini && <ParcoursDecouverte {...decouverte} />}
       <section className="kpis">
         {tuiles.map((t) => (
           <a key={t.titre} href={t.lien} className={`kpi ${t.actif ? t.classe : ''}`}>

@@ -1094,5 +1094,16 @@ export const documentAgence = proteger(_documentAgence);
 export const relierTraceur = proteger(_relierTraceur);
 export const delierTraceur = proteger(_delierTraceur);
 export const importerVehicules = proteger(_importerVehicules);
+
+// Parcours découverte : un écran ouvert ou un outil essayé pour la première fois (une seule trace par découverte)
+export async function marquerDecouverte(cle: string) {
+  if (!/^[a-z]{2,20}$/.test(cle)) return;
+  try {
+    const { supabase, profil } = await utilisateurCourant();
+    const action = `Découverte : ${cle}`;
+    const { count } = await supabase.from('historique').select('id', { count: 'exact', head: true }).eq('action', action);
+    if (!count) await supabase.from('historique').insert({ agence_id: profil.agence_id, action, auteur: profil.id });
+  } catch { /* le parcours ne doit jamais gêner le travail */ }
+}
 export const moteur = proteger(_moteur);
 export const reporterKm = proteger(_reporterKm);

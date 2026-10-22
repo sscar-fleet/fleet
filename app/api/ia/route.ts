@@ -16,5 +16,11 @@ export async function POST(request: Request) {
   if (!historique.length || historique[historique.length - 1].role !== 'user') return NextResponse.json({ erreur: 'Question vide.' }, { status: 400 });
   const { data: u } = await c.supabase.from('utilisateurs').select('agences(nom)').eq('id', c.user.id).single();
   const r = await demanderAgent(c.supabase, (u as any)?.agences?.nom ?? 'votre agence', historique);
+  // Parcours découverte : première question posée à Fleet AI
+  if (!r.erreur) {
+    const { data: moi } = await c.supabase.from('utilisateurs').select('agence_id').eq('id', c.user.id).single();
+    const { count } = await c.supabase.from('historique').select('id', { count: 'exact', head: true }).eq('action', 'Découverte : ia');
+    if (moi?.agence_id && !count) await c.supabase.from('historique').insert({ agence_id: moi.agence_id, action: 'Découverte : ia', auteur: c.user.id });
+  }
   return NextResponse.json(r, { status: r.erreur ? 503 : 200 });
 }

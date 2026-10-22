@@ -7,6 +7,7 @@ import Navigation from './Navigation';
 import MenuLateral from './MenuLateral';
 import Direct from './Direct';
 import BoutonTheme from './BoutonTheme';
+import GuideMission from './GuideMission';
 
 // Cadre commun : menu à gauche (ordinateur) ou barre du bas (téléphone), recherche, synchronisation en direct
 export default async function Cadre({ titre, actions, tables = [], children, retour }: {
@@ -47,6 +48,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
             {actions && <div className="ligne">{actions}</div>}
           </div>
         )}
+        <GuideMission />
         {children}
         {tables.length > 0 && <Direct tables={tables} />}
       </main>
