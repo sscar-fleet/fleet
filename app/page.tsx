@@ -91,7 +91,7 @@ export default async function Accueil() {
   alertesBoitiers.forEach((a) => {
     if (vues.has(a.vehicule_id)) return; vues.add(a.vehicule_id);
     const n = alertesBoitiers.filter((x) => x.vehicule_id === a.vehicule_id).length;
-    alertes.push({ texte: `${plaque(a.immat)} : ${a.libelle} ${depuis(a.le)}${n > 1 ? ` (${n} alertes en 48 h)` : ''}`, lien: `/vehicules/${a.vehicule_id}#suivi-gps`, niveau: /débranch|déplac|brouill|sos|vibra/i.test(a.libelle) ? 'depasse' : 'proche' });
+    alertes.push({ texte: `${plaque(a.immat)} : ${a.libelle} ${depuis(a.le)}${n > 1 ? ` (${n} alertes en 48 h)` : ''}`, lien: `/vehicules/${a.vehicule_id}#suivi-gps`, niveau: a.critique || /débranch|déplac|brouill|sos|vibra|remorqu/i.test(a.libelle) ? 'depasse' : 'proche' });
   });
   (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: e.id ? `/entretiens/${e.id}` : '/entretiens', niveau: 'proche' }));
   // Prêts entre loueurs : véhicule emprunté à rendre sous 2 jours, véhicule prêté pas revenu

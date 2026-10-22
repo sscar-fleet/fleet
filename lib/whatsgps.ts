@@ -1,3 +1,4 @@
+import { CODES_ALARME, ALARMES_CRITIQUES } from './codesAlarme';
 // Client de l'API WhatsGPS (traceurs Seeworld). Appelé uniquement côté serveur :
 // les clés et le mot de passe restent dans les variables d'environnement de Vercel.
 //   WHATSGPS_APP_KEY, WHATSGPS_SECRET_KEY : clés de l'application OpenAPI (données par Seeworld)
@@ -250,7 +251,7 @@ export async function fichesDuCompte(compteId?: number | string | null): Promise
 }
 
 // ——— Alertes des boîtiers (vibration, remorquage, débranchement…) ———
-export type AlerteBoitier = { id: string; carId: string | null; nom: string | null; type: number | null; libelle: string; le: string | null; lat: number | null; lng: number | null };
+export type AlerteBoitier = { id: string; carId: string | null; nom: string | null; type: number | null; libelle: string; critique?: boolean; le: string | null; lat: number | null; lng: number | null };
 // WhatsGPS attend et renvoie des heures dans le fuseau donné à la connexion (Paris)
 function decalage(d = new Date()) {
   const p = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
@@ -304,7 +305,8 @@ export async function alertesRecentes(heures = 48): Promise<AlerteBoitier[]> {
     const nom = (type != null ? noms.get(type) : null) ?? d.alarmTypeName ?? d.fenceName ?? null;
     return {
       id: String(d.alarmId ?? i), carId: d.carId != null ? String(d.carId) : null, nom: d.machineName || null, type,
-      libelle: nom ? enFrancais(String(nom)) : 'Alerte du boîtier',
+      libelle: (type != null && CODES_ALARME[type]) || (nom ? enFrancais(String(nom)) : 'Alerte du boîtier'),
+      critique: type != null && ALARMES_CRITIQUES.has(type),
       le: depuisParis(d.alarmTime ?? d.pointTime), lat: Number(d.latC ?? d.lat) || null, lng: Number(d.lonC ?? d.lon) || null,
     };
   }).sort((a, b) => (b.le ?? '').localeCompare(a.le ?? ''));

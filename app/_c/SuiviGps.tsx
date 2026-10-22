@@ -59,7 +59,7 @@ export default function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; 
           <b style={{ fontSize: 14 }}>Alertes du boîtier · 3 derniers jours</b>
           {alertes.slice(0, 8).map((a) => (
             <div key={a.id} className="fichier" style={{ justifyContent: 'space-between' }}>
-              <span className={`pastille ${/débranch|déplac|brouill|sos|vibra/i.test(a.libelle) ? 'retard' : ''}`}>{a.libelle}</span>
+              <span className={`pastille ${a.critique || /débranch|déplac|brouill|sos|vibra|remorqu/i.test(a.libelle) ? 'retard' : ''}`}>{a.libelle}</span>
               <span className="gris" style={{ fontSize: 13 }}>{dateHeure(a.le)}{a.lat != null ? <> · <a href={`https://www.google.com/maps?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer">voir le lieu</a></> : null}</span>
             </div>
           ))}
