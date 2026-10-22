@@ -15,7 +15,7 @@ update agences set statut = 'actif' where statut = 'attente' and created_at < no
 
 -- Agence utilisable : active, ou en essai non terminé
 create or replace function agence_ouverte(a agences) returns boolean
-language sql immutable as $$
+language sql stable as $$
   select a.statut = 'actif' or (a.statut = 'essai' and (a.fin_essai is null or a.fin_essai >= current_date))
 $$;
 
