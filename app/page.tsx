@@ -123,6 +123,7 @@ export default async function Accueil() {
     { titre: 'Alertes', valeur: alertes.length, detail: alertesBoitiers.length ? 'papiers, garage, boîtiers' : 'papiers, garage', lien: '#alertes', classe: 'alerte', actif: alertes.length > 0 },
   ];
 
+  const tuilesVues = tuiles.filter((t) => t.titre !== 'Alertes');
   const nom = (c: any) => [c?.prenom, c?.nom].filter(Boolean).join(' ');
   const voiture = (v: any) => [v?.marque, v?.modele].filter(Boolean).join(' ');
 
@@ -153,52 +154,24 @@ export default async function Accueil() {
 >
       {profil.role === 'gerant' && !decouverte.fini && <ParcoursDecouverte {...decouverte} />}
       <section className="kpis">
-        {tuiles.map((t) => (
+        {tuilesVues.map((t) => (
           <a key={t.titre} href={t.lien} className={`kpi ${t.actif ? t.classe : ''}`}>
             <span className="lib">{t.titre}</span><b>{t.valeur}</b>{t.detail ? <span className="det">{t.detail}</span> : null}
           </a>
         ))}
       </section>
 
-      {lignesGps.length > 0 && (
-        <section className="carte gps-accueil">
-          <div className="titre" style={{ marginBottom: 10 }}>
-            <h2 style={{ margin: 0 }}>Flotte en direct</h2>
-            <a className="bouton petit" href="/carte">Ouvrir le suivi GPS</a>
-          </div>
-          <SuiviFlotte lignes={lignesGps} demo={suivi.actif && suivi.demo} compact />
-        </section>
-      )}
-
-      <section className="carte">
-        <div className="titre" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Planning de la semaine</h2>
-          <a className="bouton petit" href="/planning">Ouvrir le planning</a>
-        </div>
-        <GrillePlanning p={planning} compact />
-      </section>
-
+      <h2 className="bloc-titre">1 · À faire maintenant {(alertes.length + fpsAPayer.length + fpsARelancer.length) > 0 && <span className="badge rouge">{(alertes.length + fpsAPayer.length + fpsARelancer.length)}</span>}</h2>
       <div className="accueil-bas">
-        <section className="carte">
-          <h2>Aujourd&apos;hui</h2>
-          {!lignes.length && <p className="gris" style={{ marginBottom: 0 }}>Aucun départ ni retour prévu. Journée calme.</p>}
-          {lignes.map((x) => (
-            <div key={x.genre + x.id} className="fichier">
-              <a href={`/locations/${x.id}`} className="jour">
-                <span className={`etiquette ${x.genre}`}>{etiquette[x.genre]}</span>
-                <span><b>{x.genre === 'retard' ? date(x.quand) + ' ' : ''}{heure(x.quand)}</b> · {plaque(x.v?.immatriculation)} {voiture(x.v)}<br />
-                  <span className="gris">{nom(x.c)}{x.c?.liste_noire ? ' · liste noire' : ''}</span></span>
-              </a>
-              <span className="ligne">
-                {x.voyants && <span className="voyants" title={x.voyants.map((y) => `${y.ok ? '✔' : '✘'} ${y.titre}`).join('\n')}>
-                  {x.voyants.map((y, i) => <i key={i} className={`voyant ${y.ok ? 'on' : ''}`} />)}</span>}
-                {x.wa && <a className="bouton petit" target="_blank" rel="noreferrer" href={x.wa}>WhatsApp</a>}
-              </span>
-            </div>
-          ))}
-          {lignes.some((x) => x.voyants) && <p className="gris" style={{ fontSize: 12.5, marginBottom: 0 }}>Voyants d&apos;un départ : client vérifié · caution · voiture prête · état des lieux</p>}
-        </section>
-
+        <div className="pile">
+          <section className="carte" id="alertes">
+            <h2>Alertes {alertes.length > 0 && <span className="badge rouge">{alertes.length}</span>}</h2>
+            {!alertes.length && <p className="gris" style={{ marginBottom: 0 }}>Aucune alerte.</p>}
+            {alertes.map((a, i) => (
+              <a key={i} href={a.lien} className="fichier"><span className={`pastille ${a.niveau}`}>{a.texte}</span></a>
+            ))}
+          </section>
+        </div>
         <div className="pile">
           {(fpsAPayer.length > 0 || fpsARelancer.length > 0) && (
             <section className="carte">
@@ -226,6 +199,52 @@ export default async function Accueil() {
               })}
             </section>
           )}
+        </div>
+      </div>
+
+      <h2 className="bloc-titre">2 · Aujourd&apos;hui et cette semaine</h2>
+      <div className="accueil-bas">
+        <section className="carte">
+          <h2>Aujourd&apos;hui</h2>
+          {!lignes.length && <p className="gris" style={{ marginBottom: 0 }}>Aucun départ ni retour prévu. Journée calme.</p>}
+          {lignes.map((x) => (
+            <div key={x.genre + x.id} className="fichier">
+              <a href={`/locations/${x.id}`} className="jour">
+                <span className={`etiquette ${x.genre}`}>{etiquette[x.genre]}</span>
+                <span><b>{x.genre === 'retard' ? date(x.quand) + ' ' : ''}{heure(x.quand)}</b> · {plaque(x.v?.immatriculation)} {voiture(x.v)}<br />
+                  <span className="gris">{nom(x.c)}{x.c?.liste_noire ? ' · liste noire' : ''}</span></span>
+              </a>
+              <span className="ligne">
+                {x.voyants && <span className="voyants" title={x.voyants.map((y) => `${y.ok ? '✔' : '✘'} ${y.titre}`).join('\n')}>
+                  {x.voyants.map((y, i) => <i key={i} className={`voyant ${y.ok ? 'on' : ''}`} />)}</span>}
+                {x.wa && <a className="bouton petit" target="_blank" rel="noreferrer" href={x.wa}>WhatsApp</a>}
+              </span>
+            </div>
+          ))}
+          {lignes.some((x) => x.voyants) && <p className="gris" style={{ fontSize: 12.5, marginBottom: 0 }}>Voyants d&apos;un départ : client vérifié · caution · voiture prête · état des lieux</p>}
+        </section>
+        <div className="pile">
+      <section className="carte">
+        <div className="titre" style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0 }}>Planning de la semaine</h2>
+          <a className="bouton petit" href="/planning">Ouvrir le planning</a>
+        </div>
+        <GrillePlanning p={planning} compact />
+      </section>
+        </div>
+      </div>
+
+      <h2 className="bloc-titre">3 · Ma flotte</h2>
+      {lignesGps.length > 0 && (
+        <section className="carte gps-accueil">
+          <div className="titre" style={{ marginBottom: 10 }}>
+            <h2 style={{ margin: 0 }}>Flotte en direct</h2>
+            <a className="bouton petit" href="/carte">Ouvrir le suivi GPS</a>
+          </div>
+          <SuiviFlotte lignes={lignesGps} demo={suivi.actif && suivi.demo} compact />
+        </section>
+      )}
+      <div className="accueil-bas">
           <section className="carte">
             <div className="titre" style={{ marginBottom: 10 }}>
               <h2 style={{ margin: 0 }}>Ma flotte</h2>
@@ -243,7 +262,6 @@ export default async function Accueil() {
               ))}
             </div>
           </section>
-
           {profil.role === 'gerant' && (
             <a href="/pilotage" className="carte mois">
               <div className="titre" style={{ marginBottom: 10 }}>
@@ -258,15 +276,6 @@ export default async function Accueil() {
               <p className="gris" style={{ fontSize: 12.5, margin: '8px 0 0' }}>Mois dernier : {moisPrec.resultat >= 0 ? '+' : ''}{euros(moisPrec.resultat)}</p>
             </a>
           )}
-
-          <section className="carte" id="alertes">
-            <h2>Alertes {alertes.length > 0 && <span className="badge rouge">{alertes.length}</span>}</h2>
-            {!alertes.length && <p className="gris" style={{ marginBottom: 0 }}>Rien à signaler.</p>}
-            {alertes.map((a, i) => (
-              <a key={i} href={a.lien} className="fichier"><span className={`pastille ${a.niveau}`}>{a.texte}</span></a>
-            ))}
-          </section>
-        </div>
       </div>
     </Cadre>
   );
