@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { enLigne, mettreEnFile } from './hors-ligne';
 import { nouvelId } from './id';
 import { DEMO } from './demo';
+import { api } from './site';
 
 export const POSITIONS = [
   { position: 'face_avant', libelle: 'Face avant' },
@@ -71,6 +72,8 @@ export async function terminerEdl(p: {
     await mettreEnFile({ genre: 'maj', table: 'locations', id: p.locationId, champs: { statut: 'terminee', km_retour: p.km, carburant_retour: p.carburant, fin_reelle: maintenant } });
     await mettreEnFile({ genre: 'maj', table: 'vehicules', id: p.vehiculeId, champs: { statut: 'disponible', km: p.km } });
   }
+  // Le traceur repart du vrai compteur (sans bloquer si le réseau ou le GPS ne répond pas)
+  if (!DEMO && p.km > 0) api('mobile/recaler', { vehicule_id: p.vehiculeId, km: p.km }).catch(() => {});
 }
 
 // Signature du client : image envoyée dans le stockage puis rattachée à l'état des lieux

@@ -10,6 +10,8 @@ export const consignes: Record<string, string> = {
 {"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_constat": date et heure de constatation au format AAAA-MM-JJTHH:MM, "lieu": adresse du stationnement (rue, code postal, ville), "collectivite": nom de la collectivité (ex. "Ville de Paris"), "montant": montant du FPS en euros (nombre), "numero_avis": numéro de l'avis de paiement en chiffres sans espaces ni clé, "date_avis": date d'envoi de l'avis au format AAAA-MM-JJ, "limite_paiement": date limite de paiement au format AAAA-MM-JJ}`,
   kbis: `Extrait Kbis français (extrait d'immatriculation au RCS). Renvoie uniquement ce JSON :
 {"date_kbis": date à laquelle l'extrait a été délivré / mis à jour ("à jour au", "extrait délivré le"), format AAAA-MM-JJ, "denomination": dénomination sociale, "siren": numéro SIREN (9 chiffres), "forme_juridique": forme juridique (SAS, SARL…), "rcs": greffe et numéro, ex. "RCS Paris 123 456 789", "adresse": adresse du siège}`,
+  compteur: `Photo du tableau de bord d'une voiture, moteur allumé. Renvoie uniquement ce JSON :
+{"km": kilométrage total affiché par le compteur (odomètre, pas le trip partiel A/B), nombre entier sans espace ni unité, "carburant_huitiemes": niveau de la jauge de carburant ou de la batterie de 0 (vide) à 8 (plein), entier arrondi, ou null si la jauge n'est pas visible}`,
   identite: `Pièce d'identité (carte d'identité ou passeport). Renvoie uniquement ce JSON :
 {"nom": nom de famille, "prenom": premier prénom, "date_naissance": format AAAA-MM-JJ, "adresse": adresse si elle figure sur le document sinon null}`,
 };

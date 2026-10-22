@@ -19,6 +19,8 @@ import { POSITIONS, VOYANTS, TYPES_DEGAT, ouvrirEdl, ajouterPhoto, terminerEdl, 
 import { chargerLocation, photosDepart, type LocationFiche } from '@/lib/donnees';
 import { chargerGps } from '@/lib/gps';
 import { prendrePhoto } from '@/lib/photo';
+import { lireCompteur } from '@/lib/ia';
+import { useDictee } from '@/lib/dictee';
 import * as ImagePicker from 'expo-image-picker';
 import { ouvrirWhatsApp, msg } from '@/lib/messages';
 import { euros, km as fkm, nomClient, nomVehicule, jour, heure, plaque } from '@/lib/format';
@@ -52,6 +54,8 @@ export default function EtatDesLieux() {
   const [fini, setFini] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [recap, setRecap] = useState<string | null>(null);
+  const [lecture, setLecture] = useState<'en_cours' | 'lu' | 'illisible' | null>(null);
+  const dictee = useDictee((t) => setRemarque(t));
 
   useEffect(() => {
     if (!profil) return;
@@ -59,7 +63,7 @@ export default function EtatDesLieux() {
     chargerLocation(id).then((r) => {
       setL(r.donnees);
       if (retour && r.donnees.carburant_depart != null) setCarburant(Math.round((r.donnees.carburant_depart / 100) * 8));
-      chargerGps().then((g) => { const e = r.donnees.vehicules ? g.parVehicule[r.donnees.vehicules.id] : undefined; if (e?.km_estime != null) { setKmGps(e.km_estime); setKm(String(e.km_estime)); } });
+      chargerGps().then((g) => { const e = r.donnees.vehicules ? g.parVehicule[r.donnees.vehicules.id] : undefined; if (e?.km_estime != null) setKmGps(e.km_estime); });
     }).catch(() => {});
     if (retour) photosDepart(id).then(setRefs);
   }, [id, type, profil, retour]);
@@ -83,10 +87,21 @@ export default function EtatDesLieux() {
   }
   async function photographier(position: string, galerie = false) {
     if (!edlId || !profil) return;
-    const p = await prendrePhoto({ galerie });
+    const compteur = position === 'compteur';
+    const p = await prendrePhoto({ galerie, pourIa: compteur });
     if (!p) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     await poser(position, p.uri);
+    if (compteur && p.dataUrl) lirePhotoCompteur(p.dataUrl);
+  }
+  // Le compteur photographié remplit le kilométrage et la jauge : le loueur n'a plus qu'à vérifier
+  async function lirePhotoCompteur(image: string) {
+    setLecture('en_cours');
+    try {
+      const r = await lireCompteur(image);
+      if (r.km) { setKm(String(r.km)); if (r.carburant_huitiemes != null) setCarburant(Math.max(1, r.carburant_huitiemes)); setLecture('lu'); toast(`Compteur lu : ${fkm(r.km)}`); }
+      else setLecture('illisible');
+    } catch { setLecture('illisible'); }
   }
   // Plusieurs photos prises avant (sans réseau, avec l'appareil photo du téléphone) : rangées dans l'ordre des cases vides
   async function importerPlusieurs() {
@@ -102,6 +117,7 @@ export default function EtatDesLieux() {
 
   async function terminer(forcer = false) {
     if (!edlId || !l?.vehicules || !profil) return;
+    if (!signature.traits.length && !retour) { toast('La signature du client est obligatoire au départ', 'alerte'); return; }
     if (!forcer && !signature.traits.length) { setQuestion('sansSignature'); return; }
     setEnvoi(true);
     const image = await signatureEnImage(signature.traits, signature.largeur).catch(() => null);
@@ -220,10 +236,14 @@ export default function EtatDesLieux() {
 
       {etape === 1 && <>
         <Titre>Kilométrage</Titre>
+        {lecture === 'en_cours' && <Etiquette titre="Lecture du compteur sur la photo…" couleur={c.bleu} icone="eclair" />}
+        {lecture === 'lu' && <Etiquette titre="Lu sur la photo du compteur : vérifiez le chiffre" couleur={c.vert} icone="ok" />}
+        {lecture === 'illisible' && <Etiquette titre="Photo du compteur illisible : tapez le chiffre" couleur={c.orange} icone="alerte" />}
+        {!photos.compteur && <GrosBouton secondaire icone="photo" titre="Photographier le compteur" sousTitre="Fleet lit le kilométrage et la jauge" onPress={() => photographier('compteur')} />}
         <TextInput value={km} onChangeText={(t) => setKm(t.replace(/\D/g, ''))} keyboardType="number-pad" placeholder={kmRef != null ? String(kmRef) : '000000'} placeholderTextColor="#2b3a40"
           style={{ backgroundColor: '#05090b', color: c.accent, fontSize: 46, fontWeight: '800', letterSpacing: 6, textAlign: 'center', borderRadius: T.rayon, paddingVertical: 18, fontVariant: ['tabular-nums'], borderWidth: 1, borderColor: c.bord, outlineStyle: 'none' as never }} />
         <Ligne>
-          {kmGps != null && <Etiquette titre={`Proposé par le traceur : ${fkm(kmGps)}`} couleur={c.bleu} icone="eclair" />}
+          {kmGps != null && <Pressable onPress={() => setKm(String(kmGps))}><Etiquette titre={`Estimation du traceur : ${fkm(kmGps)} · toucher pour l’utiliser`} couleur={c.gris} icone="eclair" /></Pressable>}
           {kmRef != null && <Etiquette titre={`${retour ? 'Départ' : 'Dernier relevé'} : ${fkm(kmRef)}`} couleur={c.gris} />}
         </Ligne>
         {retour && kmFaits != null && kmFaits >= 0 && (
@@ -264,7 +284,12 @@ export default function EtatDesLieux() {
           <Titre>Quel voyant ? (facultatif)</Titre>
           <Puces>{Object.entries(VOYANTS).map(([cle, lib]) => <Puce key={cle} titre={lib} actif={checklist.voyant_type === cle} couleur={c.orange} onPress={() => setChecklist((x) => ({ ...x, voyant_type: x.voyant_type === cle ? '' : cle }))} />)}</Puces>
         </> : null}
-        <Titre>Remarque (facultatif)</Titre>
+        <Ligne style={{ justifyContent: 'space-between' }}>
+          <Titre>Remarque (facultatif)</Titre>
+          {dictee.dispo && <Pressable onPress={() => (dictee.ecoute ? dictee.arreter() : dictee.demarrer())} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: dictee.ecoute ? c.rouge + '22' : c.panneau, borderWidth: 1, borderColor: dictee.ecoute ? c.rouge : c.bord }}>
+            <Icone nom="micro" couleur={dictee.ecoute ? c.rouge : c.accent} taille={18} /><Text style={{ color: dictee.ecoute ? c.rouge : c.accent, fontWeight: '800' }}>{dictee.ecoute ? 'J’écoute…' : 'Dicter'}</Text>
+          </Pressable>}
+        </Ligne>
         <TextInput value={remarque} onChangeText={setRemarque} multiline placeholder="Ex. : rayure déjà présente sur la portière arrière" placeholderTextColor={c.gris}
           style={{ backgroundColor: c.panneau, color: c.texte, borderWidth: 1.5, borderColor: c.bord, borderRadius: T.rayon, minHeight: 90, padding: 14, fontSize: 16, textAlignVertical: 'top', outlineStyle: 'none' as never }} />
       </>}

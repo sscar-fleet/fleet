@@ -19,3 +19,12 @@ export async function lireFps(image: string): Promise<Champs> {
   if (DEMO) { await new Promise((r) => setTimeout(r, 1200)); return { immatriculation: 'AB123CD', date_constat: new Date(Date.now() - 864e5).toISOString().slice(0, 16), lieu: '12 rue de Rivoli, 75004 Paris', collectivite: 'Ville de Paris', montant: 35, numero_avis: '21750001600019', date_avis: null, limite_paiement: null }; }
   return (await api<{ champs: Champs }>('lire', { image, genre: 'fps' })).champs;
 }
+
+// Compteur photographié à l'état des lieux : kilométrage et jauge lus sur la photo
+export async function lireCompteur(image: string): Promise<{ km: number | null; carburant_huitiemes: number | null }> {
+  if (DEMO) { await new Promise((r) => setTimeout(r, 900)); return { km: 42587, carburant_huitiemes: 6 }; }
+  const c = (await api<{ champs: Champs }>('lire', { image, genre: 'compteur' })).champs;
+  const km = Number(String(c.km ?? '').replace(/\D/g, '')) || null;
+  const h = c.carburant_huitiemes == null ? null : Math.max(0, Math.min(8, Math.round(Number(c.carburant_huitiemes))));
+  return { km, carburant_huitiemes: Number.isFinite(h as number) ? h : null };
+}
