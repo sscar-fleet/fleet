@@ -10,6 +10,7 @@ import ApercuModele from '../_c/ApercuModele';
 import LogoMarque from '../_c/LogoMarque';
 import Envoyer from '../_c/Envoyer';
 import ImportTraceurs from '../_c/ImportTraceurs';
+import ChampEnLigne from '../_c/ChampEnLigne';
 import { boitiersAImporter } from '@/lib/telematique';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export const dynamic = 'force-dynamic';
 export default async function Vehicules({ searchParams }: { searchParams: { statut?: string; q?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('vehicules')
-    .select('id, immatriculation, marque, modele, statut, km, assurance_echeance, ct_echeance, photo_path').order('immatriculation');
+    .select('id, immatriculation, marque, modele, statut, km, prix_jour, assurance_echeance, ct_echeance, photo_path').order('immatriculation');
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const vehicules = (tous ?? []).filter((v: any) =>
     (searchParams.statut ? v.statut === searchParams.statut : v.statut !== 'sorti') &&
@@ -70,7 +71,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
 
       <div className="tableau">
         <table className="cartes">
-          <thead><tr><th>Immat</th><th>Véhicule</th><th>Statut</th><th className="masque-mobile">Km</th><th className="masque-mobile">Papiers</th></tr></thead>
+          <thead><tr><th>Immat</th><th>Véhicule</th><th>Statut</th><th className="masque-mobile">Km</th><th className="masque-mobile">Prix / jour</th><th className="masque-mobile">Papiers</th></tr></thead>
           <tbody>
             {vehicules.map((v: any) => {
               const a = echeance(v.assurance_echeance); const c = echeance(v.ct_echeance);
@@ -80,7 +81,8 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
                   <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{plaque(v.immatriculation)}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>{v.financement === 'pret' ? <span className="pastille" style={{ marginLeft: 6 }} title={v.pret_par ? `Prêté par ${v.pret_par}` : 'Prêté par un confrère'}>Prêt</span> : null}</td>
-                  <td className="masque-mobile">{km(v.km)}</td>
+                  <td className="masque-mobile"><ChampEnLigne table="vehicules" id={v.id} champ="km" valeur={v.km} affichage={km(v.km)} suffixe=" km" /></td>
+                  <td className="masque-mobile"><ChampEnLigne table="vehicules" id={v.id} champ="prix_jour" valeur={v.prix_jour} affichage={v.prix_jour != null ? `${Number(v.prix_jour).toLocaleString('fr-FR')} €` : '—'} suffixe=" €" /></td>
                   <td className="masque-mobile">
                     {!v.assurance_echeance && !v.ct_echeance ? <span className="gris">À compléter</span>
                       : <span className={`pastille ${pire || 'ok'}`}>{pire === 'depasse' ? 'Expiré' : pire === 'proche' ? 'Bientôt' : 'À jour'}{pire && ` · ${date(a ? v.assurance_echeance : v.ct_echeance)}`}</span>}

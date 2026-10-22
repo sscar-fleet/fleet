@@ -846,3 +846,22 @@ table.import td { vertical-align: top; }
 .planning .resa { position: relative; }
 .planning .etirer { position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: ew-resize; border-radius: 0 8px 8px 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35)); opacity: 0; transition: opacity .15s; }
 .planning .resa:hover .etirer { opacity: 1; }
+
+/* Actions groupées */
+input.selection { width: 20px; height: 20px; accent-color: var(--turquoise); flex: none; cursor: pointer; }
+.barre-selection { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; padding: 12px 16px; border-radius: 16px; background: var(--panneau); border: 1px solid var(--turquoise); box-shadow: var(--ombre); max-width: calc(100% - 24px); }
+@media (max-width: 760px) { .barre-selection { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }
+
+/* Panneau de détail sur le côté */
+.panneau-voile { position: fixed; inset: 0; z-index: 80; background: rgba(0,0,0,.35); display: flex; justify-content: flex-end; }
+.panneau-lateral { width: min(720px, 58vw); height: 100%; background: var(--noir); border-left: 1px solid var(--bord); box-shadow: var(--ombre); display: flex; flex-direction: column; animation: panneau-entre .18s ease-out; }
+@keyframes panneau-entre { from { transform: translateX(40px); opacity: .5; } }
+.panneau-haut { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--bord); }
+.panneau-lateral iframe { flex: 1; width: 100%; border: 0; background: var(--noir); }
+html.dans-panneau .menu-lateral, html.dans-panneau .entete, html.dans-panneau .nav, html.dans-panneau .menu-plus, html.dans-panneau .guide-mission { display: none !important; }
+html.dans-panneau .coque { display: block; }
+html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width: none; }
+/* Valeurs modifiables dans les tableaux */
+.valeur-en-ligne { font: inherit; color: inherit; background: none; border: 1px dashed transparent; border-radius: 6px; padding: 2px 6px; margin: -3px -7px; cursor: text; }
+.valeur-en-ligne:hover { border-color: var(--bord); background: var(--panneau2); }
+.champ-en-ligne { width: 110px; padding: 4px 8px; font: inherit; }

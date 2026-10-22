@@ -2,6 +2,7 @@ import OuvrirFormulaire from '@/app/_c/OuvrirFormulaire';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import { statutAmende, dateHeure, date, euros, JOUR, plaque } from '@/lib/format';
 import * as A from '../actions';
+import BarreSelection from '../_c/BarreSelection';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Envoyer from '../_c/Envoyer';
@@ -61,6 +62,7 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
         {[['a_traiter', 'À traiter'], ['designee', 'Désignées'], ['payee', 'Payées']].map(([k, v]) => (
           <a key={k} href={`/amendes?filtre=${k}`} className={filtre === k ? 'actif' : ''}>{v}</a>
         ))}
+        {filtre === 'a_traiter' && (amendes ?? []).length > 1 && <BarreSelection genre="amendes" />}
       </div>
       {(amendes ?? []).map((a: any) => {
         const reste = a.echeance ? Math.ceil((new Date(a.echeance).getTime() - Date.now()) / JOUR) : null;
@@ -68,7 +70,7 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
         return (
           <section key={a.id} className="carte">
             <div className="titre" style={{ marginBottom: 8 }}>
-              <h2 style={{ margin: 0 }}>{plaque(a.vehicules?.immatriculation)} · {a.type ?? 'Amende'} {a.montant ? `· ${euros(a.montant)}` : ''}</h2>
+              <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>{!['designee', 'payee'].includes(a.statut) && <input type="checkbox" className="selection" data-sel={a.id} aria-label="Sélectionner cette amende" />}{plaque(a.vehicules?.immatriculation)} · {a.type ?? 'Amende'} {a.montant ? `· ${euros(a.montant)}` : ''}</h2>
               <span className="ligne">
                 <span className={`pastille ${a.statut}`}>{statutAmende[a.statut]}</span>
                 {reste !== null && !['designee', 'payee'].includes(a.statut) && <span className={`badge ${urgent ? 'rouge' : 'gris'}`}>{reste < 0 ? 'Délai dépassé' : `J-${reste}`}</span>}

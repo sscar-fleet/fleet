@@ -652,6 +652,22 @@ async function _statutAmende(id: string, statut: string) {
   rafraichir();
 }
 
+// Actions groupées : plusieurs amendes d'un coup (désignées seulement si le conducteur est connu)
+async function _statutAmendes(ids: string[], statut: string) {
+  champAutorise(statut, ['designee', 'payee', 'refusee']);
+  const liste = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === 'string').slice(0, 200);
+  let faites = 0, sautees = 0;
+  for (const id of liste) {
+    if (statut === 'designee') {
+      const { supabase } = await utilisateurCourant();
+      const { data } = await supabase.from('amendes').select('client_id').eq('id', id).single();
+      if (!data?.client_id) { sautees++; continue; }
+    }
+    await _statutAmende(id, statut); faites++;
+  }
+  return { faites, sautees };
+}
+
 async function _avisAmende(id: string, chemin: string) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('amendes').update({ avis_path: chemin }).eq('id', id)).error);
@@ -1128,6 +1144,20 @@ export const documentAgence = proteger(_documentAgence);
 export const relierTraceur = proteger(_relierTraceur);
 export const delierTraceur = proteger(_delierTraceur);
 export const importerVehicules = proteger(_importerVehicules);
+export const statutAmendes = proteger(_statutAmendes);
+
+// Modification directe dans les tableaux (liste blanche de champs)
+async function _modifierEnLigne(table: string, id: string, champ: string, valeur: number | null) {
+  const permis: Record<string, string[]> = { vehicules: ['km', 'prix_jour'] };
+  if (!permis[table]?.includes(champ)) throw new Error('Modification non autorisée.');
+  if (valeur != null && (!isFinite(valeur) || valeur < 0 || valeur > 9_999_999)) throw new Error('Valeur invalide.');
+  const { supabase } = await utilisateurCourant();
+  const v = champ === 'km' && valeur != null ? Math.round(valeur) : valeur;
+  verifier((await supabase.from(table).update({ [champ]: v }).eq('id', id)).error);
+  if (table === 'vehicules') await journal(null, id, champ === 'km' ? 'Kilométrage modifié' : 'Prix par jour modifié', v == null ? 'effacé' : String(v));
+  rafraichir();
+}
+export const modifierEnLigne = proteger(_modifierEnLigne);
 
 // Parcours découverte : un écran ouvert ou un outil essayé pour la première fois (une seule trace par découverte)
 export async function marquerDecouverte(cle: string) {
