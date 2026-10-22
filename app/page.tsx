@@ -203,7 +203,7 @@ export default async function Accueil() {
       </div>
 
       <h2 className="bloc-titre">2 · Aujourd&apos;hui et cette semaine</h2>
-      <div className="accueil-bas">
+      <div>
         <section className="carte">
           <h2>Aujourd&apos;hui</h2>
           {!lignes.length && <p className="gris" style={{ marginBottom: 0 }}>Aucun départ ni retour prévu. Journée calme.</p>}
@@ -223,7 +223,8 @@ export default async function Accueil() {
           ))}
           {lignes.some((x) => x.voyants) && <p className="gris" style={{ fontSize: 12.5, marginBottom: 0 }}>Voyants d&apos;un départ : client vérifié · caution · voiture prête · état des lieux</p>}
         </section>
-        <div className="pile">
+      </div>
+        <div style={{ marginTop: 16 }}>
       <section className="carte">
         <div className="titre" style={{ marginBottom: 12 }}>
           <h2 style={{ margin: 0 }}>Planning de la semaine</h2>
@@ -232,7 +233,6 @@ export default async function Accueil() {
         <GrillePlanning p={planning} compact />
       </section>
         </div>
-      </div>
 
       <h2 className="bloc-titre">3 · Ma flotte</h2>
       {lignesGps.length > 0 && (
