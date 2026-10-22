@@ -1,10 +1,12 @@
 // Le client signe avec le doigt. L'image est produite pour le PDF.
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, Platform, Pressable, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { useCouleurs } from '@/lib/theme';
 
 const H = 220;
+// Sur téléphone natif, la zone affichée est capturée directement en PNG
+let svgActif: any = null;
 
 export default function Signature({ onChange }: { onChange: (traits: string[], largeur: number) => void }) {
   const c = useCouleurs();
@@ -40,7 +42,8 @@ export default function Signature({ onChange }: { onChange: (traits: string[], l
     <View style={{ gap: 8 }}>
       <View ref={zone} onLayout={(e) => { largeur.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}
         style={{ height: H, borderRadius: 16, backgroundColor: '#fff', borderWidth: 2, borderColor: traits.length ? c.accent : c.bord, overflow: 'hidden', ...((Platform.OS === 'web' ? { touchAction: 'none', userSelect: 'none', WebkitUserSelect: 'none', overscrollBehavior: 'contain', cursor: 'crosshair' } : {}) as object) }}>
-        <Svg width="100%" height={H} pointerEvents="none">
+        <Svg ref={(r) => { if (r) svgActif = r; }} width="100%" height={H} pointerEvents="none">
+          <Rect x={0} y={0} width="100%" height={H} fill="#fff" />
           {traits.map((d, i) => <Path key={i} d={d} stroke="#0b1215" strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />)}
         </Svg>
         {!traits.length && <Text pointerEvents="none" style={{ position: 'absolute', alignSelf: 'center', top: H / 2 - 12, color: '#8a99a3', fontSize: 17 }}>Le client signe ici avec le doigt</Text>}
@@ -50,9 +53,16 @@ export default function Signature({ onChange }: { onChange: (traits: string[], l
   );
 }
 
-// Transforme les traits en image PNG (navigateur). Sur téléphone natif : prochaine étape (capture de vue).
+// Transforme les traits en image PNG (navigateur : dessin sur canvas ; téléphone natif : capture de la zone).
 export async function signatureEnImage(traits: string[], largeur: number): Promise<string | null> {
-  if (Platform.OS !== 'web' || !traits.length) return null;
+  if (!traits.length) return null;
+  if (Platform.OS !== 'web') {
+    if (!svgActif?.toDataURL) return null;
+    return new Promise((ok) => {
+      const delai = setTimeout(() => ok(null), 4000);
+      svgActif.toDataURL((b64: string) => { clearTimeout(delai); ok(b64 ? `data:image/png;base64,${b64}` : null); }, { width: Math.round(largeur * 2), height: H * 2 });
+    });
+  }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${largeur}" height="${H}" viewBox="0 0 ${largeur} ${H}">${traits.map((d) => `<path d="${d}" stroke="#0b1215" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`;
   const img = new (globalThis as any).Image();
   await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });

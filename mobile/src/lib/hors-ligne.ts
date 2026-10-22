@@ -53,6 +53,19 @@ export async function enLigne() {
   return !!e.isConnected && e.isInternetReachable !== false;
 }
 
+// Image fournie en data URL (signature) : décodage local, fetch() ne lit pas les data URL partout sur téléphone
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+function base64EnOctets(b64: string): ArrayBuffer {
+  const propre = b64.replace(/[^A-Za-z0-9+/]/g, '');
+  const sortie = new Uint8Array(Math.floor((propre.length * 3) / 4));
+  let n = 0, tampon = 0, bits = 0;
+  for (const ch of propre) {
+    tampon = (tampon << 6) | B64.indexOf(ch); bits += 6;
+    if (bits >= 8) { bits -= 8; sortie[n++] = (tampon >> bits) & 0xff; }
+  }
+  return sortie.slice(0, n).buffer;
+}
+
 async function executer(op: Operation): Promise<void> {
   if (op.genre === 'maj') {
     const { error } = await supabase.from(op.table).update(op.champs).eq('id', op.id);
@@ -61,7 +74,7 @@ async function executer(op: Operation): Promise<void> {
     const { error } = await supabase.from(op.table).insert(op.champs);
     if (error) throw error;
   } else {
-    const fichier = await fetch(op.uri).then((r) => r.arrayBuffer());
+    const fichier = op.uri.startsWith('data:') ? base64EnOctets(op.uri.slice(op.uri.indexOf(',') + 1)) : await fetch(op.uri).then((r) => r.arrayBuffer());
     const { error } = await supabase.storage.from('documents').upload(op.chemin, fichier, { contentType: op.type, upsert: true });
     if (error) throw error;
     if (op.ensuite) await executer(op.ensuite);

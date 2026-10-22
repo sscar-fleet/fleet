@@ -1,0 +1,14 @@
+{
+  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  "build": {
+    "production": {
+      "environment": "production",
+      "autoIncrement": true,
+      "ios": { "resourceClass": "default" },
+      "env": { "EXPO_PUBLIC_FLEET_URL": "https://fleet-beryl-seven.vercel.app" }
+    }
+  },
+  "submit": {
+    "production": { "ios": { "companyName": "SS CAR FLEET" } }
+  }
+}
