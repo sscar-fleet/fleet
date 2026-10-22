@@ -17,7 +17,9 @@ export async function etatsFusionnes(compteId?: number | string | null): Promise
     // Le direct gagne dès qu'il a une position, en gardant l'identifiant et le nom WhatsGPS
     return d.lat != null ? { ...d, carId: e.carId, nom: e.nom ?? d.nom } : { ...e, source: 'whatsgps' as const };
   });
-  return [...fusion, ...parImei.values()];
+  // Les boîtiers présents seulement sur notre serveur ne sont montrés à personne tant qu'ils ne sont pas
+  // rattachés à un compte d'agence : sinon chaque loueur verrait les boîtiers des autres.
+  return fusion;
 }
 
 export async function alertesFusionnees(heures = 48): Promise<AlerteBoitier[]> {
