@@ -467,6 +467,39 @@ async function _deplacerReservation(id: string, vehicule_id: string) {
   rafraichir();
 }
 
+// Planning : décaler une réservation de quelques jours (même durée, mêmes heures), éventuellement sur une autre voiture,
+// ou tirer son bord pour la prolonger / raccourcir. Le prix suit la durée au tarif journalier de la voiture.
+async function _ajusterPlanning(id: string, p: { decalageJours?: number; vehicule_id?: string | null; nouvelleFinJour?: string | null }) {
+  const { supabase } = await utilisateurCourant();
+  const { data: l } = await supabase.from('locations').select('vehicule_id, debut, fin_prevue, statut, prix_total, vehicules(prix_jour)').eq('id', id).single();
+  if (!l) throw new Error('Location introuvable.');
+  const decalage = Math.round(Number(p.decalageJours ?? 0));
+  if (decalage && l.statut !== 'reservee') throw new Error('Une location déjà partie ne peut pas être décalée : prolongez-la plutôt.');
+  if (!['reservee', 'en_cours'].includes(l.statut)) throw new Error('Cette location est terminée.');
+  const vehicule = p.vehicule_id && p.vehicule_id !== l.vehicule_id ? p.vehicule_id : l.vehicule_id;
+  if (vehicule !== l.vehicule_id && l.statut !== 'reservee') throw new Error('Pour une location en cours, changez de voiture depuis sa fiche.');
+  const J = 86_400_000;
+  let debut = new Date(new Date(l.debut).getTime() + decalage * J).toISOString();
+  let fin = new Date(new Date(l.fin_prevue).getTime() + decalage * J).toISOString();
+  if (p.nouvelleFinJour && /^\d{4}-\d{2}-\d{2}$/.test(p.nouvelleFinJour)) {
+    const heure = new Date(l.fin_prevue).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
+    fin = depuisParis(`${p.nouvelleFinJour}T${heure}`)!;
+    if (new Date(fin) <= new Date(debut)) throw new Error('Le retour doit être après le départ.');
+  }
+  await verifierDisponible(supabase, vehicule, debut, fin, id);
+  const prixJour = Number((l as any).vehicules?.prix_jour ?? 0);
+  const ancienneDuree = Math.max(1, Math.ceil((new Date(l.fin_prevue).getTime() - new Date(l.debut).getTime()) / J));
+  const nouvelleDuree = Math.max(1, Math.ceil((new Date(fin).getTime() - new Date(debut).getTime()) / J));
+  const prix = nouvelleDuree !== ancienneDuree && prixJour ? Math.round((Number(l.prix_total ?? 0) + (nouvelleDuree - ancienneDuree) * prixJour) * 100) / 100 : l.prix_total;
+  const maj: Record<string, unknown> = { debut, fin_prevue: fin, prix_total: prix };
+  if (vehicule !== l.vehicule_id) maj.vehicule_id = vehicule;
+  verifier((await supabase.from('locations').update(maj).eq('id', id)).error);
+  const quand = (d: string) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  await journal(id, vehicule, p.nouvelleFinJour ? 'Retour modifié depuis le planning' : 'Réservation déplacée depuis le planning', `${quand(debut)} → ${quand(fin)}${prix !== l.prix_total ? ` · prix ${prix} €` : ''}`);
+  rafraichir();
+  return { debut, fin, prix };
+}
+
 async function _annulerLocation(id: string) {
   const { supabase } = await utilisateurCourant();
   const { data: l } = await supabase.from('locations').select('statut, vehicule_id').eq('id', id).single();
@@ -1053,6 +1086,7 @@ export const documentClient = proteger(_documentClient);
 export const listeNoire = proteger(_listeNoire);
 export const creerLocation = proteger(_creerLocation);
 export const prolonger = proteger(_prolonger);
+export const ajusterPlanning = proteger(_ajusterPlanning);
 export const changerVoiture = proteger(_changerVoiture);
 export const deplacerReservation = proteger(_deplacerReservation);
 export const annulerLocation = proteger(_annulerLocation);

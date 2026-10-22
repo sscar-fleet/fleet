@@ -841,3 +841,8 @@ table.import td { vertical-align: top; }
 .guide-mission span span, .guide-mission > span > span { display: block; color: var(--texte2); font-size: 14px; }
 .guide-ic { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--turquoise); color: var(--sur-turquoise); font-weight: 800; flex: none; }
 @media (max-width: 560px) { .dec-lib { display: none; } .dec-missions li { flex-wrap: wrap; } .dec-missions li .bouton { margin-left: 38px; } }
+
+/* Planning : poignée pour tirer la date de retour */
+.planning .resa { position: relative; }
+.planning .etirer { position: absolute; right: 0; top: 0; bottom: 0; width: 10px; cursor: ew-resize; border-radius: 0 8px 8px 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35)); opacity: 0; transition: opacity .15s; }
+.planning .resa:hover .etirer { opacity: 1; }

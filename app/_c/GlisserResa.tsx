@@ -3,7 +3,7 @@
 // Une confirmation s'affiche, puis la réservation change de voiture (si celle-ci est libre sur ces dates).
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { deplacerReservation } from '@/app/actions';
+import { ajusterPlanning } from '@/app/actions';
 
 type Info = { genre: string; numero?: number; client?: string; tel?: string | null; debut?: string | null; fin?: string | null; statut?: string; prix?: number | null;
   caution?: { montant: number; statut: string } | null; voiture: string; garage?: string | null; raison?: string | null };
@@ -16,7 +16,11 @@ const dureeTexte = (a?: string | null, b?: string | null) => {
 };
 const STATUTS: Record<string, string> = { reservee: 'Réservée', en_cours: 'En cours', terminee: 'Terminée' };
 const CAUTION: Record<string, string> = { a_prendre: 'à prendre', prise: 'prise', rendue: 'rendue', encaissee: 'encaissée', litige: 'en litige' };
-type Projet = { loc: string; libelle: string; vehicule: string; plaque: string };
+type Projet = { loc: string; libelle: string; vehicule: string | null; plaque: string; decalage: number; finJour: string | null };
+const J = 86_400_000;
+const ajouterJours = (jour: string, n: number) => new Date(Date.parse(jour + 'T12:00:00Z') + n * J).toISOString().slice(0, 10);
+const ecart = (a: string, b: string) => Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / J);
+const jolieDate = (jour: string) => new Date(jour + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 
 export default function GlisserResa() {
   const ancre = useRef<HTMLSpanElement>(null);
@@ -29,33 +33,53 @@ export default function GlisserResa() {
   useEffect(() => {
     const zone = ancre.current?.closest('[data-glisser]') as HTMLElement | null;
     if (!zone) return;
-    let enMain: { loc: string; libelle: string; depuis: string } | null = null;
+    let enMain: { loc: string; libelle: string; depuis: string; jourPris: string | null; etirer: boolean } | null = null;
     let survol: HTMLElement | null = null;
     const ligne = (e: Event) => (e.target as HTMLElement)?.closest?.('tr[data-vehicule]') as HTMLElement | null;
+    // Jour sous le pointeur : case libre (data-jour) ou position dans une barre (premier jour visible + rang de la colonne)
+    const jourSous = (e: DragEvent): string | null => {
+      const td = (e.target as HTMLElement)?.closest?.('td') as HTMLElement | null;
+      if (!td) return null;
+      if (td.dataset.jour) return td.dataset.jour;
+      if (td.dataset.jour0 && td.dataset.n) {
+        const r = td.getBoundingClientRect(); const n = Number(td.dataset.n);
+        return ajouterJours(td.dataset.jour0, Math.min(n - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * n))));
+      }
+      return null;
+    };
     const nettoyer = () => { survol?.classList.remove('cible', 'interdit'); survol = null; zone.classList.remove('glisse'); };
     const debut = (e: DragEvent) => {
-      const b = (e.target as HTMLElement)?.closest?.('[data-resa]') as HTMLElement | null;
+      const poignee = (e.target as HTMLElement)?.closest?.('[data-etirer]') as HTMLElement | null;
+      const b = poignee ?? (e.target as HTMLElement)?.closest?.('[data-resa]') as HTMLElement | null;
       if (!b) return;
-      enMain = { loc: b.dataset.resa!, libelle: b.dataset.libelle ?? '', depuis: b.dataset.vehiculeActuel ?? '' };
+      const barre = b.closest('a') as HTMLElement;
+      enMain = { loc: poignee ? poignee.dataset.etirer! : b.dataset.resa!, libelle: b.dataset.libelle ?? '', depuis: barre?.dataset.vehiculeActuel ?? '', jourPris: poignee ? null : jourSous(e), etirer: !!poignee };
       e.dataTransfer?.setData('text/plain', enMain.loc);
       if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       zone.classList.add('glisse');
+      if (poignee) e.stopPropagation();
     };
     const dessus = (e: DragEvent) => {
       if (!enMain) return;
       const tr = ligne(e);
       if (tr !== survol) { survol?.classList.remove('cible', 'interdit'); survol = tr; }
       if (!tr) return;
-      const interdit = tr.dataset.vehicule === enMain.depuis || tr.dataset.statut === 'maintenance';
+      const interdit = enMain.etirer ? tr.dataset.vehicule !== enMain.depuis : tr.dataset.statut === 'maintenance';
       tr.classList.toggle('interdit', interdit); tr.classList.toggle('cible', !interdit);
       if (!interdit) e.preventDefault();
     };
     const lacher = (e: DragEvent) => {
       const tr = ligne(e);
       e.preventDefault();
-      if (enMain && tr && tr.dataset.vehicule !== enMain.depuis) {
-        setProjet({ loc: enMain.loc, libelle: enMain.libelle, vehicule: tr.dataset.vehicule!, plaque: tr.dataset.plaque ?? '' });
-        setEtat(''); setMessage('');
+      const jour = jourSous(e);
+      if (enMain && tr && jour) {
+        if (enMain.etirer) {
+          if (tr.dataset.vehicule === enMain.depuis) { setProjet({ loc: enMain.loc, libelle: enMain.libelle, vehicule: null, plaque: '', decalage: 0, finJour: jour }); setEtat(''); setMessage(''); }
+        } else {
+          const decalage = enMain.jourPris ? ecart(enMain.jourPris, jour) : 0;
+          const autre = tr.dataset.vehicule !== enMain.depuis;
+          if (autre || decalage) { setProjet({ loc: enMain.loc, libelle: enMain.libelle, vehicule: autre ? tr.dataset.vehicule! : null, plaque: autre ? tr.dataset.plaque ?? '' : '', decalage, finJour: null }); setEtat(''); setMessage(''); }
+        }
       }
       enMain = null; nettoyer();
     };
@@ -87,7 +111,7 @@ export default function GlisserResa() {
   async function confirmer() {
     if (!projet) return;
     setEtat('envoi');
-    const r = await deplacerReservation(projet.loc, projet.vehicule);
+    const r = await ajusterPlanning(projet.loc, { decalageJours: projet.decalage, vehicule_id: projet.vehicule, nouvelleFinJour: projet.finJour });
     if (r?.erreur) { setEtat(''); setMessage(r.erreur); return; }
     setEtat('ok'); router.refresh();
     setTimeout(() => setProjet(null), 1200);
@@ -104,7 +128,7 @@ export default function GlisserResa() {
               {info.i.prix != null && <><span>Prix</span><b>{Number(info.i.prix).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}</b></>}
               {info.i.caution && <><span>Caution</span><b>{Number(info.i.caution.montant).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} · {CAUTION[info.i.caution.statut] ?? info.i.caution.statut}</b></>}
               {info.i.tel && <><span>Téléphone</span><b>{info.i.tel}</b></>}</div>
-            <div className="ib-pied">{info.i.statut === 'reservee' ? 'Glissez la barre sur une autre voiture pour la changer · clic pour ouvrir' : 'Clic pour ouvrir la location'}</div>
+            <div className="ib-pied">{info.i.statut === 'en_cours' ? 'Tirez le bord droit de la barre pour prolonger · clic pour ouvrir' : info.i.statut === 'reservee' ? 'Glissez la barre vers un autre jour ou une autre voiture · tirez son bord droit pour changer le retour · clic pour ouvrir' : 'Clic pour ouvrir la location'}</div>
           </> : <>
             <div className="ib-haut"><b>{info.i.genre === 'transfert' ? 'Transfert' : 'Maintenance'}</b><span className="ib-statut maintenance">{info.i.garage || 'Garage'}</span></div>
             <div className="gris">{info.i.voiture}{info.i.raison ? ' · ' + info.i.raison : ''}</div>
@@ -117,8 +141,13 @@ export default function GlisserResa() {
       {projet && (
         <div className="glisser-confirme" role="dialog" aria-live="polite">
           <div>
-            <b>{etat === 'ok' ? 'Réservation déplacée' : 'Changer de voiture ?'}</b>
-            <span>Réservation {projet.libelle} → <b>{projet.plaque}</b></span>
+            <b>{etat === 'ok' ? (projet.finJour ? 'Date de retour modifiée' : 'Réservation déplacée') : projet.finJour ? 'Changer la date de retour ?' : 'Déplacer la réservation ?'}</b>
+            <span>Location {projet.libelle}
+              {projet.finJour && <> · retour le <b>{jolieDate(projet.finJour)}</b> (même heure)</>}
+              {projet.decalage !== 0 && <> · {projet.decalage > 0 ? 'décalée de' : 'avancée de'} <b>{Math.abs(projet.decalage)} jour{Math.abs(projet.decalage) > 1 ? 's' : ''}</b></>}
+              {projet.vehicule && <> · sur <b>{projet.plaque}</b></>}
+            </span>
+            <span className="gris" style={{ fontSize: 13 }}>Le prix suit la nouvelle durée au tarif journalier de la voiture.</span>
             {message && <span className="erreur">{message}</span>}
           </div>
           {etat !== 'ok' && <div className="ligne">

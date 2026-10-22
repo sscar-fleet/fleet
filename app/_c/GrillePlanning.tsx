@@ -65,15 +65,17 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                 let n = 1;
                 while (i + n < p.jours.length && p.occupation(v.id, p.jours[i + n])?.l?.id === o.l.id) n++;
                 const resa = o.l.statut === 'reservee';
+                const etirable = resa || o.l.statut === 'en_cours';
                 const nom = o.l.clients?.nom ?? '';
                 cases.push(
-                  <td key={i} colSpan={n} className="barre-case">
+                  <td key={i} colSpan={n} className="barre-case" data-jour0={versJour(j)} data-n={n}>
                     <a href={`/locations/${o.l.id}`} data-info={JSON.stringify({ genre: 'loc', numero: o.l.numero, client: [o.l.clients?.prenom, nom].filter(Boolean).join(' '), tel: o.l.clients?.telephone ?? null,
                       debut: o.l.debut, fin: o.l.fin_reelle ?? o.l.fin_prevue, statut: o.l.statut, prix: o.l.prix_total, caution: o.l.caution_montant ? { montant: o.l.caution_montant, statut: o.l.caution_statut } : null,
                       voiture: `${plaque(v.immatriculation)} · ${[v.marque, v.modele].filter(Boolean).join(' ')}` })} className={`resa ${o.l.statut}`} draggable={resa || undefined} data-resa={resa ? o.l.id : undefined}
                       data-libelle={resa ? `n° ${o.l.numero}${nom ? ' · ' + nom : ''}` : undefined} data-vehicule-actuel={v.id}>
                       {resa && <span className="poignee" aria-hidden="true">⋮⋮</span>}
                       <span className="resa-nom">{serre && n < 3 ? '\u00a0' : nom || `N° ${o.l.numero}`}</span>
+                      {etirable && <span className="etirer" draggable data-etirer={o.l.id} data-libelle={`n° ${o.l.numero}${nom ? ' · ' + nom : ''}`} title="Tirer pour changer la date de retour" aria-label="Changer la date de retour" />}
                     </a>
                   </td>);
                 i += n - 1;
@@ -93,7 +95,7 @@ export default function GrillePlanning({ p, compact = false }: { p: Awaited<Retu
                 i += n - 1;
                 continue;
               }
-              cases.push(<td key={i} className={`libre ${we ? 'weekend' : ''}`} title={`${jour} · nouvelle location`}><a href={`/locations/nouvelle?vehicule=${v.id}&jour=${versJour(j)}`} className="case-libre">+</a></td>);
+              cases.push(<td key={i} data-jour={versJour(j)} className={`libre ${we ? 'weekend' : ''}`} title={`${jour} · nouvelle location`}><a href={`/locations/nouvelle?vehicule=${v.id}&jour=${versJour(j)}`} className="case-libre">+</a></td>);
             }
             return (
               <tr key={v.id} data-vehicule={v.id} data-plaque={`${plaque(v.immatriculation)} ${[v.marque, v.modele].filter(Boolean).join(' ')}`} data-statut={v.statut}>
