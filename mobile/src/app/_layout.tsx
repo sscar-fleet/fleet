@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { FournisseurSession, useSession } from '@/lib/session';
 import { envoyerFile } from '@/lib/hors-ligne';
@@ -14,6 +14,26 @@ function Navigation() {
   const c = useCouleurs();
   useEffect(() => { if (session) envoyerFile().catch(() => {}); }, [session]);
   if (!pret) return <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center', padding: 16 }}><Chargement /></View>;
+  // Compte pas encore ouvert, essai terminé ou suspendu : rien n'est perdu, l'accès revient à la réactivation
+  if (session && profil?.ferme) {
+    const [titre, texte] = profil.ferme === 'attente'
+      ? ['Votre compte est en cours d’ouverture', 'SS CAR FLEET vous contacte pour mettre en place votre agence avec vous. Dès que c’est fait, tout apparaît ici.']
+      : profil.ferme === 'essai'
+        ? ['Votre période d’essai est terminée', 'Toutes vos données sont conservées. Contactez-nous pour continuer.']
+        : ['Votre compte est suspendu', 'Toutes vos données sont conservées. Contactez-nous pour le réactiver.'];
+    return (
+      <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center', padding: 24, gap: 14 }}>
+        <Text style={{ color: c.texte, fontSize: 24, fontWeight: '800' }}>{titre}</Text>
+        <Text style={{ color: c.gris, fontSize: 16, lineHeight: 23 }}>{texte}</Text>
+        <Pressable onPress={() => Linking.openURL('mailto:fleet@sscarsystem.com')} style={{ height: 52, borderRadius: 16, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: c.surAccent, fontWeight: '800', fontSize: 16 }}>Écrire à SS CAR FLEET</Text>
+        </Pressable>
+        <Pressable onPress={() => supabase.auth.signOut()} style={{ height: 52, borderRadius: 16, borderWidth: 1, borderColor: c.bord, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: c.texte, fontWeight: '800', fontSize: 16 }}>Se déconnecter</Text>
+        </Pressable>
+      </View>
+    );
+  }
   // Employé qui n'a accès qu'au logiciel (ordinateur)
   if (session && profil?.acces === 'logiciel') return (
     <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center', padding: 24, gap: 14 }}>

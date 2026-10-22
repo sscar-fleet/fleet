@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { clientApi } from '@/lib/api';
+import { clientApi, quotaIa } from '@/lib/api';
 import { lireDocument } from '@/lib/lecture';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +9,8 @@ export const maxDuration = 30;
 export async function POST(request: Request) {
   const c = await clientApi(request);
   if (!c) return NextResponse.json({ erreur: 'Connexion expirée.' }, { status: 401 });
+  const plafond = await quotaIa(c.supabase);
+  if (plafond) return NextResponse.json({ erreur: plafond }, { status: 429 });
   const { image, genre, chemin } = await request.json().catch(() => ({}));
   // Gros fichier (PDF d'un avis) : déjà déposé dans le stockage, on le relit ici plutôt que de le renvoyer
   let media = image;

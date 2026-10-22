@@ -1,0 +1,84 @@
+import { notFound, redirect } from 'next/navigation';
+import Logo from '../_c/Logo';
+import Formulaire from '../_c/Formulaire';
+import Envoyer from '../_c/Envoyer';
+import { supabaseServeur } from '@/lib/supabase';
+import { date, dateHeure } from '@/lib/format';
+import { majAgence, noteAgence } from './actions';
+
+export const dynamic = 'force-dynamic';
+
+const LIBELLES: Record<string, [string, string]> = {
+  attente: ['À ouvrir', 'proche'], essai: ['Essai', ''], actif: ['Abonné', 'gps-roule'], suspendu: ['Suspendu', 'retard'],
+};
+const joursAvant = (d?: string | null) => (d ? Math.ceil((new Date(d + 'T23:59:59').getTime() - Date.now()) / 864e5) : null);
+
+// Page réservée à SS CAR FLEET : toutes les agences, leur essai, leur activité, et l'ouverture / suspension des comptes
+export default async function Admin() {
+  const supabase = supabaseServeur();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) redirect('/login');
+  const { data: admin } = await supabase.rpc('est_admin');
+  if (!admin) notFound();
+  const { data: agences, error } = await supabase.rpc('admin_agences');
+  const liste: any[] = agences ?? [];
+  const compte = (s: string) => liste.filter((a) => a.statut === s).length;
+  const finissent = liste.filter((a) => a.statut === 'essai' && (joursAvant(a.fin_essai) ?? 99) <= 5);
+
+  return (
+    <main className="page" style={{ maxWidth: 1180, margin: '0 auto', padding: 24 }}>
+      <div className="titre" style={{ marginBottom: 18 }}>
+        <div className="ligne" style={{ gap: 14 }}><Logo /><h1 style={{ margin: 0 }}>Agences</h1></div>
+        <a className="bouton petit" href="/">Retour au logiciel</a>
+      </div>
+      {error && <p className="pastille retard">{error.message}</p>}
+      <div className="tuiles" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 18 }}>
+        {[['À ouvrir', compte('attente')], ['En essai', compte('essai')], ['Abonnés', compte('actif')], ['Suspendus', compte('suspendu')]].map(([t, n]) => (
+          <div key={t as string} className="carte"><span className="gris">{t}</span><b style={{ display: 'block', fontSize: 28 }}>{n}</b></div>
+        ))}
+      </div>
+      {finissent.length > 0 && <p className="carte" style={{ borderColor: 'var(--orange, #E07A00)' }}><b>Essais qui se terminent bientôt :</b> {finissent.map((a) => `${a.nom} (${joursAvant(a.fin_essai)} j)`).join(', ')}</p>}
+      {!liste.length && <p className="gris">Aucune agence pour l’instant.</p>}
+      <div style={{ display: 'grid', gap: 12 }}>
+        {liste.map((a) => {
+          const [lib, cls] = LIBELLES[a.statut] ?? [a.statut, ''];
+          const reste = a.statut === 'essai' ? joursAvant(a.fin_essai) : null;
+          return (
+            <section key={a.id} className="carte" style={{ display: 'grid', gap: 10 }}>
+              <div className="titre">
+                <div>
+                  <b style={{ fontSize: 18 }}>{a.nom}</b> <span className={`pastille ${cls}`} style={{ marginLeft: 8 }}>{lib}{reste != null ? ` · ${reste > 0 ? `${reste} j restants` : 'terminé'}` : ''}</span>
+                  <div className="gris" style={{ fontSize: 14, marginTop: 4 }}>
+                    {[a.gerant, a.email, a.telephone].filter(Boolean).join(' · ')} · inscrite le {date(a.creee_le)}
+                  </div>
+                </div>
+                <div className="gris" style={{ fontSize: 14, textAlign: 'right' }}>
+                  {a.vehicules} véhicule{a.vehicules > 1 ? 's' : ''} · {a.locations_30j} location{a.locations_30j > 1 ? 's' : ''} sur 30 j · {a.utilisateurs} utilisateur{a.utilisateurs > 1 ? 's' : ''}<br />
+                  Dernière activité : {a.derniere_activite ? dateHeure(a.derniere_activite) : 'aucune'}
+                </div>
+              </div>
+              <div className="ligne" style={{ flexWrap: 'wrap', gap: 8 }}>
+                {(a.statut === 'attente' || a.statut === 'suspendu') && (
+                  <Formulaire action={majAgence.bind(null, a.id, 'essai', 30)} succes="Essai de 30 jours démarré"><Envoyer className="bouton petit principal">Ouvrir : essai 30 jours</Envoyer></Formulaire>
+                )}
+                {a.statut === 'essai' && (
+                  <Formulaire action={majAgence.bind(null, a.id, 'essai', Math.max(reste ?? 0, 0) + 15)} succes="Essai prolongé de 15 jours"><Envoyer className="bouton petit">Prolonger de 15 jours</Envoyer></Formulaire>
+                )}
+                {a.statut !== 'actif' && (
+                  <Formulaire action={majAgence.bind(null, a.id, 'actif', null)} succes="Agence passée abonnée" confirmer={`Passer ${a.nom} en abonné (plus de date de fin) ?`}><Envoyer className="bouton petit">Passer abonné</Envoyer></Formulaire>
+                )}
+                {a.statut !== 'suspendu' && a.statut !== 'attente' && (
+                  <Formulaire action={majAgence.bind(null, a.id, 'suspendu', null)} succes="Agence suspendue" confirmer={`Suspendre ${a.nom} ? L’agence n’aura plus accès à ses données, ordinateur et appli. Rien n’est effacé.`}><Envoyer className="bouton petit danger">Suspendre</Envoyer></Formulaire>
+                )}
+              </div>
+              <Formulaire action={noteAgence.bind(null, a.id, a.statut)} succes="Note enregistrée" className="ligne" style={{ gap: 8 }}>
+                <input name="note" defaultValue={a.note_admin ?? ''} placeholder="Note (prix convenu, contact, prochaine relance…)" style={{ flex: 1 }} />
+                <Envoyer className="bouton petit">Enregistrer</Envoyer>
+              </Formulaire>
+            </section>
+          );
+        })}
+      </div>
+    </main>
+  );
+}

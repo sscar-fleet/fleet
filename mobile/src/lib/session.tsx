@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { DEMO } from './demo';
 
-type Profil = { id: string; nom: string; role: string; agence_id: string; agence: string; acces?: string };
+type Profil = { id: string; nom: string; role: string; agence_id: string; agence: string; acces?: string; ferme?: string | null };
 type Etat = { session: Session | null; profil: Profil | null; pret: boolean };
 
 const Contexte = createContext<Etat>({ session: null, profil: null, pret: false });
@@ -19,7 +19,11 @@ export function FournisseurSession({ children }: { children: ReactNode }) {
       if (!session) { setEtat({ session: null, profil: null, pret: true }); return; }
       const { data } = await supabase.from('utilisateurs').select('id, nom, role, agence_id, agences(nom)').eq('id', session.user.id).maybeSingle();
       const { data: a } = await supabase.from('utilisateurs').select('acces').eq('id', session.user.id).maybeSingle();
-      const profil = data ? { id: data.id, nom: data.nom, role: data.role, agence_id: data.agence_id, agence: (data as any).agences?.nom ?? '', acces: (a as any)?.acces ?? 'les_deux' } : null;
+      // Compte pas encore ouvert, essai terminé ou suspendu
+      const { data: etat } = await supabase.rpc('etat_compte');
+      const e: any = Array.isArray(etat) ? etat[0] : etat;
+      const ferme = e && e.ouvert === false ? String(e.statut) : null;
+      const profil = data ? { ferme, id: data.id, nom: data.nom, role: data.role, agence_id: data.agence_id, agence: (data as any).agences?.nom ?? '', acces: (a as any)?.acces ?? 'les_deux' } : null;
       setEtat({ session, profil, pret: true });
     };
     supabase.auth.getSession().then(({ data }) => charger(data.session));

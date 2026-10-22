@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { clientApi } from '@/lib/api';
+import { clientApi, quotaIa } from '@/lib/api';
 import { demanderAgent, type Message } from '@/lib/agent';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +9,8 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   const c = await clientApi(request);
   if (!c) return NextResponse.json({ erreur: 'Connexion expirée.' }, { status: 401 });
+  const plafond = await quotaIa(c.supabase);
+  if (plafond) return NextResponse.json({ erreur: plafond }, { status: 429 });
   const { messages } = await request.json().catch(() => ({}));
   const historique: Message[] = (Array.isArray(messages) ? messages : [])
     .filter((m: any) => (m?.role === 'user' || m?.role === 'assistant') && typeof m.content === 'string' && m.content.trim())

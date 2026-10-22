@@ -21,6 +21,10 @@ export const utilisateurCourant = cache(async () => {
     .eq('id', auth.user.id)
     .maybeSingle();
   if (!data) redirect('/bienvenue');
+  // Compte en attente d'ouverture, essai terminé ou suspendu : page d'information
+  const { data: etat } = await supabase.rpc('etat_compte');
+  const e = Array.isArray(etat) ? etat[0] : etat;
+  if (e && e.ouvert === false) redirect('/compte');
   // Employé qui n'a accès qu'à l'appli téléphone
   const { data: a } = await supabase.from('utilisateurs').select('acces').eq('id', auth.user.id).maybeSingle();
   if ((a as any)?.acces === 'appli') redirect('/acces-appli');
