@@ -12,7 +12,7 @@ export type PointGps = {
 const couleurs: Record<PointGps['etat'], string> = { roule: '#22c55e', arret: '#19f7d6', coupe: '#ef4444', hors_ligne: '#8a99a3' };
 
 // Carte des véhicules (plan ou satellite), rafraîchie toute seule toutes les 30 secondes
-export default function CarteGps({ points, hauteur = 420, rafraichir = 30 }: { points: PointGps[]; hauteur?: number; rafraichir?: number }) {
+export default function CarteGps({ points, hauteur = 420, rafraichir = 300 }: { points: PointGps[]; hauteur?: number; rafraichir?: number }) {
   const boite = useRef<HTMLDivElement>(null);
   const carte = useRef<any>(null);
   const calque = useRef<any>(null);

@@ -1,4 +1,8 @@
 import { CODES_ALARME, ALARMES_CRITIQUES } from './codesAlarme';
+import { unstable_cache, revalidateTag } from 'next/cache';
+// Quota WhatsGPS : 5 000 appels par mois et par compte (Seeworld, 22/10/2026). Les réponses sont donc
+// gardées dans le cache partagé de Vercel : état de la flotte 5 min, alertes 10 min, quel que soit le nombre d'écrans ouverts.
+const DUREE_ETATS = 300, DUREE_ALERTES = 600;
 // Client de l'API WhatsGPS (traceurs Seeworld). Appelé uniquement côté serveur :
 // les clés et le mot de passe restent dans les variables d'environnement de Vercel.
 //   WHATSGPS_APP_KEY, WHATSGPS_SECRET_KEY : clés de l'application OpenAPI (données par Seeworld)
@@ -205,15 +209,18 @@ function etat(d: any): EtatTraceur {
   };
 }
 
+const etatsBrutsPartages = unstable_cache(async (cle: string): Promise<any[]> => {
+  const s = await connexion();
+  const data = await appel('/carStatus/getByUserId.do', { query: { targetUserId: cle === 'principal' ? String(s.userId) : cle, mapType: '2' } });
+  return Array.isArray(data) ? data : [];
+}, ['whatsgps-etats'], { revalidate: DUREE_ETATS, tags: ['whatsgps-etats'] });
 // Toute la flotte d'un compte WhatsGPS en un seul appel. compteId vide = compte principal.
 export async function etatsDuCompte(compteId?: number | string | null): Promise<EtatTraceur[]> {
   if (whatsgpsDemo()) return etatsDemo();
   const cle = String(compteId ?? 'principal');
   const m = memoire.get(cle);
-  if (m && Date.now() - m.quand < 30_000) return m.etats;
-  const s = await connexion();
-  const data = await appel('/carStatus/getByUserId.do', { query: { targetUserId: String(compteId || s.userId), mapType: '2' } });
-  const brut = Array.isArray(data) ? data : [];
+  if (m && Date.now() - m.quand < DUREE_ETATS * 1000) return m.etats;
+  const brut = await etatsBrutsPartages(cle);
   const etats = brut.map(etat).filter((e) => e.imei);
   memoire.set(cle, { quand: Date.now(), etats });
   return etats;
@@ -226,6 +233,7 @@ export async function commandeMoteur(imei: string, couper: boolean): Promise<{ e
   const s = await connexion();
   const data = await appel('/remoteControl/controlPoil.do', { corps: { imei, on: couper ? 1 : 0, token: s.token } });
   memoire.clear();
+  try { revalidateTag('whatsgps-etats'); } catch { /* hors requête */ }
   return { enLigne: data?.online !== false, numero: data?.serNO ?? null };
 }
 
@@ -237,11 +245,15 @@ export function plaqueDans(...textes: (string | null | undefined)[]): string | n
   for (const t of textes) { const m = PLAQUE.exec(String(t ?? '').toUpperCase()); if (m) return `${m[1]}${m[2]}${m[3]}`; }
   return null;
 }
+const fichesBrutesPartagees = unstable_cache(async (cle: string): Promise<any[]> => {
+  const s = await connexion();
+  const data = await appel('/car/getByUserId.do', { query: { userId: cle === 'principal' ? String(s.userId) : cle } });
+  return Array.isArray(data) ? data : [];
+}, ['whatsgps-fiches'], { revalidate: 3600 });
 export async function fichesDuCompte(compteId?: number | string | null): Promise<FicheBoitier[]> {
   if (whatsgpsDemo()) return etatsDemo().map((e, i) => ({ imei: e.imei, carId: e.carId, nom: ['Clio V', '208', 'Golf 8', 'Classe A', 'Model 3', 'Duster'][i] ?? null, plaque: ['GA123BC', 'GB456CD', 'GC789DE', 'GD012EF', 'GE345FG', 'GF678GH'][i] ?? null, iccid: null, conducteur: null }));
-  const s = await connexion();
-  const data = await appel('/car/getByUserId.do', { query: { userId: String(compteId || s.userId) } });
-  return (Array.isArray(data) ? data : []).filter((d: any) => d.imei).map((d: any) => ({
+  const data = await fichesBrutesPartagees(String(compteId || 'principal'));
+  return data.filter((d: any) => d.imei).map((d: any) => ({
     imei: String(d.imei), carId: d.carId != null ? String(d.carId) : null,
     nom: String(d.machineName ?? '').trim() || null,
     plaque: plaqueDans(d.carNO, d.machineName),
@@ -266,14 +278,17 @@ function depuisParis(t: any): string | null {
   return isNaN(brut.getTime()) ? null : new Date(brut.getTime() - decalage(brut) * 1000).toISOString();
 }
 // Noms des types d'alerte donnés par WhatsGPS lui-même (réglages d'alertes du compte), gardés 6 h
+const nomsBrutsPartages = unstable_cache(async (): Promise<any[]> => {
+  const s = await connexion();
+  const data = await appel('/userCarAlarmSwitch/getByUserId.do', { query: { userId: String(s.userId) } });
+  return Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : [];
+}, ['whatsgps-noms-alertes'], { revalidate: 86400 });
 let nomsTypes: { quand: number; noms: Map<number, string> } | null = null;
 async function nomsDesAlertes(): Promise<Map<number, string>> {
   if (nomsTypes && Date.now() - nomsTypes.quand < 6 * 3600_000) return nomsTypes.noms;
   const noms = new Map<number, string>();
   try {
-    const s = await connexion();
-    const data = await appel('/userCarAlarmSwitch/getByUserId.do', { query: { userId: String(s.userId) } });
-    const liste: any[] = Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : [];
+    const liste = await nomsBrutsPartages();
     liste.forEach((x: any) => { if (x?.type != null && x?.name) noms.set(Number(x.type), String(x.name)); });
   } catch { /* service pas ouvert : on affichera un libellé générique */ }
   nomsTypes = { quand: Date.now(), noms };
@@ -289,16 +304,22 @@ const TRADUCTIONS: [RegExp, string][] = [
 ];
 const enFrancais = (t: string) => TRADUCTIONS.find(([re]) => re.test(t))?.[1] ?? t;
 let memoireAlertes: { quand: number; liste: any[] } | null = null;
+// Une seule requête pour tout le parc sur 72 h, partagée entre toutes les pages et toutes les agences
+const alertesBrutesPartagees = unstable_cache(async (heures: number): Promise<any[]> => {
+  const data = await appel('/carAlarm/getAllByPage.do', { query: { startTime: versParis(new Date(Date.now() - heures * 3600_000)), endTime: versParis(new Date()), pageNO: '1', rowCount: '200', mapType: '2' } });
+  return Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : [];
+}, ['whatsgps-alertes'], { revalidate: DUREE_ALERTES });
 // Alertes récentes de tout le parc ; le filtrage par agence se fait sur les identifiants de ses boîtiers
 export async function alertesRecentes(heures = 48): Promise<AlerteBoitier[]> {
   if (whatsgpsDemo()) return [{ id: 'demo1', carId: '5', nom: 'Classe A', type: null, libelle: 'Vibration détectée', le: new Date(Date.now() - 2 * 3600_000).toISOString(), lat: 48.8350, lng: 2.2410 }];
   let brut: any[];
-  if (memoireAlertes && Date.now() - memoireAlertes.quand < 60_000) brut = memoireAlertes.liste;
+  if (memoireAlertes && Date.now() - memoireAlertes.quand < DUREE_ALERTES * 1000) brut = memoireAlertes.liste;
   else {
-    const data = await appel('/carAlarm/getAllByPage.do', { query: { startTime: versParis(new Date(Date.now() - heures * 3600_000)), endTime: versParis(new Date()), pageNO: '1', rowCount: '200', mapType: '2' } });
-    brut = Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : [];
+    brut = await alertesBrutesPartagees(Math.max(heures, 72));
     memoireAlertes = { quand: Date.now(), liste: brut };
   }
+  const depuisQuand = Date.now() - heures * 3600_000;
+  brut = brut.filter((d: any) => { const t = depuisParis(d.alarmTime ?? d.pointTime); return !t || new Date(t).getTime() >= depuisQuand; });
   const noms = await nomsDesAlertes();
   return brut.map((d: any, i: number) => {
     const type = d.alarmType != null ? Number(d.alarmType) : null;

@@ -58,7 +58,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial }: 
   // Actualisation toutes les 30 s
   useEffect(() => { setMaj(Date.now()); }, [lignes]);
   useEffect(() => {
-    const t = setInterval(() => { if (document.visibilityState === 'visible') router.refresh(); }, 30000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') router.refresh(); }, 300000);
     return () => clearInterval(t);
   }, [router]);
   const [, tic] = useState(0);
