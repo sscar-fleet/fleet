@@ -10,6 +10,7 @@ import BoutonTheme from './BoutonTheme';
 import GuideMission from './GuideMission';
 import PanneauLateral from './PanneauLateral';
 import BulleAide from './BulleAide';
+import AlertesDirect from './AlertesDirect';
 import { Suspense } from 'react';
 
 // Cadre commun : menu à gauche (ordinateur) ou barre du bas (téléphone), recherche, synchronisation en direct
@@ -56,6 +57,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
         {tables.length > 0 && <Direct tables={tables} />}
         <PanneauLateral />
         <Suspense fallback={null}><BulleAide /></Suspense>
+        <AlertesDirect />
       </main>
     </div>
   );
