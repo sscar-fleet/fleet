@@ -800,3 +800,15 @@ td.libre:hover .case-libre { color: var(--turquoise); }
 .bouton-satellite { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 10px; border: 1px solid rgba(0,0,0,.15); background: #fff; color: #111; font-weight: 700; font-size: 13.5px; box-shadow: 0 2px 8px rgba(0,0,0,.18); cursor: pointer; }
 .bouton-satellite.actif { background: #111; color: #fff; }
 .leaflet-container .maplibregl-canvas { outline: none; }
+
+/* Import de la flotte depuis les traceurs */
+table.import input:not([type=checkbox]) { min-width: 0; width: 100%; }
+table.import td { vertical-align: top; }
+@media (max-width: 720px) {
+  table.import thead { display: none; }
+  table.import, table.import tbody { display: block; background: none; }
+  table.import tr { display: grid; grid-template-columns: 32px 1fr 1fr; gap: 6px 8px; align-items: start; background: var(--panneau); border: 1px solid var(--bord); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+  table.import td { padding: 0; border: 0; }
+  table.import td:nth-child(1) { grid-row: span 2; padding-top: 10px; }
+  table.import td:nth-child(2) { grid-column: 2 / 4; }
+}

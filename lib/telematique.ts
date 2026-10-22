@@ -1,7 +1,7 @@
 // Suivi GPS à l'échelle de l'agence : seuls les traceurs du compte de l'agence sont visibles.
-import { etatsDuCompte, whatsgpsDemo, type EtatTraceur } from './whatsgps';
+import { etatsDuCompte, whatsgpsDemo, fichesDuCompte, alertesRecentes, type EtatTraceur, type FicheBoitier, type AlerteBoitier } from './whatsgps';
 
-export type { EtatTraceur };
+export type { EtatTraceur, FicheBoitier, AlerteBoitier };
 export type Suivi =
   | { actif: false; raison: string; etats: Map<string, EtatTraceur>; disponibles: EtatTraceur[] }
   | { actif: true; raison?: undefined; demo: boolean; etats: Map<string, EtatTraceur>; disponibles: EtatTraceur[] };
@@ -51,4 +51,37 @@ export function depuis(isoDate: string | null) {
   if (s < 3600) return `il y a ${Math.round(s / 60)} min`;
   if (s < 86400) return `il y a ${Math.round(s / 3600)} h`;
   return `il y a ${Math.round(s / 86400)} j`;
+}
+
+// Boîtiers du compte de l'agence pas encore reliés, avec plaque et nom lus chez WhatsGPS : prêts à importer
+export async function boitiersAImporter(supabase: any): Promise<{ fiches: (FicheBoitier & { enLigne: boolean; existe: string | null })[]; erreur?: string }> {
+  const { data: compte } = await supabase.from('telematique').select('compte_externe_id').maybeSingle();
+  if (!compte) return { fiches: [] };
+  try {
+    const [fiches, etats, { data: traceurs }, { data: vehicules }] = await Promise.all([
+      fichesDuCompte(compte.compte_externe_id), etatsDuCompte(compte.compte_externe_id),
+      supabase.from('traceurs').select('imei, vehicules(id)'), supabase.from('vehicules').select('id, immatriculation, traceur_id'),
+    ]);
+    const relies = new Set((traceurs ?? []).filter((t: any) => (Array.isArray(t.vehicules) ? t.vehicules.length : t.vehicules)).map((t: any) => String(t.imei)));
+    const parPlaque = new Map((vehicules ?? []).map((v: any) => [String(v.immatriculation).replace(/[^A-Z0-9]/gi, '').toUpperCase(), v]));
+    return { fiches: fiches.filter((f) => !relies.has(f.imei)).map((f) => {
+      const v: any = f.plaque ? parPlaque.get(f.plaque) : null;
+      return { ...f, enLigne: !!etats.find((e) => e.imei === f.imei)?.enLigne, existe: v && !v.traceur_id ? v.id : v ? 'relie' : null };
+    }) };
+  } catch (e: any) { return { fiches: [], erreur: e?.message || 'Suivi GPS momentanément indisponible.' }; }
+}
+
+// Alertes récentes des boîtiers de l'agence, rattachées à leur véhicule
+export type AlerteVehicule = AlerteBoitier & { vehicule_id: string; immat: string };
+export async function alertesAgence(supabase: any, suivi: Suivi, heures = 48): Promise<AlerteVehicule[]> {
+  if (!suivi.actif || !suivi.etats.size) return [];
+  try {
+    const { data: vs } = await supabase.from('vehicules').select('id, immatriculation, traceurs(imei)').not('traceur_id', 'is', null);
+    const parCar = new Map<string, any>();
+    (vs ?? []).forEach((v: any) => { const e = suivi.etats.get(String(v.traceurs?.imei ?? '')); if (e?.carId) parCar.set(e.carId, v); });
+    if (!parCar.size) return [];
+    return (await alertesRecentes(heures)).filter((a) => a.carId && parCar.has(a.carId)).map((a) => {
+      const v = parCar.get(a.carId!); return { ...a, vehicule_id: v.id, immat: v.immatriculation };
+    });
+  } catch { return []; }
 }

@@ -4,9 +4,9 @@ import Envoyer from './Envoyer';
 import CarteGps from './CarteGps';
 import * as A from '../actions';
 import { km, dateHeure, plaque } from '@/lib/format';
-import { kmEstime, depuis, type Suivi } from '@/lib/telematique';
+import { kmEstime, depuis, type Suivi, type AlerteVehicule } from '@/lib/telematique';
 
-export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any | null; suivi: Suivi }) {
+export default function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; traceur: any | null; suivi: Suivi; alertes?: AlerteVehicule[] }) {
   const e = traceur ? suivi.etats.get(String(traceur.imei)) : undefined;
   const estime = kmEstime(traceur, e);
 
@@ -35,7 +35,7 @@ export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any |
   const libelle = { roule: `Roule · ${e?.vitesse ?? 0} km/h`, arret: e?.contact ? 'À l’arrêt · moteur allumé' : 'À l’arrêt · moteur éteint', coupe: 'Moteur coupé à distance', hors_ligne: 'Boîtier hors ligne' };
 
   return (
-    <section className="carte">
+    <section className="carte" id="suivi-gps">
       <div className="titre" style={{ marginBottom: 10 }}>
         <h2 style={{ margin: 0 }}>Suivi GPS</h2>
         {etat && <span className={`pastille gps-${etat}`}>{libelle[etat]}</span>}
@@ -52,6 +52,18 @@ export default function SuiviGps({ v, traceur, suivi }: { v: any; traceur: any |
           <div><span>Kilométrage estimé</span><b>{estime != null ? km(estime) : '—'}</b></div>
           <div><span>Dernier relevé du compteur</span><b>{traceur.km_compteur_ref != null ? `${km(traceur.km_compteur_ref)} · ${dateHeure(traceur.ref_le)}` : '—'}</b></div>
           {e.alerte && <div><span>Alerte</span><b className="pastille retard">{e.alerte}</b></div>}
+        </div>
+      )}
+      {alertes.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <b style={{ fontSize: 14 }}>Alertes du boîtier · 3 derniers jours</b>
+          {alertes.slice(0, 8).map((a) => (
+            <div key={a.id} className="fichier" style={{ justifyContent: 'space-between' }}>
+              <span className={`pastille ${/débranch|déplac|brouill|sos|vibra/i.test(a.libelle) ? 'retard' : ''}`}>{a.libelle}</span>
+              <span className="gris" style={{ fontSize: 13 }}>{dateHeure(a.le)}{a.lat != null ? <> · <a href={`https://www.google.com/maps?q=${a.lat},${a.lng}`} target="_blank" rel="noreferrer">voir le lieu</a></> : null}</span>
+            </div>
+          ))}
+          {alertes.length > 8 && <p className="gris" style={{ fontSize: 13, margin: '6px 0 0' }}>+ {alertes.length - 8} autres</p>}
         </div>
       )}
       <div className="ligne" style={{ marginTop: 14, flexWrap: 'wrap' }}>

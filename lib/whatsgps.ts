@@ -10,7 +10,7 @@ const BASE = (process.env.WHATSGPS_RELAIS_URL || 'https://www.whatsgps.com').tri
 export type EtatTraceur = {
   imei: string;
   nom: string | null;         // nom donné au boîtier sur WhatsGPS (ex. « X-ADV Singh »)
-  carId: number | null;
+  carId: string | null;       // identifiant WhatsGPS, gardé en texte (trop grand pour un nombre JavaScript)
   lat: number | null;
   lng: number | null;
   vitesse: number;            // km/h
@@ -35,7 +35,7 @@ function etatsDemo(): EtatTraceur[] {
     const roule = i % 3 === 0;
     const derive = roule ? 0.004 : 0.0003;
     return {
-      imei: `86000000000000${i + 1}`, nom: null, carId: i + 1,
+      imei: `86000000000000${i + 1}`, nom: null, carId: String(i + 1),
       lat: lat + Math.sin(t / 90 + i) * derive, lng: lng + Math.cos(t / 90 + i) * derive,
       vitesse: roule ? 35 + Math.round(Math.abs(Math.sin(t / 30 + i)) * 40) : 0,
       contact: roule || i === 1, enLigne: i !== 5, enMouvement: roule,
@@ -99,8 +99,10 @@ function fetchEspace(url: string, init: RequestInit): Promise<Response> {
   return tache;
 }
 
+// Les identifiants WhatsGPS ont 19 chiffres : on les garde en texte avant de lire le JSON, sinon ils sont arrondis
+const garderGrandsNombres = (t: string) => t.replace(/([:\[,]\s*)(-?\d{16,})(?=\s*[,}\]])/g, '$1"$2"');
 async function lire(rep: Response) {
-  const texte = await rep.text();
+  const texte = garderGrandsNombres(await rep.text());
   let json: any = null;
   try { json = JSON.parse(texte); } catch { /* réponse non JSON */ }
   if (!rep.ok || !json) throw new Error(`Suivi GPS indisponible (${rep.status}${json?.code ? ' ' + json.code : ''}${json?.msg ? ' : ' + json.msg : texte && !json ? ' : ' + texte.slice(0, 80) : ''}).`);
@@ -187,7 +189,7 @@ function etat(d: any): EtatTraceur {
   return {
     imei: String(d.imei ?? ''),
     nom: String(d.machineName ?? d.carName ?? d.carNO ?? d.plateNo ?? d.name ?? '').trim() || null,
-    carId: d.carId != null ? Number(d.carId) : null,
+    carId: d.carId != null ? String(d.carId) : null,
     lat: isFinite(lat) && lat !== 0 ? lat : null,
     lng: isFinite(lng) && lng !== 0 ? lng : null,
     vitesse: Number(d.speed ?? 0) || 0,
@@ -224,4 +226,86 @@ export async function commandeMoteur(imei: string, couper: boolean): Promise<{ e
   const data = await appel('/remoteControl/controlPoil.do', { corps: { imei, on: couper ? 1 : 0, token: s.token } });
   memoire.clear();
   return { enLigne: data?.online !== false, numero: data?.serNO ?? null };
+}
+
+// ——— Fiches des boîtiers d'un compte (plaque, nom, SIM) : sert à importer la flotte en un geste ———
+export type FicheBoitier = { imei: string; carId: string | null; nom: string | null; plaque: string | null; iccid: string | null; conducteur: string | null };
+const PLAQUE = /\b([A-Z]{2})[\s-]?(\d{3})[\s-]?([A-Z]{2})\b/;
+// Une plaque française (AB-123-CD) écrite dans le champ plaque ou dans le nom du boîtier
+export function plaqueDans(...textes: (string | null | undefined)[]): string | null {
+  for (const t of textes) { const m = PLAQUE.exec(String(t ?? '').toUpperCase()); if (m) return `${m[1]}${m[2]}${m[3]}`; }
+  return null;
+}
+export async function fichesDuCompte(compteId?: number | string | null): Promise<FicheBoitier[]> {
+  if (whatsgpsDemo()) return etatsDemo().map((e, i) => ({ imei: e.imei, carId: e.carId, nom: ['Clio V', '208', 'Golf 8', 'Classe A', 'Model 3', 'Duster'][i] ?? null, plaque: ['GA123BC', 'GB456CD', 'GC789DE', 'GD012EF', 'GE345FG', 'GF678GH'][i] ?? null, iccid: null, conducteur: null }));
+  const s = await connexion();
+  const data = await appel('/car/getByUserId.do', { query: { userId: String(compteId || s.userId) } });
+  return (Array.isArray(data) ? data : []).filter((d: any) => d.imei).map((d: any) => ({
+    imei: String(d.imei), carId: d.carId != null ? String(d.carId) : null,
+    nom: String(d.machineName ?? '').trim() || null,
+    plaque: plaqueDans(d.carNO, d.machineName),
+    iccid: d.iccid ? String(d.iccid).replace(/\D/g, '') || null : null,
+    conducteur: String(d.driverName ?? '').trim() || null,
+  }));
+}
+
+// ——— Alertes des boîtiers (vibration, remorquage, débranchement…) ———
+export type AlerteBoitier = { id: string; carId: string | null; nom: string | null; type: number | null; libelle: string; le: string | null; lat: number | null; lng: number | null };
+// WhatsGPS attend et renvoie des heures dans le fuseau donné à la connexion (Paris)
+function decalage(d = new Date()) {
+  const p = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const u = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return Math.round((p.getTime() - u.getTime()) / 1000);
+}
+const versParis = (d: Date) => new Date(d.getTime() + decalage(d) * 1000).toISOString().slice(0, 19).replace('T', ' ');
+function depuisParis(t: any): string | null {
+  if (t == null || t === '') return null;
+  if (typeof t === 'number') return new Date(t).toISOString();
+  const brut = new Date(String(t).replace(' ', 'T') + 'Z');
+  return isNaN(brut.getTime()) ? null : new Date(brut.getTime() - decalage(brut) * 1000).toISOString();
+}
+// Noms des types d'alerte donnés par WhatsGPS lui-même (réglages d'alertes du compte), gardés 6 h
+let nomsTypes: { quand: number; noms: Map<number, string> } | null = null;
+async function nomsDesAlertes(): Promise<Map<number, string>> {
+  if (nomsTypes && Date.now() - nomsTypes.quand < 6 * 3600_000) return nomsTypes.noms;
+  const noms = new Map<number, string>();
+  try {
+    const s = await connexion();
+    const data = await appel('/userCarAlarmSwitch/getByUserId.do', { query: { userId: String(s.userId) } });
+    const liste: any[] = Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : [];
+    liste.forEach((x: any) => { if (x?.type != null && x?.name) noms.set(Number(x.type), String(x.name)); });
+  } catch { /* service pas ouvert : on affichera un libellé générique */ }
+  nomsTypes = { quand: Date.now(), noms };
+  return noms;
+}
+// Libellés en français pour les noms anglais renvoyés par WhatsGPS
+const TRADUCTIONS: [RegExp, string][] = [
+  [/vibra|shock/i, 'Vibration détectée'], [/tow|move|displace|移/i, 'Véhicule déplacé moteur coupé'],
+  [/power.?(off|cut|failure)|disconnect|断电/i, 'Boîtier débranché'], [/low.?(battery|volt)|低电/i, 'Batterie faible'],
+  [/fence.*(out|exit)|出围栏/i, 'Sortie de zone'], [/fence.*(in|enter)|进围栏/i, 'Entrée dans une zone'], [/fence|围栏/i, 'Zone'],
+  [/over.?speed|超速/i, 'Excès de vitesse'], [/sos/i, 'SOS'], [/jam|干扰/i, 'Brouillage'], [/acc.?on|ignition.?on/i, 'Contact mis'],
+  [/acc.?off|ignition.?off/i, 'Contact coupé'], [/offline|离线/i, 'Boîtier hors ligne'], [/stay|park|停留/i, 'Stationnement prolongé'],
+];
+const enFrancais = (t: string) => TRADUCTIONS.find(([re]) => re.test(t))?.[1] ?? t;
+let memoireAlertes: { quand: number; liste: any[] } | null = null;
+// Alertes récentes de tout le parc ; le filtrage par agence se fait sur les identifiants de ses boîtiers
+export async function alertesRecentes(heures = 48): Promise<AlerteBoitier[]> {
+  if (whatsgpsDemo()) return [{ id: 'demo1', carId: '5', nom: 'Classe A', type: null, libelle: 'Vibration détectée', le: new Date(Date.now() - 2 * 3600_000).toISOString(), lat: 48.8350, lng: 2.2410 }];
+  let brut: any[];
+  if (memoireAlertes && Date.now() - memoireAlertes.quand < 60_000) brut = memoireAlertes.liste;
+  else {
+    const data = await appel('/carAlarm/getAllByPage.do', { query: { startTime: versParis(new Date(Date.now() - heures * 3600_000)), endTime: versParis(new Date()), pageNO: '1', rowCount: '200', mapType: '2' } });
+    brut = Array.isArray(data) ? data : Array.isArray(data?.list) ? data.list : [];
+    memoireAlertes = { quand: Date.now(), liste: brut };
+  }
+  const noms = await nomsDesAlertes();
+  return brut.map((d: any, i: number) => {
+    const type = d.alarmType != null ? Number(d.alarmType) : null;
+    const nom = (type != null ? noms.get(type) : null) ?? d.alarmTypeName ?? d.fenceName ?? null;
+    return {
+      id: String(d.alarmId ?? i), carId: d.carId != null ? String(d.carId) : null, nom: d.machineName || null, type,
+      libelle: nom ? enFrancais(String(nom)) : 'Alerte du boîtier',
+      le: depuisParis(d.alarmTime ?? d.pointTime), lat: Number(d.latC ?? d.lat) || null, lng: Number(d.lonC ?? d.lon) || null,
+    };
+  }).sort((a, b) => (b.le ?? '').localeCompare(a.le ?? ''));
 }

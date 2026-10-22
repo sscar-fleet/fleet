@@ -963,6 +963,44 @@ async function _relierTraceur(vehicule_id: string, formData: FormData) {
   rafraichir();
 }
 
+// Importe en un geste les véhicules équipés d'un boîtier : crée la fiche (plaque, marque, modèle lus chez WhatsGPS)
+// et relie le traceur ; si la plaque existe déjà dans la flotte, relie seulement le boîtier.
+async function _importerVehicules(formData: FormData) {
+  const { supabase, profil } = await utilisateurCourant();
+  const imeis = formData.getAll('imei').map((x) => String(x).replace(/\D/g, '')).filter((i) => formData.get(`garder_${i}`));
+  if (!imeis.length) throw new Error('Cochez au moins un véhicule à importer.');
+  let crees = 0, relies = 0; const erreurs: string[] = [];
+  for (const imei of imeis) {
+    try {
+      const plaqueSaisie = immat(formData.get(`immat_${imei}`));
+      if (!plaqueSaisie) { erreurs.push(`IMEI ${imei} : plaque manquante`); continue; }
+      const e = await imeiDeLAgence(supabase, imei);
+      const { data: v0 } = await supabase.from('vehicules').select('id, traceur_id').eq('immatriculation', plaqueSaisie).maybeSingle();
+      let vehicule_id = v0?.id as string | undefined;
+      if (!vehicule_id) {
+        const { data, error } = await supabase.from('vehicules').insert({
+          agence_id: profil.agence_id, immatriculation: plaqueSaisie,
+          marque: texte(formData.get(`marque_${imei}`)), modele: texte(formData.get(`modele_${imei}`)),
+          date_entree: new Date().toISOString().slice(0, 10),
+        }).select('id').single();
+        verifier(error, `Véhicule ${plaqueSaisie}`);
+        vehicule_id = data!.id; crees++;
+      } else relies++;
+      const { data: t0 } = await supabase.from('traceurs').select('id').eq('imei', imei).maybeSingle();
+      let traceur_id = t0?.id as string | undefined;
+      if (!traceur_id) {
+        const { data, error } = await supabase.from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld' }).select('id').single();
+        verifier(error, 'Boîtier'); traceur_id = data!.id;
+      }
+      await supabase.from('vehicules').update({ traceur_id: null }).eq('traceur_id', traceur_id).neq('id', vehicule_id);
+      verifier((await supabase.from('vehicules').update({ traceur_id }).eq('id', vehicule_id)).error);
+      await journal(null, vehicule_id!, 'Traceur GPS relié', `IMEI ${imei} · importé depuis le compte de suivi${e.enLigne ? '' : ' (boîtier hors ligne)'}`);
+    } catch (err: any) { erreurs.push(`IMEI ${imei} : ${err?.message ?? 'erreur'}`); }
+  }
+  rafraichir();
+  if (erreurs.length) throw new Error(`${crees} véhicule${crees > 1 ? 's' : ''} créé${crees > 1 ? 's' : ''}, ${relies} relié${relies > 1 ? 's' : ''}. À reprendre : ${erreurs.join(' ; ')}`);
+}
+
 async function _delierTraceur(vehicule_id: string) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('vehicules').update({ traceur_id: null }).eq('id', vehicule_id)).error);
@@ -1055,5 +1093,6 @@ export const remettreVehicule = proteger(_remettreVehicule);
 export const documentAgence = proteger(_documentAgence);
 export const relierTraceur = proteger(_relierTraceur);
 export const delierTraceur = proteger(_delierTraceur);
+export const importerVehicules = proteger(_importerVehicules);
 export const moteur = proteger(_moteur);
 export const reporterKm = proteger(_reporterKm);

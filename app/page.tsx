@@ -3,7 +3,7 @@ import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR, plaque } from '@/lib/format';
 import Cadre from './_c/Cadre';
 import SuiviFlotte, { type LigneSuivi } from './_c/SuiviFlotte';
-import { suiviAgence, kmEstime } from '@/lib/telematique';
+import { suiviAgence, kmEstime, alertesAgence, depuis } from '@/lib/telematique';
 import GrillePlanning, { chargerPlanning } from './_c/GrillePlanning';
 import { calculerPilotage } from '@/lib/pilotage';
 import { versJour, euros } from '@/lib/format';
@@ -53,6 +53,8 @@ export default async function Accueil() {
         client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null };
     });
   }
+  // Alertes envoyées par les boîtiers sur 48 h (vibration, remorquage, débranchement…)
+  const alertesBoitiers = await alertesAgence(supabase, suivi);
   // Guide de démarrage pour un nouveau loueur
   const [{ data: ag }, { count: nbClients }, { count: nbLocations }] = await Promise.all([
     supabase.from('agences').select('adresse, gerant_nom, signature_path').eq('id', profil.agence_id).single(),
@@ -88,6 +90,13 @@ export default async function Accueil() {
     if (a) alertes.push({ texte: `${plaque(v.immatriculation)} : assurance ${a === 'depasse' ? 'expirée' : 'expire'} le ${date(v.assurance_echeance)}`, lien: `/vehicules/${v.id}`, niveau: a });
     if (c) alertes.push({ texte: `${plaque(v.immatriculation)} : contrôle technique ${c === 'depasse' ? 'dépassé' : 'à faire'} le ${date(v.ct_echeance)}`, lien: `/vehicules/${v.id}`, niveau: c });
   });
+  // Une ligne par véhicule : la dernière alerte du boîtier, avec le nombre d'alertes sur 48 h
+  const vues = new Set<string>();
+  alertesBoitiers.forEach((a) => {
+    if (vues.has(a.vehicule_id)) return; vues.add(a.vehicule_id);
+    const n = alertesBoitiers.filter((x) => x.vehicule_id === a.vehicule_id).length;
+    alertes.push({ texte: `${plaque(a.immat)} : ${a.libelle} ${depuis(a.le)}${n > 1 ? ` (${n} alertes en 48 h)` : ''}`, lien: `/vehicules/${a.vehicule_id}#suivi-gps`, niveau: /débranch|déplac|brouill|sos|vibra/i.test(a.libelle) ? 'depasse' : 'proche' });
+  });
   (entretiens ?? []).forEach((e: any) => alertes.push({ texte: `${plaque(e.vehicules?.immatriculation)} : retour du garage prévu le ${date(e.retour_prevu)}, toujours en maintenance`, lien: e.id ? `/entretiens/${e.id}` : '/entretiens', niveau: 'proche' }));
   // Prêts entre loueurs : véhicule emprunté à rendre sous 2 jours, véhicule prêté pas revenu
   const [{ data: emprunts }, { data: pretsRetard }] = await Promise.all([
@@ -115,7 +124,7 @@ export default async function Accueil() {
     { titre: 'Loués aujourd\u2019hui', valeur: `${flotte[0].n}/${totalFlotte}`, detail: `${occupation} % de la flotte`, lien: '/vehicules', classe: 'info', actif: true },
     ...(profil.role === 'gerant' ? [{ titre: 'Encaissé ce mois', valeur: euros(caMois), detail: moisPrec && moisPrec.recettes > 0 ? `${caMois >= moisPrec.recettes ? '▲' : '▼'} vs ${euros(moisPrec.recettes)} le mois dernier` : 'depuis le 1er du mois', lien: '/pilotage', classe: 'info', actif: true }] : []),
     { titre: 'Amendes', valeur: amendes?.length ?? 0, detail: amendesUrgentes ? `${amendesUrgentes} urgente${amendesUrgentes > 1 ? 's' : ''}` : 'à désigner', lien: '/amendes', classe: amendesUrgentes ? 'danger' : 'alerte', actif: (amendes?.length ?? 0) > 0 },
-    { titre: 'Alertes', valeur: alertes.length, detail: 'papiers, garage', lien: '#alertes', classe: 'alerte', actif: alertes.length > 0 },
+    { titre: 'Alertes', valeur: alertes.length, detail: alertesBoitiers.length ? 'papiers, garage, boîtiers' : 'papiers, garage', lien: '#alertes', classe: 'alerte', actif: alertes.length > 0 },
   ];
 
   const nom = (c: any) => [c?.prenom, c?.nom].filter(Boolean).join(' ');

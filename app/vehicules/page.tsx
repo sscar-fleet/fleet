@@ -9,6 +9,8 @@ import Scanner from '../_c/Scanner';
 import ApercuModele from '../_c/ApercuModele';
 import LogoMarque from '../_c/LogoMarque';
 import Envoyer from '../_c/Envoyer';
+import ImportTraceurs from '../_c/ImportTraceurs';
+import { boitiersAImporter } from '@/lib/telematique';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,11 +24,13 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
     (!q || `${plaque(v.immatriculation)} ${v.marque ?? ''} ${v.modele ?? ''}`.toLowerCase().includes(q)));
   const photos = await liensFichiers(supabase, vehicules.map((v: any) => v.photo_path));
   const compte = (s: string) => (tous ?? []).filter((v: any) => v.statut === s).length;
+  const aImporter = await boitiersAImporter(supabase);
 
   return (
     <Cadre titre={`Véhicules (${(tous ?? []).filter((v: any) => v.statut !== 'sorti').length})`} tables={['vehicules']}
       actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a><OuvrirFormulaire>+ Ajouter un véhicule</OuvrirFormulaire></>}>
-      <details className="formulaire carte formulaire-haut" open={!tous?.length}>
+      <ImportTraceurs fiches={aImporter.fiches} ouvert={!tous?.length || aImporter.fiches.filter((f) => f.existe !== 'relie').length >= 3} />
+      <details className="formulaire carte formulaire-haut" open={!tous?.length && !aImporter.fiches.length}>
         <summary>Nouveau véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille" succes="Véhicule ajouté">
           <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Carte grise" />

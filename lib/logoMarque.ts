@@ -59,3 +59,19 @@ export function logoMarque(marque?: string | null, modele?: string | null) {
   const s = slugMarque(marque) ?? (marque ? null : marqueDuModele(modele));
   return s ? `https://cdn.jsdelivr.net/gh/filippofilip95/car-logos-dataset@master/logos/optimized/${s}.png` : null;
 }
+
+// Marque et modèle devinés à partir du nom donné au boîtier (« TOYOTA RAV 4 GZ185HD » → Toyota / RAV 4)
+const AFFICHAGE: Record<string, string> = { 'mercedes-benz': 'Mercedes', 'land-rover': 'Land Rover', 'alfa-romeo': 'Alfa Romeo', 'aston-martin': 'Aston Martin', 'rolls-royce': 'Rolls-Royce', bmw: 'BMW', mg: 'MG', ds: 'DS', byd: 'BYD' };
+const joli = (slug: string) => AFFICHAGE[slug] ?? slug.split('-').map((m) => m.charAt(0).toUpperCase() + m.slice(1)).join(' ');
+export function devinerMarqueModele(nom?: string | null): { marque: string; modele: string } {
+  const propre = String(nom ?? '').replace(/\b[A-Z]{2}[\s-]?\d{3}[\s-]?[A-Z]{2}\b/gi, '').replace(/\s+/g, ' ').trim();
+  if (!propre) return { marque: '', modele: '' };
+  const mots = propre.split(' ');
+  for (const n of [2, 1]) {
+    const tete = normal(mots.slice(0, n).join(' '));
+    const slug = ALIAS[tete] ?? (MARQUES.includes(tete) ? tete : null);
+    if (slug && mots.length > n) return { marque: joli(slug), modele: mots.slice(n).join(' ').replace(/^./, (c) => c.toUpperCase()) };
+  }
+  const parModele = marqueDuModele(propre);
+  return parModele ? { marque: joli(parModele), modele: propre } : { marque: '', modele: propre };
+}

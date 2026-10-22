@@ -15,7 +15,7 @@ import Onglets from '../../_c/Onglets';
 import BoutonPdf from '../../_c/BoutonPdf';
 import { donneesAgence } from '@/lib/donnees';
 import SuiviGps from '../../_c/SuiviGps';
-import { suiviAgence } from '@/lib/telematique';
+import { suiviAgence, alertesAgence } from '@/lib/telematique';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,7 +105,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
               : <div className="logo-fiche"><LogoMarque marque={v.marque} modele={v.modele} className="logo-marque grand" /></div>}
             <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : 'Logo de la marque · ajoutez votre propre photo dans Papiers si vous le souhaitez'}</span>
           </section>
-          {v.statut !== 'sorti' && <SuiviGps v={v} traceur={traceur} suivi={suivi} />}
+          {v.statut !== 'sorti' && <SuiviGps v={v} traceur={traceur} suivi={suivi} alertes={traceur ? (await alertesAgence(supabase, suivi, 72)).filter((a) => a.vehicule_id === v.id) : []} />}
       <section className="chiffres">
         <div><span>Argent rapporté</span><b>{euros(ca)}</b></div>
         <div><span>Jours loués</span><b>{joursLoues}</b></div>
