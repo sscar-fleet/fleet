@@ -29,6 +29,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
   return (
     <Cadre titre={`Véhicules (${(tous ?? []).filter((v: any) => v.statut !== 'sorti').length})`} tables={['vehicules']}
       actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a><OuvrirFormulaire>+ Ajouter un véhicule</OuvrirFormulaire></>}>
+      {aImporter.erreur && <p className="gris" style={{ fontSize: 13 }}>Import depuis les traceurs indisponible pour le moment : {aImporter.erreur}</p>}
       <ImportTraceurs fiches={aImporter.fiches} ouvert={!tous?.length || aImporter.fiches.filter((f) => f.existe !== 'relie').length >= 3} />
       <details className="formulaire carte formulaire-haut" open={!tous?.length && !aImporter.fiches.length}>
         <summary>Nouveau véhicule</summary>
