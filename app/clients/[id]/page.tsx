@@ -1,3 +1,4 @@
+import Historique, { CHAMPS_HISTORIQUE } from '../../_c/Historique';
 import ScanOrdinateur from '@/app/_c/ScanOrdinateur';
 import PapiersClient, { cheminsPapiers } from '@/app/_c/PapiersClient';
 import { notFound } from 'next/navigation';
@@ -22,6 +23,10 @@ export default async function FicheClient({ params }: { params: { id: string } }
       .eq('client_id', c.id).order('debut', { ascending: false }),
     supabase.from('amendes').select('id, date_infraction, type, montant, statut, vehicules(immatriculation)').eq('client_id', c.id).order('date_infraction', { ascending: false }),
   ]);
+  const idsLoc = (locations ?? []).map((l: any) => l.id);
+  const { data: historique } = idsLoc.length
+    ? await supabase.from('historique').select(CHAMPS_HISTORIQUE).in('location_id', idsLoc).order('created_at', { ascending: false }).limit(60)
+    : { data: [] };
   const liens = await liensFichiers(supabase, cheminsPapiers(c));
   const utiles = (locations ?? []).filter((l: any) => l.statut !== 'annulee');
   const total = utiles.reduce((s: number, l: any) => s + Number(l.prix_total ?? 0), 0);
@@ -91,6 +96,12 @@ export default async function FicheClient({ params }: { params: { id: string } }
               <span className={`pastille ${a.statut}`}>{statutAmende[a.statut]}</span>
             </a>
           ))}
+        </section>
+        </> },
+        { cle: 'historique', titre: 'Historique', contenu: <>
+        <section className="carte">
+          <h2>Ce qui s&apos;est passé</h2>
+          <Historique lignes={historique as any} titre="" vide="Rien pour l’instant : l’historique se remplit avec ses locations." />
         </section>
         </> },
       ]} />

@@ -870,3 +870,9 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
 .bloc-titre { font-size: 13.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--gris); margin: 26px 0 10px; display: flex; align-items: center; gap: 8px; }
 .accueil-bas > .pile:empty { display: none; }
 .accueil-bas:has(> .pile:empty) { grid-template-columns: 1fr; }
+
+/* Historique des fiches */
+.ligne-historique { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--bord); font-size: 14px; }
+.ligne-historique:last-child { border-bottom: 0; }
+.ligne-historique .quand { flex: none; font-size: 12.5px; text-align: right; }
+@media (max-width: 600px) { .ligne-historique { flex-direction: column; gap: 2px; } .ligne-historique .quand { text-align: left; } }

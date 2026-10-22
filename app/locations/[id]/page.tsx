@@ -1,3 +1,4 @@
+import Historique, { CHAMPS_HISTORIQUE } from '../../_c/Historique';
 import ScanOrdinateur from '@/app/_c/ScanOrdinateur';
 import PapiersClient, { cheminsPapiers } from '@/app/_c/PapiersClient';
 import { notFound } from 'next/navigation';
@@ -26,7 +27,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
   const l = d.brut; const v = l.vehicules; const c = l.clients;
   const [{ data: autres }, { data: historique }, { data: fpsDus }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele').not('statut', 'in', '(hors_service,sorti)').neq('id', v.id).order('immatriculation'),
-    supabase.from('historique').select('action, detail, created_at').eq('location_id', l.id).order('created_at', { ascending: false }),
+    supabase.from('historique').select(CHAMPS_HISTORIQUE).eq('location_id', l.id).order('created_at', { ascending: false }).limit(80),
     supabase.from('fps').select('montant, frais_gestion').eq('client_id', c.id).in('statut', ['a_refacturer', 'refacture']),
   ]);
   const detteFps = (fpsDus ?? []).reduce((t: number, f: any) => t + Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0), 0);
@@ -211,10 +212,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
         <Envoyer className="bouton petit">Enregistrer la note</Envoyer>
       </Formulaire>
       <h3 style={{ marginTop: 18 }}>Historique</h3>
-      {!historique?.length && <p className="gris">Rien pour l&apos;instant.</p>}
-      {historique?.map((h: any, i: number) => (
-        <div key={i} className="fichier"><span>{h.action}{h.detail ? <span className="gris"> · {h.detail}</span> : null}</span><span className="gris">{dateHeure(h.created_at)}</span></div>
-      ))}
+      <Historique lignes={historique as any} titre="" />
     </section>
   );
 

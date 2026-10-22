@@ -1,3 +1,4 @@
+import Historique, { CHAMPS_HISTORIQUE } from '../../_c/Historique';
 import LogoMarque from '@/app/_c/LogoMarque';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
@@ -30,7 +31,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
     supabase.from('entretiens').select('*').eq('vehicule_id', v.id).order('created_at', { ascending: false }),
     supabase.from('dommages').select('*').eq('vehicule_id', v.id).order('created_at', { ascending: false }),
     supabase.from('amendes').select('id, date_infraction, type, montant, statut, echeance').eq('vehicule_id', v.id).order('date_infraction', { ascending: false }),
-    supabase.from('historique').select('action, detail, created_at').eq('vehicule_id', v.id).order('created_at', { ascending: false }).limit(15),
+    supabase.from('historique').select(CHAMPS_HISTORIQUE).eq('vehicule_id', v.id).order('created_at', { ascending: false }).limit(60),
   ]);
 
   const { data: pieces } = await supabase.from('pieces_jointes').select('id, nom, path, entretien_id, depense_id').eq('vehicule_id', v.id).order('created_at');
@@ -192,12 +193,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
               <span className={`pastille ${a.statut}`}>{statutAmende[a.statut]}</span>
             </a>
           ))}
-          {!!historique?.length && <>
-            <h3 style={{ marginTop: 18 }}>Historique</h3>
-            {historique.map((h: any, i: number) => (
-              <div key={i} className="fichier"><span>{h.action}{h.detail ? <span className="gris"> · {h.detail}</span> : null}</span><span className="gris">{dateHeure(h.created_at)}</span></div>
-            ))}
-          </>}
+          <Historique lignes={historique as any} />
         </section>
         </div> },
         { cle: 'entretien', titre: 'Entretien et dégâts', badge: ouverts, contenu: <>

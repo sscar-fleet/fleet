@@ -87,9 +87,26 @@ async function _ajouterVehicule(formData: FormData) {
   redirect(`/vehicules/${data!.id}`);
 }
 
+// Ce qui a changé sur une fiche, en clair : « Prix / jour : 45 → 50 · Km : 42 000 → 42 350 »
+const LIBELLES_VEHICULE: Record<string, string> = {
+  immatriculation: 'Immatriculation', marque: 'Marque', modele: 'Modèle', carburant: 'Carburant', km: 'Km', prix_jour: 'Prix / jour',
+  prix_achat: 'Prix d’achat', assurance_echeance: 'Fin d’assurance', ct_echeance: 'Contrôle technique', cout_mensuel: 'Coût mensuel',
+  financement: 'Financement', date_entree: 'Date d’entrée',
+};
+function changements(avant: any, apres: Record<string, any>, libelles: Record<string, string>) {
+  const norm = (x: any) => (x == null || x === '' ? null : String(x).slice(0, 10) === String(x) ? String(x) : String(x));
+  return Object.entries(libelles).flatMap(([cle, lib]) => {
+    if (!(cle in apres)) return [];
+    const a = norm(avant?.[cle]), b = norm(apres[cle]);
+    if (a === b || (a != null && b != null && Number(a) === Number(b) && !isNaN(Number(a)))) return [];
+    return [`${lib} : ${a ?? '—'} → ${b ?? '—'}`];
+  }).join(' · ');
+}
+
 async function _majVehicule(id: string, formData: FormData) {
   const { supabase } = await utilisateurCourant();
-  const { error } = await supabase.from('vehicules').update({
+  const { data: avant } = await supabase.from('vehicules').select('*').eq('id', id).maybeSingle();
+  const maj = {
     prix_achat: nombre(formData.get('prix_achat')),
     immatriculation: immat(formData.get('immatriculation')),
     marque: texte(formData.get('marque')),
@@ -103,8 +120,11 @@ async function _majVehicule(id: string, formData: FormData) {
     financement: texte(formData.get('financement')),
     date_entree: texte(formData.get('date_entree')),
     ...champsPret(formData, true),
-  }).eq('id', id);
+  };
+  const { error } = await supabase.from('vehicules').update(maj).eq('id', id);
   verifier(error, 'Modification du véhicule');
+  const quoi = changements(avant, maj, LIBELLES_VEHICULE);
+  if (quoi) await journal(null, id, 'Fiche modifiée', quoi);
   rafraichir();
   await recalerTraceur(supabase, id, nombre(formData.get('km')));
 }
