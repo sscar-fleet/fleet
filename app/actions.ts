@@ -1191,3 +1191,53 @@ export async function marquerDecouverte(cle: string) {
 }
 export const moteur = proteger(_moteur);
 export const reporterKm = proteger(_reporterKm);
+
+// ---------------------------------------------------------------------------
+// Agence de démonstration : une flotte d'exemple pour découvrir Fleet sans rien saisir,
+// effaçable d'un clic (plaques « EX-… », clients notés « Exemple Fleet »).
+const NOTE_EXEMPLE = 'Exemple Fleet';
+async function _remplirExemples() {
+  const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') throw new Error('Réservé au gérant.');
+  const { count } = await supabase.from('vehicules').select('id', { count: 'exact', head: true }).neq('statut', 'sorti');
+  if ((count ?? 0) > 0) throw new Error('Votre flotte contient déjà des véhicules : les exemples servent à démarrer sur une agence vide.');
+  const a = profil.agence_id; const j = (n: number) => new Date(Date.now() + n * 864e5);
+  const ech = (n: number) => j(n).toISOString().slice(0, 10);
+  const { data: vs, error: ev } = await supabase.from('vehicules').insert([
+    { agence_id: a, immatriculation: 'EX-101-AA', marque: 'Peugeot', modele: '208', carburant: 'essence', km: 42350, prix_jour: 45, statut: 'loue', assurance_echeance: ech(120), ct_echeance: ech(300) },
+    { agence_id: a, immatriculation: 'EX-102-AA', marque: 'Renault', modele: 'Clio V', carburant: 'diesel', km: 61210, prix_jour: 49, statut: 'disponible', assurance_echeance: ech(12), ct_echeance: ech(200) },
+    { agence_id: a, immatriculation: 'EX-103-AA', marque: 'Toyota', modele: 'Yaris Hybride', carburant: 'hybride', km: 23412, prix_jour: 55, statut: 'disponible', assurance_echeance: ech(240), ct_echeance: ech(25) },
+    { agence_id: a, immatriculation: 'EX-104-AA', marque: 'Mercedes', modele: 'Classe A', carburant: 'diesel', km: 88190, prix_jour: 79, statut: 'maintenance', assurance_echeance: ech(180), ct_echeance: ech(90) },
+  ]).select('id, immatriculation');
+  verifier(ev, 'Exemples : véhicules');
+  const { data: cs, error: ec } = await supabase.from('clients').insert([
+    { agence_id: a, nom: 'MARTIN', prenom: 'Karim', telephone: '06 00 00 00 01', note: NOTE_EXEMPLE },
+    { agence_id: a, nom: 'DUBOIS', prenom: 'Sarah', telephone: '06 00 00 00 02', note: NOTE_EXEMPLE },
+    { agence_id: a, nom: 'NGUYEN', prenom: 'Thomas', telephone: '06 00 00 00 03', note: NOTE_EXEMPLE },
+  ]).select('id');
+  verifier(ec, 'Exemples : clients');
+  const v = (p: string) => vs!.find((x: any) => x.immatriculation === p)!.id;
+  const heure = (d: Date, h: number) => { const x = new Date(d); x.setHours(h, 0, 0, 0); return x.toISOString(); };
+  verifier((await supabase.from('locations').insert([
+    { agence_id: a, vehicule_id: v('EX-101-AA'), client_id: cs![0].id, debut: heure(j(-2), 9), fin_prevue: heure(j(2), 18), statut: 'en_cours', prix_total: 180, caution_montant: 800, caution_statut: 'prise', km_depart: 42010 },
+    { agence_id: a, vehicule_id: v('EX-102-AA'), client_id: cs![1].id, debut: heure(j(1), 10), fin_prevue: heure(j(4), 10), statut: 'reservee', prix_total: 147, caution_montant: 800 },
+    { agence_id: a, vehicule_id: v('EX-103-AA'), client_id: cs![2].id, debut: heure(j(-9), 9), fin_prevue: heure(j(-5), 18), fin_reelle: heure(j(-5), 17), statut: 'terminee', prix_total: 220, caution_montant: 800, caution_statut: 'rendue' },
+  ])).error, 'Exemples : locations');
+  await journal(null, null, 'Découverte : exemples', 'Flotte d’exemple ajoutée');
+  rafraichir();
+}
+export const remplirExemples = proteger(_remplirExemples);
+
+async function _effacerExemples() {
+  const { supabase, profil } = await utilisateurCourant();
+  if (profil.role !== 'gerant') throw new Error('Réservé au gérant.');
+  const { data: vs } = await supabase.from('vehicules').select('id').like('immatriculation', 'EX-1__-AA');
+  const ids = (vs ?? []).map((x: any) => x.id);
+  if (ids.length) {
+    verifier((await supabase.from('locations').delete().in('vehicule_id', ids)).error, 'Exemples : locations');
+    verifier((await supabase.from('vehicules').delete().in('id', ids)).error, 'Exemples : véhicules');
+  }
+  verifier((await supabase.from('clients').delete().eq('note', NOTE_EXEMPLE)).error, 'Exemples : clients');
+  rafraichir();
+}
+export const effacerExemples = proteger(_effacerExemples);

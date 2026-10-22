@@ -12,6 +12,8 @@ import { versJour, euros } from '@/lib/format';
 import { lienWhatsApp, messageDepart, messageRetour, messageRetard } from '@/lib/whatsapp';
 import { relanceDue, aPayerBientot, messageRelance, libelleRelance, totalFps } from '@/lib/fps';
 import LienAction from './_c/LienAction';
+import Formulaire from './_c/Formulaire';
+import Envoyer from './_c/Envoyer';
 import * as A from './actions';
 
 export const dynamic = 'force-dynamic';
@@ -146,6 +148,7 @@ export default async function Accueil() {
     ].sort((a, b) => a.quand.localeCompare(b.quand)),
   ];
   const etiquette = { retard: 'Retard', depart: 'Départ', retour: 'Retour' };
+  const exemples = (vehicules ?? []).some((v: any) => /^EX-1\d\d-AA$/.test(String(v.immatriculation)));
   const jourTexte = new Date().toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
@@ -153,6 +156,24 @@ export default async function Accueil() {
       tables={['locations', 'vehicules', 'amendes', 'entretiens', 'etats_des_lieux']}
 >
       {profil.role === 'gerant' && !decouverte.fini && <ParcoursDecouverte {...decouverte} />}
+      {profil.role === 'gerant' && totalFlotte === 0 && (
+        <section className="carte demo-vide">
+          <h2 style={{ marginTop: 0 }}>Votre agence est encore vide</h2>
+          <p className="gris">Pour voir tout de suite comment Fleet travaille pour vous, remplissez-la avec une petite flotte d&apos;exemple : 4 voitures, 3 clients, une location en cours et une réservation. Vous l&apos;effacez d&apos;un clic quand vous voulez.</p>
+          <div className="ligne" style={{ gap: 10, flexWrap: 'wrap' }}>
+            <Formulaire action={A.remplirExemples} succes="Flotte d’exemple ajoutée"><Envoyer className="bouton principal">Voir avec une flotte d&apos;exemple</Envoyer></Formulaire>
+            <a className="bouton" href="/vehicules">Ajouter mon premier véhicule</a>
+          </div>
+        </section>
+      )}
+      {profil.role === 'gerant' && exemples && (
+        <div className="bandeau-exemples">
+          <span>Vous voyez une <b>flotte d&apos;exemple</b> (plaques EX-…). Ajoutez vos vrais véhicules quand vous êtes prêt.</span>
+          <Formulaire action={A.effacerExemples} succes="Exemples effacés" confirmer="Effacer la flotte d’exemple (véhicules EX-…, leurs locations et les clients d’exemple) ? Vos propres données ne sont pas touchées.">
+            <Envoyer className="bouton petit">Effacer les exemples</Envoyer>
+          </Formulaire>
+        </div>
+      )}
       <section className="kpis">
         {tuilesVues.map((t) => (
           <a key={t.titre} href={t.lien} className={`kpi ${t.actif ? t.classe : ''}`}>

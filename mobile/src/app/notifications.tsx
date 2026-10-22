@@ -21,7 +21,10 @@ function ouvrir(href: string) {
   if (m) return router.push({ pathname: (m[1] === 'locations' ? '/location/[id]' : m[1] === 'vehicules' ? '/vehicule/[id]' : '/client/[id]') as any, params: { id: m[2] } });
   if (href.startsWith('/amendes') || href.startsWith('/fps')) return router.push('/(onglets)/amendes' as any);
   if (href.startsWith('/locations/nouvelle')) { const v = href.match(/vehicule=([0-9a-f-]{36})/); return router.push({ pathname: '/nouvelle', params: v ? { vehicule: v[1] } : {} }); }
+  const carte = href.match(/^\/carte\?vehicule=([0-9a-f-]{36})/);
+  if (carte) return router.push({ pathname: '/vehicule/[id]', params: { id: carte[1] } });
   if (href.startsWith('/carte')) return router.push('/(onglets)/flotte' as any);
+  if (href.startsWith('/planning') || href === '/locations') return router.push('/(onglets)/locations' as any);
   return Linking.openURL(urlSite(href)); // fiche maintenance, prêts, réglages : dans le logiciel
 }
 
@@ -79,11 +82,12 @@ export default function Notifications() {
               </View>
               {items.map((n) => (
                 <View key={n.cle} style={{ padding: 14, gap: 10, borderRadius: 18, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, borderLeftWidth: 5, borderLeftColor: couleur(n.niveau) }}>
-                  <View style={{ gap: 3 }}>
+                  <Pressable style={{ gap: 3 }} accessibilityRole="link" disabled={!n.actions.some((a) => a.type === 'lien')}
+                    onPress={() => { const l = n.actions.find((a) => a.type === 'lien'); if (l && l.type === 'lien') { Haptics.selectionAsync().catch(() => {}); ouvrir(l.href); } }}>
                     <Text style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{n.titre}</Text>
                     <Text style={{ color: c.gris, fontSize: 14 }}>{n.detail}</Text>
                     {etat[n.cle] ? <Text style={{ color: etat[n.cle].startsWith('✓') ? c.vert : c.rouge, fontWeight: '700', fontSize: 14 }}>{etat[n.cle].slice(2)}</Text> : null}
-                  </View>
+                  </Pressable>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {n.actions.map((a, i) => {
                       const principal = a.type === 'faire' || (i === 0 && n.niveau === 'rouge');

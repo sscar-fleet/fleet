@@ -1,6 +1,6 @@
 // Fiche véhicule : où elle est, son compteur, ses échéances, ses locations, et la coupure moteur
 import { useCallback, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Ligne, Texte, Titre, Chargement, BandeauHorsLigne, Rangee, Etiquette, Action } from '@/composants/ui';
 import CarteLocation from '@/composants/CarteLocation';
@@ -28,6 +28,7 @@ export default function FicheVehicule() {
   const { gps, rafraichirGps } = useGps();
   const [statutLocal, setStatutLocal] = useState<string>();
   const [question, setQuestion] = useState(false);
+  const [details, setDetails] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const { profil } = useSession();
   const [cgLocale, setCgLocale] = useState<string>();
@@ -67,6 +68,7 @@ export default function FicheVehicule() {
     const lien = await lienDocument(cg).catch(() => null);
     if (lien) Linking.openURL(lien); else toast('Carte grise pas encore envoyée : réessayez dans un instant', 'alerte');
   }
+  const alertesPapiers = [v.assurance_echeance, v.ct_echeance].filter((d) => d && new Date(d).getTime() - Date.now() < 30 * 864e5).length + (cg ? 0 : 1);
   const couleurStatut: Record<string, string> = { disponible: c.vert, loue: c.accent, maintenance: c.orange, hors_service: c.rouge };
 
   return (
@@ -98,7 +100,13 @@ export default function FicheVehicule() {
         </Carte>
       </>}
 
-      <Titre>Fiche</Titre>
+      {locations.length > 0 && <><Titre>Locations</Titre>{locations.map((l) => <CarteLocation key={l.id} l={l} genre={l.statut === 'en_cours' ? 'retour' : 'depart'} gps={e} />)}</>}
+      {/* Partie 2 : le détail, replié pour garder l'essentiel en haut */}
+      <Pressable accessibilityRole="button" onPress={() => setDetails((x) => !x)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, marginTop: 6 }}>
+        <Texte gras taille={17}>Fiche du véhicule</Texte>
+        <Text style={{ color: c.accent, fontWeight: '800', fontSize: 14 }}>{details ? 'Replier' : alertesPapiers ? `Voir · ${alertesPapiers} à regarder` : 'Voir'}</Text>
+      </Pressable>
+      {(details || (!e && !locations.length)) && <>
       <Carte style={{ paddingVertical: 4 }}>
         <Rangee icone="jauge" couleur={c.accent} titre="Kilométrage" sous={e?.km_estime != null ? `Estimé par le traceur · fiche : ${km(v.km)}` : undefined} droite={km(e?.km_estime ?? v.km)} />
         <Rangee icone="euro" couleur={c.accent} titre="Prix par jour" droite={euros(v.prix_jour)} />
@@ -108,8 +116,8 @@ export default function FicheVehicule() {
           droite={<Text style={{ color: cg ? c.accent : c.orange, fontWeight: '800' }}>{cg ? 'Voir' : 'Photographier'}</Text>}
           onPress={() => (cg ? setChoixCg(true) : photoCarteGrise())} />
       </Carte>
+      </>}
 
-      {locations.length > 0 && <><Titre>Locations</Titre>{locations.map((l) => <CarteLocation key={l.id} l={l} genre={l.statut === 'en_cours' ? 'retour' : 'depart'} gps={e} />)}</>}
       {v.statut === 'disponible' && <GrosBouton secondaire icone="outil" titre="Envoyer à l'atelier" onPress={() => statut('maintenance')} />}
 
       <Feuille visible={choixCg} titre="Carte grise" onFermer={() => setChoixCg(false)}>

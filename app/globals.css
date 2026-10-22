@@ -876,3 +876,10 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
 .ligne-historique:last-child { border-bottom: 0; }
 .ligne-historique .quand { flex: none; font-size: 12.5px; text-align: right; }
 @media (max-width: 600px) { .ligne-historique { flex-direction: column; gap: 2px; } .ligne-historique .quand { text-align: left; } }
+.bandeau-exemples { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 14px; border-radius: 12px; background: var(--panneau2); border: 1px dashed var(--bord); font-size: 14px; }
+/* Bulle d'aide à la première ouverture */
+.bulle-aide { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 70; width: min(560px, calc(100vw - 32px)); display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--panneau); border: 1px solid var(--accent); box-shadow: var(--ombre); animation: bulle-entre .25s ease-out; }
+.bulle-aide p { margin: 0; flex: 1; font-size: 14px; line-height: 1.4; }
+.bulle-icone { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; font-weight: 800; }
+@keyframes bulle-entre { from { opacity: 0; transform: translate(-50%, 12px); } }
+@media (max-width: 760px) { .bulle-aide { bottom: 84px; } }
