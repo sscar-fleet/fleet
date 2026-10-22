@@ -154,8 +154,8 @@ export default function EspaceSuivi() {
           {fiche.e.alerte ? <Etiquette titre={fiche.e.alerte} couleur={c.rouge} icone="alerte" /> : null}
           <View style={{ flexDirection: 'row', marginTop: 6 }}>
             {fiche.e.lat != null && <Action icone="itineraire" titre="Itinéraire" couleur={c.bleu} onPress={() => Linking.openURL(itineraire(fiche.e.lat!, fiche.e.lng!))} />}
-            <Action icone={fiche.e.moteur_coupe ? 'cle' : 'moteur'} titre={envoi ? 'Envoi…' : fiche.e.moteur_coupe ? 'Remettre' : 'Couper'} couleur={fiche.e.moteur_coupe ? c.vert : c.rouge} desactive={envoi}
-              onPress={() => (fiche.e.moteur_coupe ? moteur() : setQuestion(true))} />
+            {fiche.e.coupure !== false && <Action icone={fiche.e.moteur_coupe ? 'cle' : 'moteur'} titre={envoi ? 'Envoi…' : fiche.e.moteur_coupe ? 'Remettre' : 'Couper'} couleur={fiche.e.moteur_coupe ? c.vert : c.rouge} desactive={envoi}
+              onPress={() => (fiche.e.moteur_coupe ? moteur() : setQuestion(true))} />}
             {fiche.loc?.clients?.telephone ? <Action icone="tel" titre="Client" couleur={c.vert} onPress={() => appeler(fiche.loc!.clients!.telephone!)} /> : null}
             <Action icone="voiture" titre="Fiche" couleur={c.texte2} onPress={() => { const id = fiche.v.id; setFiche(null); router.push({ pathname: '/vehicule/[id]', params: { id } }); }} />
           </View>

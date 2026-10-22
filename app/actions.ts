@@ -10,7 +10,7 @@ import { texte, nombre, immat, depuisParis, joursEntre, JOUR, tel, memePersonne 
 const telephoneSaisi = (v: FormDataEntryValue | null) => { const t = texte(v); return t ? tel(t) : null; };
 import { chercherPhotoModele } from '@/lib/photoModele';
 import { imeiDeLAgence } from '@/lib/telematique';
-import { commandeMoteur } from '@/lib/whatsgps';
+import { commandeMoteur } from '@/lib/sourceGps';
 
 const rafraichir = () => revalidatePath('/', 'layout');
 
@@ -1059,11 +1059,11 @@ async function _delierTraceur(vehicule_id: string) {
 
 async function _moteur(vehicule_id: string, couper: boolean) {
   const { supabase, profil } = await utilisateurCourant();
-  const { data: v } = await supabase.from('vehicules').select('traceur_id, traceurs(imei)').eq('id', vehicule_id).single();
+  const { data: v } = await supabase.from('vehicules').select('traceur_id, traceurs(imei, modele)').eq('id', vehicule_id).single();
   const imei = (v as any)?.traceurs?.imei;
   if (!imei) throw new Error('Aucun traceur relié à ce véhicule.');
   await imeiDeLAgence(supabase, imei);
-  const r = await commandeMoteur(imei, couper);
+  const r = await commandeMoteur(imei, couper, (v as any)?.traceurs?.modele);
   await supabase.from('traceurs').update({ moteur_coupe: couper }).eq('id', v!.traceur_id);
   await journal(null, vehicule_id, couper ? 'Moteur coupé à distance' : 'Moteur remis en route',
     `${profil.nom}${r.enLigne ? '' : ' · boîtier hors ligne, la commande partira à sa reconnexion'}`);

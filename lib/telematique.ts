@@ -1,5 +1,6 @@
 // Suivi GPS à l'échelle de l'agence : seuls les traceurs du compte de l'agence sont visibles.
-import { etatsDuCompte, whatsgpsDemo, fichesDuCompte, alertesRecentes, type EtatTraceur, type FicheBoitier, type AlerteBoitier } from './whatsgps';
+import { whatsgpsDemo, fichesDuCompte, type EtatTraceur, type FicheBoitier, type AlerteBoitier } from './whatsgps';
+import { etatsFusionnes as etatsDuCompte, alertesFusionnees } from './sourceGps';
 
 export type { EtatTraceur, FicheBoitier, AlerteBoitier };
 export type Suivi =
@@ -77,11 +78,15 @@ export async function alertesAgence(supabase: any, suivi: Suivi, heures = 48): P
   if (!suivi.actif || !suivi.etats.size) return [];
   try {
     const { data: vs } = await supabase.from('vehicules').select('id, immatriculation, traceurs(imei)').not('traceur_id', 'is', null);
-    const parCar = new Map<string, any>();
-    (vs ?? []).forEach((v: any) => { const e = suivi.etats.get(String(v.traceurs?.imei ?? '')); if (e?.carId) parCar.set(e.carId, v); });
-    if (!parCar.size) return [];
-    return (await alertesRecentes(heures)).filter((a) => a.carId && parCar.has(a.carId)).map((a) => {
-      const v = parCar.get(a.carId!); return { ...a, vehicule_id: v.id, immat: v.immatriculation };
+    const parCar = new Map<string, any>(), parImei = new Map<string, any>();
+    (vs ?? []).forEach((v: any) => {
+      const imei = String(v.traceurs?.imei ?? ''); const e = suivi.etats.get(imei);
+      if (e) parImei.set(imei, v); if (e?.carId) parCar.set(e.carId, v);
+    });
+    if (!parImei.size) return [];
+    return (await alertesFusionnees(heures)).flatMap((a) => {
+      const v = (a.imei && parImei.get(a.imei)) || (a.carId && parCar.get(a.carId));
+      return v ? [{ ...a, vehicule_id: v.id, immat: v.immatriculation }] : [];
     });
   } catch { return []; }
 }

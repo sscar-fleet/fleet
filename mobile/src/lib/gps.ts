@@ -9,6 +9,7 @@ import type { Couleurs } from './theme';
 export type EtatGps = {
   vehicule_id: string; imei: string; etat: 'roule' | 'arret' | 'coupe' | 'hors_ligne'; moteur_coupe: boolean;
   lat: number | null; lng: number | null; vitesse: number; contact: boolean | null; le: string | null; km_estime: number | null; alerte: string | null;
+  coupure?: boolean; direct?: boolean; // coupure = false pour les boîtiers sans relais (S21L)
 };
 export type Gps = { actif: boolean; demo: boolean; raison: string | null; parVehicule: Record<string, EtatGps> };
 const vide: Gps = { actif: false, demo: false, raison: null, parVehicule: {} };

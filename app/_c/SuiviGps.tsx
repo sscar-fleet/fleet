@@ -1,4 +1,5 @@
 // Encart « Suivi GPS » de la fiche véhicule : position, état du moteur, kilométrage, coupure à distance.
+import { sansCoupure } from '@/lib/sourceGps';
 import Formulaire from './Formulaire';
 import Envoyer from './Envoyer';
 import CarteGps from './CarteGps';
@@ -73,7 +74,7 @@ export default function SuiviGps({ v, traceur, suivi, alertes = [] }: { v: any; 
             <Envoyer className="bouton petit">Reporter {km(estime)} sur la fiche</Envoyer>
           </Formulaire>
         )}
-        {suivi.actif && (traceur.moteur_coupe
+        {suivi.actif && !sansCoupure(traceur.modele) && (traceur.moteur_coupe
           ? <Formulaire action={A.moteur.bind(null, v.id, false)} succes="Moteur remis en route" confirmer={`Remettre en route le moteur de ${plaque(v.immatriculation)} ?`}>
               <Envoyer className="bouton petit principal">Remettre le moteur en route</Envoyer>
             </Formulaire>

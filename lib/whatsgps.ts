@@ -26,6 +26,7 @@ export type EtatTraceur = {
   signal: string | null;      // date du dernier signal (ISO)
   kmTraceur: number | null;   // kilométrage total calculé par le traceur, en km
   alerte: string | null;
+  source?: 'direct' | 'whatsgps'; // direct = notre serveur (temps réel), whatsgps = via leur API (quota)
 };
 
 // Tant que les clés ne sont pas là, une flotte fictive permet de voir le rendu (positions autour de Paris)
@@ -263,7 +264,7 @@ export async function fichesDuCompte(compteId?: number | string | null): Promise
 }
 
 // ——— Alertes des boîtiers (vibration, remorquage, débranchement…) ———
-export type AlerteBoitier = { id: string; carId: string | null; nom: string | null; type: number | null; libelle: string; critique?: boolean; le: string | null; lat: number | null; lng: number | null };
+export type AlerteBoitier = { id: string; carId: string | null; nom: string | null; type: number | null; libelle: string; critique?: boolean; imei?: string | null; le: string | null; lat: number | null; lng: number | null };
 // WhatsGPS attend et renvoie des heures dans le fuseau donné à la connexion (Paris)
 function decalage(d = new Date()) {
   const p = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));

@@ -92,7 +92,7 @@ export default function FicheVehicule() {
           <View style={{ flexDirection: 'row', marginTop: 8 }}>
             {e.lat != null && <Action icone="itineraire" titre="Itinéraire" couleur={c.bleu} onPress={() => Linking.openURL(itineraire(e.lat!, e.lng!))} />}
             <Action icone="actualiser" titre="Actualiser" couleur={c.texte2} onPress={rafraichirGps} />
-            {gps.actif && <Action icone={e.moteur_coupe ? 'cle' : 'moteur'} titre={envoi ? 'Envoi…' : e.moteur_coupe ? 'Remettre' : 'Couper'} couleur={e.moteur_coupe ? c.vert : c.rouge} desactive={envoi}
+            {gps.actif && e.coupure !== false && <Action icone={e.moteur_coupe ? 'cle' : 'moteur'} titre={envoi ? 'Envoi…' : e.moteur_coupe ? 'Remettre' : 'Couper'} couleur={e.moteur_coupe ? c.vert : c.rouge} desactive={envoi}
               onPress={() => (e.moteur_coupe ? moteur() : setQuestion(true))} />}
           </View>
         </Carte>
