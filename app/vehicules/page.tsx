@@ -12,6 +12,7 @@ import Envoyer from '../_c/Envoyer';
 import ImportTraceurs from '../_c/ImportTraceurs';
 import ChampEnLigne from '../_c/ChampEnLigne';
 import { boitiersAImporter } from '@/lib/telematique';
+import ImportTableur from '../_c/ImportTableur';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,8 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
       actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a><OuvrirFormulaire>+ Ajouter un véhicule</OuvrirFormulaire></>}>
       {aImporter.erreur && <p className="gris" style={{ fontSize: 13 }}>Import depuis les traceurs indisponible pour le moment : {aImporter.erreur}</p>}
       <ImportTraceurs fiches={aImporter.fiches} ouvert={!tous?.length || aImporter.fiches.filter((f) => f.existe !== 'relie').length >= 3} />
-      <details className="formulaire carte formulaire-haut" open={!tous?.length && !aImporter.fiches.length}>
+      <ImportTableur existantes={(tous ?? []).map((v: any) => v.immatriculation)} ouvert={!tous?.length && !aImporter.fiches.length} />
+      <details className="formulaire carte formulaire-haut" open={false}>
         <summary>Nouveau véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille" succes="Véhicule ajouté">
           <Scanner genre="carte_grise" agenceId={profil.agence_id} champChemin="carte_grise_path" libelle="Carte grise" />
