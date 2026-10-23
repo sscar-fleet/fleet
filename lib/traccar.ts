@@ -79,6 +79,24 @@ export async function alertesTraccar(heures = 48): Promise<AlerteBoitier[]> {
   }).sort((x, y) => (y.le ?? '').localeCompare(x.le ?? ''));
 }
 
+// Diagnostic : tous les événements bruts d'un boîtier (alarmes, contact, en ligne, commandes) et la tension relevée
+export async function evenementsBruts(imei: string, heures = 24) {
+  if (!traccarConfigure()) return null;
+  const { appareils } = await photo();
+  const a = appareils.find((x) => String(x.uniqueId) === imei);
+  if (!a) return { inscrit: false, evenements: [] as any[] };
+  const q = new URLSearchParams({ deviceId: String(a.id), from: new Date(Date.now() - heures * 3600_000).toISOString(), to: new Date().toISOString() });
+  const [evts, pos] = await Promise.all([appel(`/api/reports/events?${q}`), appel(`/api/reports/route?${q}`)]);
+  const paris = (d: string) => new Date(d).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' });
+  return {
+    inscrit: true,
+    evenements: (evts ?? []).map((e: any) => ({ le: paris(e.eventTime), type: e.type, alarme: e.attributes?.alarm ?? null, details: e.attributes ?? {} })),
+    tensions: (pos ?? []).filter((p: any) => p.attributes && ('power' in p.attributes || 'battery' in p.attributes || 'ignition' in p.attributes))
+      .map((p: any) => ({ le: paris(p.fixTime), contact: p.attributes.ignition ?? null, alimentation: p.attributes.power ?? null, batterie: p.attributes.battery ?? null, alarme: p.attributes.alarm ?? null }))
+      .filter((x: any, i: number, t: any[]) => i === 0 || x.alarme || x.contact !== t[i - 1].contact || Math.abs((x.alimentation ?? 0) - (t[i - 1].alimentation ?? 0)) > 1),
+  };
+}
+
 // Inscription d'un boîtier sur notre serveur (« Passer sur SS CAR SYSTEM »)
 export async function appareilTraccar(imei: string): Promise<{ inscrit: boolean; enLigne: boolean; position: boolean } | null> {
   if (!traccarConfigure()) return null;
