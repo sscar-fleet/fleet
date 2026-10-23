@@ -53,7 +53,7 @@ export async function etatsTraccar(): Promise<EtatTraceur[]> {
 // Noms d'alarme Traccar → français, et celles qui peuvent signaler un vol
 const ALARMES: Record<string, [string, boolean]> = {
   vibration: ['Vibration détectée', true], tow: ['Remorquage', true], movement: ['Véhicule déplacé', true],
-  powerCut: ['Alimentation coupée', true], powerOff: ['Boîtier éteint', true], tampering: ['Boîtier démonté', true],
+  powerCut: ['Alimentation du boîtier coupée', true], powerOff: ['Boîtier éteint', true], tampering: ['Alimentation du boîtier perturbée', false],
   jamming: ['Brouillage du signal', true], sos: ['SOS', true], accident: ['Choc violent', true], door: ['Portière ouverte', false],
   lowBattery: ['Batterie faible', false], lowPower: ['Tension faible', false], overspeed: ['Excès de vitesse', false],
   geofenceExit: ['Sortie de zone', true], geofenceEnter: ['Entrée dans une zone', false], fallDown: ['Chute', false],
@@ -61,22 +61,48 @@ const ALARMES: Record<string, [string, boolean]> = {
 };
 export const libelleAlarme = (a: string) => ALARMES[a]?.[0] ?? 'Alerte du boîtier';
 
+// Alarmes « électriques » que le boîtier lève aussi pour rien : chute de tension au démarrage (contact mis),
+// redémarrage après un réglage, coupure ou remise en route moteur. Testé sur R12L-F le 23/10/2026 :
+// « tampering » arrive à chaque mise du contact, « lowBattery » juste après, sans aucun démontage réel.
+const ALARMES_ELECTRIQUES = new Set(['tampering', 'powerCut', 'powerOff', 'lowBattery', 'lowPower']);
+const MARGE_MS = 3 * 60_000;     // fenêtre autour d'un changement de contact ou d'une commande
+const DOUBLON_MS = 10 * 60_000;  // une même alarme répétée (rafale de positions stockées) ne compte qu'une fois
+
 export async function alertesTraccar(heures = 48): Promise<AlerteBoitier[]> {
   if (!traccarConfigure()) return [];
   const { appareils } = await photo();
   if (!appareils.length) return [];
-  const q = new URLSearchParams({ from: new Date(Date.now() - heures * 3600_000).toISOString(), to: new Date().toISOString(), type: 'alarm' });
+  const q = new URLSearchParams({ from: new Date(Date.now() - heures * 3600_000 - MARGE_MS).toISOString(), to: new Date().toISOString() });
   appareils.forEach((a) => q.append('deviceId', String(a.id)));
-  const evts: any[] = (await appel(`/api/reports/events?${q}`)) ?? [];
+  ['alarm', 'ignitionOn', 'ignitionOff', 'commandResult', 'deviceOnline'].forEach((t) => q.append('type', t));
+  const evts: any[] = ((await appel(`/api/reports/events?${q}`)) ?? []).sort((x: any, y: any) => String(x.eventTime).localeCompare(String(y.eventTime)));
   const imeiDe = new Map(appareils.map((a) => [a.id, a]));
-  return evts.map((e) => {
-    const a = imeiDe.get(e.deviceId); const nomAlarme = String(e.attributes?.alarm ?? '');
-    return {
+  // Moments où le boîtier est « perturbé » : contact mis / coupé, commande exécutée, reconnexion après redémarrage
+  const perturbations = new Map<number, number[]>();
+  evts.filter((e) => e.type !== 'alarm').forEach((e) => {
+    const t = new Date(e.eventTime).getTime();
+    perturbations.set(e.deviceId, [...(perturbations.get(e.deviceId) ?? []), t]);
+  });
+  const dernier = new Map<string, number>();
+  const debut = Date.now() - heures * 3600_000;
+  const res: AlerteBoitier[] = [];
+  for (const e of evts) {
+    if (e.type !== 'alarm') continue;
+    const nomAlarme = String(e.attributes?.alarm ?? '');
+    const t = new Date(e.eventTime).getTime();
+    if (t < debut) continue;
+    if (ALARMES_ELECTRIQUES.has(nomAlarme) && (perturbations.get(e.deviceId) ?? []).some((p) => Math.abs(p - t) <= MARGE_MS)) continue;
+    const cle = `${e.deviceId}:${nomAlarme}`;
+    if (dernier.has(cle) && t - dernier.get(cle)! < DOUBLON_MS) continue;
+    dernier.set(cle, t);
+    const a = imeiDe.get(e.deviceId);
+    res.push({
       id: `t${e.id}`, carId: null, imei: a ? String(a.uniqueId) : null, nom: a?.name ?? null, type: null,
       libelle: libelleAlarme(nomAlarme), critique: ALARMES[nomAlarme]?.[1] ?? false,
       le: e.eventTime ?? null, lat: null, lng: null,
-    } as AlerteBoitier;
-  }).sort((x, y) => (y.le ?? '').localeCompare(x.le ?? ''));
+    } as AlerteBoitier);
+  }
+  return res.sort((x, y) => (y.le ?? '').localeCompare(x.le ?? ''));
 }
 
 // Diagnostic : tous les événements bruts d'un boîtier (alarmes, contact, en ligne, commandes) et la tension relevée
