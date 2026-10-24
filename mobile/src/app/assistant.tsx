@@ -49,12 +49,16 @@ export default function Assistant() {
   const [attente, setAttente] = useState(false);
   const [faits, setFaits] = useState<Record<string, string>>({});
   const dictee = useDictee((t) => setSaisie(t));
-  const { dicter } = useLocalSearchParams<{ dicter?: string }>();
+  const { dicter, q } = useLocalSearchParams<{ dicter?: string; q?: string }>();
+  const qEnvoyee = useRef<string | null>(null);
 
   // La conversation reste quand on revient sur l'écran
-  useEffect(() => { relire<Bulle[]>('fleet-ai').then((r) => { if (r?.valeur?.length) setBulles(r.valeur); }).catch(() => {}); }, []);
+  // (sauf si on arrive avec une question touchée sur la Journée : nouveau fil)
+  useEffect(() => { if (q) return; relire<Bulle[]>('fleet-ai').then((r) => { if (r?.valeur?.length) setBulles(r.valeur); }).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (bulles.length) garder('fleet-ai', bulles.slice(-30)).catch(() => {}); }, [bulles]);
   useEffect(() => { if (dicter && dictee.dispo) dictee.demarrer(); }, [dicter, dictee.dispo]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Question touchée depuis l'écran Journée : elle part tout de suite
+  useEffect(() => { if (q && qEnvoyee.current !== q) { const t = setTimeout(() => { qEnvoyee.current = String(q); envoyer(String(q)); }, 350); return () => clearTimeout(t); } }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const t = setTimeout(() => fil.current?.scrollToEnd({ animated: true }), 60); return () => clearTimeout(t); }, [bulles, attente, clavier]);
 
   async function envoyer(texte: string) {
@@ -101,12 +105,12 @@ export default function Assistant() {
           style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center' }}>
           <Icone nom="retour" couleur={c.texte} taille={22} />
         </Pressable>
-        <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c.accent + '22', alignItems: 'center', justifyContent: 'center' }}>
-          <Icone nom="eclair" couleur={c.accent} taille={20} />
+        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Icone nom="ia" couleur={c.surAccent} taille={22} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: c.texte, fontSize: 18, fontWeight: '800' }}>Fleet AI</Text>
-          <Text numberOfLines={1} style={{ color: c.gris, fontSize: 12.5 }}>Il prépare, vous confirmez</Text>
+          <Text numberOfLines={1} style={{ color: c.gris, fontSize: 12.5 }}>Votre assistant · il prépare, vous confirmez</Text>
         </View>
         {bulles.length > 0 && (
           <Pressable onPress={() => { setBulles([]); setFaits({}); garder('fleet-ai', []).catch(() => {}); }} hitSlop={8}

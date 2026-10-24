@@ -236,7 +236,7 @@ export default function EtatDesLieux() {
 
       {etape === 1 && <>
         <Titre>Kilométrage</Titre>
-        {lecture === 'en_cours' && <Etiquette titre="Lecture du compteur sur la photo…" couleur={c.bleu} icone="eclair" />}
+        {lecture === 'en_cours' && <Etiquette titre="Fleet AI lit le compteur sur la photo…" couleur={c.bleu} icone="ia" />}
         {lecture === 'lu' && <Etiquette titre="Lu sur la photo du compteur : vérifiez le chiffre" couleur={c.vert} icone="ok" />}
         {lecture === 'illisible' && <Etiquette titre="Photo du compteur illisible : tapez le chiffre" couleur={c.orange} icone="alerte" />}
         {!photos.compteur && <GrosBouton secondaire icone="photo" titre="Photographier le compteur" sousTitre="Fleet lit le kilométrage et la jauge" onPress={() => photographier('compteur')} />}

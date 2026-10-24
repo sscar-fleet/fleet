@@ -5,7 +5,7 @@ export type NomIcone =
   | 'jour' | 'locations' | 'flotte' | 'amendes' | 'plus' | 'tel' | 'message' | 'whatsapp' | 'mail' | 'photo' | 'carte' | 'itineraire'
   | 'moteur' | 'cle' | 'ok' | 'alerte' | 'ajout' | 'chevron' | 'retour' | 'horloge' | 'euro' | 'bouclier' | 'doc' | 'signature'
   | 'jauge' | 'carburant' | 'recherche' | 'actualiser' | 'client' | 'voiture' | 'calendrier' | 'cadenas' | 'envoyer' | 'nuage'
-  | 'fermer' | 'eclair' | 'outil' | 'depart' | 'arrivee' | 'prolonger' | 'degat' | 'carteId' | 'sync' | 'site' | 'sortie' | 'micro' | 'cloche';
+  | 'fermer' | 'eclair' | 'outil' | 'depart' | 'arrivee' | 'prolonger' | 'degat' | 'carteId' | 'sync' | 'site' | 'sortie' | 'micro' | 'cloche' | 'ia';
 
 export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { nom: NomIcone; couleur: string; taille?: number; epaisseur?: number }) {
   const p = { stroke: couleur, strokeWidth: epaisseur, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -49,6 +49,7 @@ export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { no
       {nom === 'cadenas' && <><Rect x={5} y={10.5} width={14} height={10} rx={2.5} {...p} /><Path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" {...p} /></>}
       {nom === 'envoyer' && <Path d="M21 3L10 14M21 3l-7 18-4-7-7-4z" {...p} />}
       {nom === 'nuage' && <Path d="M7 18.5a4.5 4.5 0 0 1-.5-9 6 6 0 0 1 11.5 1.5 4 4 0 0 1-.5 7.5z" {...p} />}
+      {nom === 'ia' && <><Path d="M10 3.5c.7 3.9 2.6 5.8 6.5 6.5-3.9.7-5.8 2.6-6.5 6.5-.7-3.9-2.6-5.8-6.5-6.5 3.9-.7 5.8-2.6 6.5-6.5z" {...plein} /><Path d="M18 13.5c.35 1.9 1.1 2.65 3 3-1.9.35-2.65 1.1-3 3-.35-1.9-1.1-2.65-3-3 1.9-.35 2.65-1.1 3-3z" {...plein} /><Path d="M18.5 2.5c.2 1.1.65 1.55 1.75 1.75-1.1.2-1.55.65-1.75 1.75-.2-1.1-.65-1.55-1.75-1.75 1.1-.2 1.55-.65 1.75-1.75z" {...plein} /></>}
       {nom === 'eclair' && <Path d="M13 2.5L4.5 13.5H12l-1 8 8.5-11H12z" {...p} />}
       {nom === 'outil' && <Path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" {...p} />}
       {nom === 'depart' && <><Path d="M5 21V4M5 4h11l-2 3.5 2 3.5H5" {...p} /></>}

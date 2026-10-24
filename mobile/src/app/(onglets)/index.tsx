@@ -1,6 +1,6 @@
 // Écran d'ouverture : la prochaine chose à faire en grand, la journée en dessous. Rien à chercher.
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ecran, GrosBouton, Titre, Vide, Chargement, BandeauHorsLigne, Tuile, Carte, Etiquette, BoutonRond, Ligne } from '@/composants/ui';
 import { useToast } from '@/composants/Toast';
@@ -50,13 +50,14 @@ export default function Aujourdhui() {
       rafraichir={recharger} enChargement={enChargement && !!donnees}
       haut={<Ligne style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
         <Logo largeur={92} variante="fleet" />
-        <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><BoutonRond icone="eclair" label="Fleet AI" couleur={c.accent} onPress={() => router.push('/assistant')} /><ClocheAppli /><BoutonRond icone="client" label="Clients" onPress={() => router.push('/clients')} /><BoutonRond icone="outil" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
+        <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><ClocheAppli /><BoutonRond icone="client" label="Clients" onPress={() => router.push('/clients')} /><BoutonRond icone="outil" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
       </Ligne>}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}
       {!donnees && !erreur && <Chargement />}
       {erreur && !donnees && <Vide icone="nuage" titre="Impossible de charger la journée" texte={erreur} />}
 
       {donnees && <>
+        <CarteFleetAI retards={retards.length} amendes={donnees.amendes} libres={nbLibres} />
         {prochaine ? <Prochaine t={prochaine} gpsEtat={prochaine.l.vehicules ? gps.parVehicule[prochaine.l.vehicules.id] : undefined} /> : (
           <Carte style={{ alignItems: 'center', paddingVertical: 26, gap: 10 }}>
             <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: c.vert + '22', alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.vert, fontSize: 26, fontWeight: '900' }}>✓</Text></View>
@@ -183,4 +184,52 @@ export default function Aujourdhui() {
       </View>
     );
   }
+}
+
+// Fleet AI en tête de la journée : on le voit, on lui parle, il sert tous les jours.
+// Les suggestions changent selon ce qui se passe dans l'agence.
+function CarteFleetAI({ retards, amendes, libres }: { retards: number; amendes: number; libres: number }) {
+  const c = useCouleurs();
+  const h = new Date().getHours();
+  const idees = [
+    retards > 0 ? `Préviens les ${retards > 1 ? retards + ' clients' : 'clients'} en retard` : null,
+    amendes > 0 ? 'Quelles amendes je dois traiter ?' : null,
+    h < 12 ? 'Résume ma journée' : 'Qui rend une voiture demain ?',
+    libres > 0 ? 'Quelles voitures sont libres ce week-end ?' : 'Quand une voiture se libère ?',
+    'Combien j’ai encaissé ce mois ?',
+  ].filter(Boolean).slice(0, 4) as string[];
+  const demander = (q?: string, dicter?: boolean) => router.push({ pathname: '/assistant', params: q ? { q } : dicter ? { dicter: '1' } : {} } as any);
+  return (
+    <View style={{ borderRadius: 22, padding: 14, gap: 12, backgroundColor: c.accent + '14', borderWidth: 1.5, borderColor: c.accent + '66' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Icone nom="ia" couleur={c.surAccent} taille={23} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.texte, fontSize: 18, fontWeight: '900', letterSpacing: -0.2 }}>Fleet AI</Text>
+          <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 13 }}>Ton assistant. Il prépare, tu confirmes.</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Pressable onPress={() => demander()} accessibilityLabel="Écrire à Fleet AI"
+          style={({ pressed }) => ({ flex: 1, height: 50, borderRadius: 25, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.panneau, borderWidth: 1, borderColor: c.bord, opacity: pressed ? 0.85 : 1 })}>
+          <Text numberOfLines={1} style={{ flex: 1, color: c.gris, fontSize: 15.5 }}>Demande-lui n’importe quoi…</Text>
+        </Pressable>
+        <Pressable onPress={() => demander(undefined, true)} accessibilityLabel="Parler à Fleet AI"
+          style={({ pressed }) => ({ width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent, opacity: pressed ? 0.85 : 1 })}>
+          <Icone nom="micro" couleur={c.surAccent} taille={23} />
+        </Pressable>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ marginHorizontal: -14 }} >
+        <View style={{ width: 6 }} />
+        {idees.map((i) => (
+          <Pressable key={i} onPress={() => demander(i)}
+            style={({ pressed }) => ({ paddingVertical: 9, paddingHorizontal: 13, borderRadius: 18, borderWidth: 1, borderColor: c.accent + '55', backgroundColor: pressed ? c.accent + '33' : c.fond })}>
+            <Text style={{ color: c.texte, fontSize: 14, fontWeight: '700' }}>{i}</Text>
+          </Pressable>
+        ))}
+        <View style={{ width: 6 }} />
+      </ScrollView>
+    </View>
+  );
 }

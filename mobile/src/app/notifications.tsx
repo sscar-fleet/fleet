@@ -62,7 +62,7 @@ export default function Notifications() {
     <Ecran retour titre="À faire" sousTitre="Seulement ce qui compte, trié par l’IA" rafraichir={charger}>
       {!donnees ? <Chargement /> : <>
         <View style={{ flexDirection: 'row', gap: 12, padding: 14, borderRadius: 18, backgroundColor: c.accent + '14', borderWidth: 1, borderColor: c.accent + '44' }}>
-          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}><Icone nom="eclair" couleur={c.surAccent} taille={18} /></View>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' }}><Icone nom="ia" couleur={c.surAccent} taille={18} /></View>
           <Text style={{ flex: 1, color: c.texte, fontSize: 15.5, lineHeight: 22 }}>{donnees.resume ?? '…'}</Text>
         </View>
         {!liste.length && (
