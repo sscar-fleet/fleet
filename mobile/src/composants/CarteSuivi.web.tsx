@@ -5,7 +5,7 @@ import { CARTE_HTML } from './carteHtml';
 import type { CarteSuiviProps, CarteSuiviRef } from './CarteSuivi';
 export type { CarteSuiviRef, CarteSuiviProps, PointCarte } from './CarteSuivi';
 
-const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuivi({ points, choisi, sombre, satellite, marges, onChoisir, onFond }, ref) {
+const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuivi({ points, choisi, trace, sombre, satellite, marges, onChoisir, onFond }, ref) {
   const cadre = useRef<HTMLIFrameElement | null>(null);
   const [prete, setPrete] = useState(false);
   const envoyer = (m: object) => cadre.current?.contentWindow?.postMessage({ carteSuivi: m }, '*');
@@ -19,7 +19,7 @@ const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuiv
     window.addEventListener('message', ecoute);
     return () => window.removeEventListener('message', ecoute);
   }, [onChoisir, onFond]);
-  useEffect(() => { if (prete) envoyer({ type: 'maj', points, choisi, sombre, satellite, marges }); }, [prete, points, choisi, sombre, satellite, marges.haut, marges.bas]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (prete) envoyer({ type: 'maj', points, choisi, sombre, satellite, marges, trace: trace ?? null }); }, [prete, points, choisi, trace, sombre, satellite, marges.haut, marges.bas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b0f12' }}>

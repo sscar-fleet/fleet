@@ -1,11 +1,13 @@
 // Espace Suivi : la carte plein écran (la même que le logiciel), un panneau en bas qu'on tire vers le haut
 // pour la liste, et une fiche claire quand on touche une voiture, sur la carte ou dans la liste.
+// Règle d'ergonomie : sur la carte et dans la liste, une seule info par voiture (son état, moteur compris,
+// et sa location) ; tout le détail (adresse, depuis quand, compteur, boîtier, trajet) est dans la fiche.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Linking, PanResponder, Pressable, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { Action, GrosBouton } from '@/composants/ui';
+import { Action } from '@/composants/ui';
 import LogoMarque, { BadgeSport } from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import Icone from '@/composants/Icone';
@@ -16,15 +18,21 @@ import { badgeSport, logoMarque } from '@/lib/logoMarque';
 import { chargerVehicules, chargerLocations, type VehiculeLigne, type LocationLigne } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useCouleurs } from '@/lib/theme';
-import { useGps, couleurGps, depuis, itineraire, commanderMoteur, type EtatGps } from '@/lib/gps';
+import { useGps, couleurGps, depuis, duree, phraseEtat, motCarte, itineraire, commanderMoteur, chargerTrajet, type EtatGps } from '@/lib/gps';
 import { appeler } from '@/lib/messages';
 import { urlSite } from '@/lib/site';
 import { heure, jour, km, nomClient, plaque, estAujourdhui } from '@/lib/format';
 
-type Filtre = 'tous' | 'roule' | 'arret' | 'coupe' | 'hors_ligne';
-const LIBELLE: Record<Filtre, string> = { tous: 'Toutes', roule: 'Roule', arret: 'À l’arrêt', coupe: 'Coupé', hors_ligne: 'Hors ligne' };
-const ETAT: Record<EtatGps['etat'], string> = { roule: 'Roule', arret: 'À l’arrêt', coupe: 'Moteur coupé', hors_ligne: 'Hors ligne' };
+type Filtre = 'tous' | 'loue' | 'parking' | 'retard' | 'roule' | 'arret' | 'coupe' | 'hors_ligne';
+const LIBELLE: Record<Filtre, string> = { tous: 'Toutes', loue: 'En location', parking: 'Au parking', retard: 'En retard', roule: 'Roule', arret: 'À l’arrêt', coupe: 'Coupé', hors_ligne: 'Hors ligne' };
+const ETATS: Filtre[] = ['roule', 'arret', 'coupe', 'hors_ligne'];
 type Suivi = { v: VehiculeLigne; e: EtatGps; loc?: LocationLigne };
+const enRetard = (s: Suivi) => !!s.loc && new Date(s.loc.fin_prevue).getTime() < Date.now();
+// Km faits depuis le départ du client : compteur estimé par le traceur moins le km noté à l'état des lieux de départ
+const kmDepuisDepart = (s: Suivi) => {
+  const dep = s.loc?.etats_des_lieux?.find((x) => x.type === 'depart')?.km ?? s.loc?.km_depart;
+  return s.e.km_estime != null && dep != null && s.e.km_estime >= dep ? s.e.km_estime - dep : null;
+};
 const vibrer = () => Haptics.selectionAsync().catch(() => {});
 const nomModele = (v: VehiculeLigne) => [v.marque, v.modele].filter(Boolean).join(' ');
 
@@ -45,34 +53,45 @@ export default function EspaceSuivi() {
   const [satellite, setSatellite] = useState(false);
   const [question, setQuestion] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  const [trace, setTrace] = useState<[number, number][] | null>(null);
+  const [traceKm, setTraceKm] = useState<number | null>(null);
+  const [chargeTrace, setChargeTrace] = useState(false);
+  useEffect(() => { setTrace(null); setTraceKm(null); }, [choisi]);
 
   // --- Données
   const vehicules = (donnees ?? []).filter((v) => v.statut !== 'sorti');
   const enCours = (id: string) => locations.find((l) => l.statut === 'en_cours' && l.vehicules?.id === id);
   const suivis: Suivi[] = vehicules.filter((v) => gps.parVehicule[v.id]).map((v) => ({ v, e: gps.parVehicule[v.id], loc: enCours(v.id) }));
   const sansTraceur = vehicules.filter((v) => !gps.parVehicule[v.id]);
-  const nb = (f: Filtre) => (f === 'tous' ? suivis.length : suivis.filter((s) => s.e.etat === f).length);
-  const ordre: Record<string, number> = { roule: 0, coupe: 1, arret: 2, hors_ligne: 3 };
+  const garde = (f: Filtre, s: Suivi) => f === 'tous' || (f === 'loue' ? !!s.loc : f === 'parking' ? !s.loc : f === 'retard' ? enRetard(s) : s.e.etat === f);
+  const nb = (f: Filtre) => suivis.filter((s) => garde(f, s)).length;
+  // Les urgences d'abord : retard, moteur coupé, puis ce qui roule, ce qui est arrêté, ce qui ne répond plus
+  const rang = (s: Suivi) => (enRetard(s) ? 0 : ({ coupe: 1, roule: 2, arret: 3, hors_ligne: 4 } as Record<string, number>)[s.e.etat]);
   const q = cherche.toLowerCase().replace(/[\s-]/g, '');
   const visibles = suivis
-    .filter((s) => (filtre === 'tous' || s.e.etat === filtre)
+    .filter((s) => garde(filtre, s)
       && (!q || `${s.v.immatriculation ?? ''}${s.v.marque ?? ''}${s.v.modele ?? ''}${s.loc ? nomClient(s.loc.clients) : ''}`.toLowerCase().replace(/[\s-]/g, '').includes(q)))
-    .sort((a, b) => ordre[a.e.etat] - ordre[b.e.etat]);
+    .sort((a, b) => rang(a) - rang(b));
   const fiche = choisi ? suivis.find((s) => s.v.id === choisi) ?? null : null;
   const points: PointCarte[] = useMemo(() => visibles.filter((s) => s.e.lat != null && s.e.lng != null).map((s) => ({
     id: s.v.id, lat: s.e.lat!, lng: s.e.lng!, couleur: couleurGps(s.e, c), plaque: plaque(s.v.immatriculation) || '—', roule: s.e.etat === 'roule',
     logo: logoMarque(s.v.marque, s.v.modele), badge: badgeSport(s.v.marque, s.v.modele),
-  })), [JSON.stringify(visibles.map((s) => [s.v.id, s.e.lat, s.e.lng, s.e.etat])), sombre]); // eslint-disable-line react-hooks/exhaustive-deps
+    mot: enRetard(s) ? `retard ${duree(s.loc!.fin_prevue)}` : motCarte(s.e), motCouleur: enRetard(s) ? '#fbbf24' : s.e.etat === 'roule' ? '#93c5fd' : s.e.etat === 'coupe' ? '#fca5a5' : s.e.etat === 'hors_ligne' ? '#94a3b8' : '#fcd34d',
+    retard: enRetard(s),
+  })), [JSON.stringify(visibles.map((s) => [s.v.id, s.e.lat, s.e.lng, s.e.etat, s.e.vitesse, s.e.contact, enRetard(s)])), sombre]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const enRetard = (s: Suivi) => !!s.loc && new Date(s.loc.fin_prevue).getTime() < Date.now();
+  const retour = (iso: string) => `${estAujourdhui(iso) ? 'aujourd’hui' : jour(iso)} à ${heure(iso)}`;
   const ou = (s: Suivi) => s.loc
-    ? `${nomClient(s.loc.clients)} · ${enRetard(s) ? 'devait rentrer' : 'retour'} ${estAujourdhui(s.loc.fin_prevue) ? 'à' : `le ${jour(s.loc.fin_prevue)} à`} ${heure(s.loc.fin_prevue)}`
-    : s.v.statut === 'maintenance' || s.v.statut === 'hors_service' ? 'À l’atelier' : 'Au parking';
+    ? (enRetard(s) ? `En retard de ${duree(s.loc.fin_prevue)} · ${nomClient(s.loc.clients)}` : `Louée · ${nomClient(s.loc.clients)} · retour ${retour(s.loc.fin_prevue)}`)
+    : s.v.statut === 'maintenance' || s.v.statut === 'hors_service' ? 'À l’atelier' : 'Au parking · libre';
+  const couleurOu = (s: Suivi) => (enRetard(s) ? c.orange : s.loc ? c.texte2 : c.gris);
+  // « À l'arrêt, moteur allumé » se remarque : c'est souvent un oubli ou quelqu'un qui attend dans la voiture
+  const couleurEtat = (s: Suivi) => (s.e.etat === 'arret' && s.e.contact === true ? c.orange : couleurGps(s.e, c));
 
   // --- Panneau du bas : replié (carte bien visible), ouvert (liste), fiche (voiture choisie)
   const [H, setH] = useState(0);
   const [ouvert, setOuvert] = useState(false);
-  const BAS = Math.max(250, H * 0.36), HAUT = Math.max(BAS + 120, H * 0.84), FICHE = Math.max(360, H * 0.52);
+  const BAS = Math.max(250, H * 0.36), HAUT = Math.max(BAS + 120, H * 0.84), FICHE = Math.max(420, H * 0.6);
   const cible = fiche ? FICHE : ouvert ? HAUT : BAS;
   const hauteur = useRef(new Animated.Value(300)).current;
   const actuelle = useRef(300);
@@ -97,6 +116,18 @@ export default function EspaceSuivi() {
   const margesCarte = { haut: sa.top + 108, bas: fiche ? FICHE : BAS };
 
   function choisir(id: string) { vibrer(); setChoisi(id); }
+  async function basculerTrajet() {
+    if (!fiche) return;
+    if (trace) { setTrace(null); setTraceKm(null); carte.current?.viser(fiche.v.id); return; }
+    setChargeTrace(true);
+    try {
+      const t = await chargerTrajet(fiche.v.id, fiche.e);
+      if (!t.disponible) toast('Trajet disponible quand le boîtier est passé sur le serveur SS CAR SYSTEM', 'info');
+      else if (t.points.length < 2) toast('Pas encore de trajet aujourd’hui', 'info');
+      else { setTrace(t.points); setTraceKm(t.km); }
+    } catch (err: any) { toast(err?.message ?? 'Trajet indisponible', 'alerte'); }
+    setChargeTrace(false);
+  }
   async function moteur() {
     if (!fiche) return;
     setQuestion(false); setEnvoi(true);
@@ -112,7 +143,7 @@ export default function EspaceSuivi() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.fond }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
-      <CarteSuivi ref={carte} points={points} choisi={choisi} sombre={sombre} satellite={satellite} marges={margesCarte}
+      <CarteSuivi ref={carte} points={points} choisi={choisi} trace={fiche ? trace : null} sombre={sombre} satellite={satellite} marges={margesCarte}
         onChoisir={choisir} onFond={() => { if (choisi) setChoisi(null); else if (ouvert) setOuvert(false); }} />
 
       {/* En-tête flottant */}
@@ -121,7 +152,7 @@ export default function EspaceSuivi() {
           <Pressable onPress={() => { recharger(); rafraichirGps(); vibrer(); }} style={[verre, { flex: 1, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 8 }]}>
             <Text style={{ color: c.texte, fontSize: 20, fontWeight: '900', letterSpacing: -0.3 }}>Suivi</Text>
             <Text numberOfLines={1} style={{ color: c.gris, fontSize: 12.5, fontWeight: '600' }}>
-              {gps.actif ? `${suivis.length} suivie${suivis.length > 1 ? 's' : ''} · ${nb('roule')} en route${gps.demo ? ' · aperçu' : ''}` : 'Suivi GPS pas encore activé'}
+              {gps.actif ? `${nb('roule')} roule${nb('roule') > 1 ? 'nt' : ''} · ${nb('loue')} louée${nb('loue') > 1 ? 's' : ''}${gps.demo ? ' · aperçu' : ''}` : 'Suivi GPS pas encore activé'}
             </Text>
           </Pressable>
           <Pressable onPress={() => { vibrer(); setSatellite((s) => !s); }} accessibilityLabel={satellite ? 'Afficher le plan' : 'Afficher le satellite'}
@@ -137,13 +168,14 @@ export default function EspaceSuivi() {
         </View>
         {suivis.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingRight: 12 }} keyboardShouldPersistTaps="handled">
-            {(['tous', 'roule', 'arret', 'coupe', 'hors_ligne'] as Filtre[]).filter((f) => f === 'tous' || nb(f) > 0 || f === filtre).map((f) => {
+            {(['tous', 'loue', 'parking', 'retard', ...ETATS] as Filtre[]).filter((f) => f === 'tous' || f === filtre || (nb(f) > 0 && (f !== 'parking' || nb('loue') > 0))).map((f) => {
               const actif = filtre === f;
-              const coul = f === 'tous' ? c.accent : couleurGps({ etat: f } as EtatGps, c);
+              const coul = f === 'tous' || f === 'loue' ? c.accent : f === 'parking' ? c.vert : f === 'retard' ? c.orange : couleurGps({ etat: f } as EtatGps, c);
+              const separe = f === 'roule';
               return (
-                <Pressable key={f} onPress={() => { vibrer(); setFiltre(f); setChoisi(null); setTimeout(() => carte.current?.cadrer(), 120); }}
-                  style={[verre, { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, height: 36, borderRadius: 18, borderColor: actif ? coul : c.bord, borderWidth: actif ? 1.5 : 1 }]}>
-                  <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: coul }} />
+                <Pressable key={f} accessibilityLabel={`${LIBELLE[f]} : ${nb(f)}`} onPress={() => { vibrer(); setFiltre(f); setChoisi(null); setTimeout(() => carte.current?.cadrer(), 120); }}
+                  style={[verre, { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, height: 36, borderRadius: 18, borderColor: actif ? coul : c.bord, borderWidth: actif ? 1.5 : 1, marginLeft: separe ? 8 : 0 }]}>
+                  {ETATS.includes(f) || f === 'retard' ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: coul }} /> : null}
                   <Text style={{ color: c.texte, fontWeight: '700', fontSize: 13.5 }}>{LIBELLE[f]}</Text>
                   <Text style={{ color: actif ? coul : c.gris, fontWeight: '900', fontSize: 13.5 }}>{nb(f)}</Text>
                 </Pressable>
@@ -189,7 +221,8 @@ export default function EspaceSuivi() {
           )}
         </View>
 
-        {fiche ? <FicheVoiture s={fiche} ou={ou(fiche)} retard={enRetard(fiche)} envoi={envoi} onCouper={() => (fiche.e.moteur_coupe ? moteur() : setQuestion(true))} /> : (
+        {fiche ? <FicheVoiture s={fiche} retourTexte={fiche.loc ? (estAujourdhui(fiche.loc.fin_prevue) ? `à ${heure(fiche.loc.fin_prevue)}` : retour(fiche.loc.fin_prevue)) : ''} envoi={envoi} onCouper={() => (fiche.e.moteur_coupe ? moteur() : setQuestion(true))}
+          trajetAffiche={!!trace} trajetKm={traceKm} chargeTrajet={chargeTrace} onTrajet={basculerTrajet} /> : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 24 }} keyboardShouldPersistTaps="handled" scrollEnabled={ouvert}>
             {!gps.actif ? (
               <View style={{ padding: 14, gap: 6 }}>
@@ -201,7 +234,7 @@ export default function EspaceSuivi() {
             ) : visibles.map((s) => {
               const coul = couleurGps(s.e, c);
               return (
-                <Pressable key={s.v.id} onPress={() => choisir(s.v.id)}
+                <Pressable key={s.v.id} onPress={() => choisir(s.v.id)} accessibilityLabel={`${plaque(s.v.immatriculation)}, ${phraseEtat(s.e)}, ${ou(s)}`}
                   style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 14, backgroundColor: pressed ? c.panneau2 : 'transparent' })}>
                   <View style={{ width: 46, alignItems: 'center' }}>
                     <LogoMarque marque={s.v.marque} modele={s.v.modele} taille={38} />
@@ -212,12 +245,10 @@ export default function EspaceSuivi() {
                       <Text style={{ color: c.texte, fontSize: 16, fontWeight: '900' }}>{plaque(s.v.immatriculation)}</Text>
                       <BadgeSport marque={s.v.marque} modele={s.v.modele} petit />
                       <Text numberOfLines={1} style={{ flex: 1, color: c.gris, fontSize: 13.5, fontWeight: '600' }}>{nomModele(s.v)}</Text>
+                      {s.e.etat !== 'hors_ligne' && <Text style={{ color: c.gris, fontSize: 12 }}>{depuis(s.e.le)}</Text>}
                     </View>
-                    <Text numberOfLines={1} style={{ color: enRetard(s) ? c.rouge : c.texte2, fontSize: 13, fontWeight: enRetard(s) ? '700' : '500' }}>{ou(s)}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end', gap: 3 }}>
-                    <Text style={{ color: coul, fontWeight: '900', fontSize: 13.5 }}>{s.e.etat === 'roule' ? `${s.e.vitesse} km/h` : ETAT[s.e.etat]}</Text>
-                    <Text style={{ color: c.gris, fontSize: 12 }}>{depuis(s.e.le)}</Text>
+                    <Text numberOfLines={1} style={{ color: couleurEtat(s), fontSize: 13.5, fontWeight: '800' }}>{phraseEtat(s.e)}</Text>
+                    <Text numberOfLines={1} style={{ color: couleurOu(s), fontSize: 13, fontWeight: enRetard(s) ? '800' : '500' }}>{ou(s)}</Text>
                   </View>
                 </Pressable>
               );
@@ -247,15 +278,33 @@ export default function EspaceSuivi() {
   );
 }
 
-// Fiche d'une voiture dans le panneau : son état en grand, où elle est, et les gestes utiles
-function FicheVoiture({ s, ou, retard, envoi, onCouper }: { s: Suivi; ou: string; retard: boolean; envoi: boolean; onCouper: () => void }) {
+// Fiche d'une voiture : son état en grand (moteur compris) et où elle est, quatre cases utiles,
+// la location en cours, et les gestes. Les cases sans donnée ne s'affichent pas.
+function FicheVoiture({ s, retourTexte, envoi, onCouper, trajetAffiche, trajetKm, chargeTrajet, onTrajet }: {
+  s: Suivi; retourTexte: string; envoi: boolean; onCouper: () => void; trajetAffiche: boolean; trajetKm: number | null; chargeTrajet: boolean; onTrajet: () => void;
+}) {
   const c = useCouleurs();
-  const coul = couleurGps(s.e, c);
-  const etat = s.e.etat === 'roule' ? `Roule · ${s.e.vitesse} km/h` : ETAT[s.e.etat];
+  const e = s.e;
+  const coul = couleurGps(e, c);
+  const retard = enRetard(s);
+  const kmFaits = kmDepuisDepart(s);
+  const enTrop = kmFaits != null && s.loc?.km_inclus != null ? Math.max(0, kmFaits - s.loc.km_inclus) : 0;
+
+  const moteur = e.etat === 'coupe' ? { val: 'Coupé', coul: c.rouge, sous: 'à distance' }
+    : e.contact === true ? { val: 'Allumé', coul: c.vert, sous: e.contact_depuis ? `depuis ${heure(e.contact_depuis)}` : '' }
+    : e.contact === false ? { val: 'Éteint', coul: c.texte, sous: e.contact_depuis ? `depuis ${heure(e.contact_depuis)}` : '' } : null;
+  const cases: { titre: string; val: string; sous?: string; coul?: string }[] = [];
+  if (moteur) cases.push({ titre: 'MOTEUR', val: moteur.val, sous: moteur.sous, coul: moteur.coul });
+  if (e.km_estime != null) cases.push({ titre: 'COMPTEUR', val: km(e.km_estime), sous: kmFaits != null ? `+${km(kmFaits)} depuis le départ` : undefined });
+  if (e.km_jour != null) cases.push({ titre: 'AUJOURD’HUI', val: km(e.km_jour), sous: e.minutes_route ? `${e.minutes_route >= 60 ? `${Math.floor(e.minutes_route / 60)} h ${String(e.minutes_route % 60).padStart(2, '0')}` : `${e.minutes_route} min`} de route` : undefined });
+  if (e.tension != null) cases.push({ titre: 'BOÎTIER', val: e.tension >= 11 ? 'Branché' : e.tension > 3 ? 'Tension faible' : 'Sur sa batterie', coul: e.tension >= 11 ? undefined : c.orange,
+    sous: `${String(e.tension).replace('.', ',')} V${e.satellites != null ? ` · ${e.satellites} satellites` : ''}` });
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <LogoMarque marque={s.v.marque} modele={s.v.modele} taille={46} />
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28, gap: 12 }}>
+      <Pressable onPress={() => router.push({ pathname: '/vehicule/[id]', params: { id: s.v.id } })} accessibilityLabel="Ouvrir la fiche du véhicule"
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.75 : 1 })}>
+        <LogoMarque marque={s.v.marque} modele={s.v.modele} taille={44} />
         <View style={{ flex: 1, gap: 5 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Plaque immat={plaque(s.v.immatriculation)} taille={0.78} />
@@ -263,36 +312,70 @@ function FicheVoiture({ s, ou, retard, envoi, onCouper }: { s: Suivi; ou: string
           </View>
           <Text numberOfLines={1} style={{ color: c.texte, fontSize: 16, fontWeight: '800' }}>{nomModele(s.v) || 'Véhicule'}</Text>
         </View>
-      </View>
+        <Icone nom="chevron" couleur={c.gris} taille={18} />
+      </Pressable>
 
+      {/* L'état en grand, et où */}
       <View style={{ borderRadius: 16, padding: 14, gap: 4, backgroundColor: coul + '1c', borderWidth: 1, borderColor: coul + '55' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: coul }} />
-          <Text style={{ color: coul, fontSize: 19, fontWeight: '900' }}>{etat}</Text>
+          <Text style={{ flex: 1, color: coul, fontSize: 19, fontWeight: '900' }}>{phraseEtat(e)}</Text>
+          <Text style={{ color: c.texte2, fontSize: 12, fontWeight: '700' }}>{depuis(e.le)}</Text>
         </View>
-        <Text style={{ color: c.texte2, fontSize: 13.5 }}>
-          {s.e.le ? `Dernier signal ${depuis(s.e.le)}` : 'Pas encore de signal'}{s.e.km_estime != null ? ` · ${km(s.e.km_estime)}` : ''}{s.e.lat == null ? ' · position inconnue' : ''}
-        </Text>
+        <Text numberOfLines={2} style={{ color: c.texte2, fontSize: 14 }}>{e.lat == null ? 'Position inconnue' : e.adresse ?? 'Adresse en cours de recherche'}</Text>
       </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <Icone nom={s.loc ? 'client' : 'voiture'} couleur={retard ? c.rouge : c.gris} taille={18} />
-        <Text style={{ flex: 1, color: retard ? c.rouge : c.texte2, fontSize: 15, fontWeight: retard ? '800' : '600' }}>{ou}</Text>
-      </View>
-      {s.e.alerte ? (
+      {e.alerte ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: 12, backgroundColor: c.rouge + '1c' }}>
           <Icone nom="alerte" couleur={c.rouge} taille={18} />
-          <Text style={{ flex: 1, color: c.rouge, fontWeight: '800', fontSize: 14 }}>{s.e.alerte}</Text>
+          <Text style={{ flex: 1, color: c.rouge, fontWeight: '800', fontSize: 14 }}>{e.alerte}</Text>
         </View>
       ) : null}
 
+      {trajetAffiche && <Text style={{ color: c.bleu, fontSize: 13, fontWeight: '700', textAlign: 'center' }}>Trajet d’aujourd’hui sur la carte{trajetKm != null ? ` · ${km(trajetKm)}` : ''}</Text>}
+
       <View style={{ flexDirection: 'row', marginTop: 2 }}>
-        {s.e.lat != null && <Action icone="itineraire" titre="Y aller" couleur={c.bleu} onPress={() => Linking.openURL(itineraire(s.e.lat!, s.e.lng!))} />}
-        {s.e.coupure !== false && <Action icone={s.e.moteur_coupe ? 'cle' : 'moteur'} titre={envoi ? 'Envoi…' : s.e.moteur_coupe ? 'Remettre' : 'Couper'} couleur={s.e.moteur_coupe ? c.vert : c.rouge} desactive={envoi} onPress={onCouper} />}
+        {e.lat != null && <Action icone="itineraire" titre="Y aller" couleur={c.bleu} onPress={() => Linking.openURL(itineraire(e.lat!, e.lng!))} />}
+        {e.coupure !== false && <Action icone={e.moteur_coupe ? 'cle' : 'moteur'} titre={envoi ? 'Envoi…' : e.moteur_coupe ? 'Remettre' : 'Couper'} couleur={e.moteur_coupe ? c.vert : c.rouge} desactive={envoi} onPress={onCouper} />}
         {s.loc?.clients?.telephone ? <Action icone="tel" titre="Client" couleur={c.vert} onPress={() => appeler(s.loc!.clients!.telephone!)} /> : null}
-        <Action icone="voiture" titre="Fiche" couleur={c.texte2} onPress={() => router.push({ pathname: '/vehicule/[id]', params: { id: s.v.id } })} />
+        <Action icone="carte" titre={chargeTrajet ? 'Chargement…' : trajetAffiche ? 'Masquer' : 'Trajet'} couleur={c.accent} desactive={chargeTrajet} onPress={onTrajet} />
       </View>
-      {s.loc && <GrosBouton secondaire petit icone="doc" titre={`Location n° ${s.loc.numero ?? '—'}`} onPress={() => router.push({ pathname: '/location/[id]', params: { id: s.loc!.id } })} />}
+      {/* La location */}
+      {s.loc ? (
+        <Pressable onPress={() => router.push({ pathname: '/location/[id]', params: { id: s.loc!.id } })} accessibilityLabel="Ouvrir la location"
+          style={({ pressed }) => ({ borderRadius: 14, padding: 12, gap: 3, opacity: pressed ? 0.8 : 1,
+            backgroundColor: retard ? c.orange + '16' : c.panneau2, borderWidth: 1, borderColor: retard ? c.orange + '66' : c.bord })}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ flex: 1, color: retard ? c.orange : c.texte, fontSize: 15, fontWeight: '900' }}>{retard ? `En retard de ${duree(s.loc.fin_prevue)}` : `Louée · retour ${retourTexte}`}</Text>
+            <Icone nom="chevron" couleur={c.gris} taille={16} />
+          </View>
+          <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 13.5 }}>{nomClient(s.loc.clients)} · contrat n° {s.loc.numero ?? '—'}{retard ? ` · devait rentrer ${retourTexte}` : ''}</Text>
+          {kmFaits != null && (
+            <Text style={{ color: enTrop ? c.orange : c.gris, fontSize: 12.5, fontWeight: enTrop ? '700' : '500' }}>
+              {km(kmFaits)} parcourus{s.loc.km_inclus != null ? (enTrop ? ` · ${km(enTrop)} au-delà du forfait${s.loc.prix_km_sup ? ` (+${(enTrop * s.loc.prix_km_sup).toFixed(2).replace('.', ',')} €)` : ''}` : ` sur ${km(s.loc.km_inclus)} inclus`) : ''}
+            </Text>
+          )}
+        </Pressable>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 }}>
+          <Icone nom="voiture" couleur={c.vert} taille={18} />
+          <Text style={{ flex: 1, color: c.vert, fontSize: 15, fontWeight: '700' }}>{s.v.statut === 'maintenance' || s.v.statut === 'hors_service' ? 'À l’atelier' : 'Disponible · au parking'}</Text>
+        </View>
+      )}
+
+
+      {cases.length > 0 && (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {cases.map((k) => (
+            <View key={k.titre} style={{ flexBasis: '47%', flexGrow: 1, borderRadius: 14, padding: 11, gap: 2, backgroundColor: c.panneau2, borderWidth: 1, borderColor: c.bord }}>
+              <Text style={{ color: c.gris, fontSize: 11, fontWeight: '800', letterSpacing: 0.4 }}>{k.titre}</Text>
+              <Text numberOfLines={1} style={{ color: k.coul ?? c.texte, fontSize: 16.5, fontWeight: '900' }}>{k.val}</Text>
+              {k.sous ? <Text numberOfLines={1} style={{ color: c.gris, fontSize: 12 }}>{k.sous}</Text> : null}
+            </View>
+          ))}
+        </View>
+      )}
+
     </ScrollView>
   );
 }

@@ -27,6 +27,8 @@ export type EtatTraceur = {
   kmTraceur: number | null;   // kilométrage total calculé par le traceur, en km
   alerte: string | null;
   source?: 'direct' | 'whatsgps'; // direct = notre serveur (temps réel), whatsgps = via leur API (quota)
+  tension?: number | null;    // alimentation du boîtier (V), serveur direct seulement
+  satellites?: number | null;
 };
 
 // Tant que les clés ne sont pas là, une flotte fictive permet de voir le rendu (positions autour de Paris)

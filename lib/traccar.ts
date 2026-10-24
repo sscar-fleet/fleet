@@ -45,6 +45,8 @@ export async function etatsTraccar(): Promise<EtatTraceur[]> {
       le: p?.fixTime ?? null, signal: a.lastUpdate ?? null,
       kmTraceur: km ? Math.round(Number(km) / 1000) : null,
       alerte: p?.attributes?.alarm ? libelleAlarme(String(p.attributes.alarm)) : null,
+      tension: p?.attributes?.power != null ? Math.round(Number(p.attributes.power) * 10) / 10 : null,
+      satellites: p?.attributes?.sat != null ? Number(p.attributes.sat) : null,
       source: 'direct',
     } as EtatTraceur;
   });
@@ -152,4 +154,66 @@ export async function commandeTraccar(imei: string, texte: string): Promise<{ en
   await appel('/api/commands/send', { method: 'POST', body: JSON.stringify({ deviceId: a.id, type: 'custom', attributes: { data: texte } }) });
   memoire = null;
   return { enLigne: a.status === 'online' };
+}
+
+// Depuis quand le moteur est allumé / éteint et depuis quand la voiture est à l'arrêt, plus les km du jour :
+// un seul appel pour toute la flotte, gardé 30 s
+export type Historique = { contactLe: string | null; arretLe: string | null; mouvementLe: string | null; kmJour: number | null; minutesRoute: number | null };
+let memoireHisto: { quand: number; parImei: Map<string, Historique> } | null = null;
+const minuitParis = () => {
+  const d = new Date();
+  const paris = new Date(d.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const ecart = paris.getTime() - d.getTime();
+  paris.setHours(0, 0, 0, 0);
+  return new Date(paris.getTime() - ecart);
+};
+export async function historiquesTraccar(): Promise<Map<string, Historique>> {
+  if (!traccarConfigure()) return new Map();
+  if (memoireHisto && Date.now() - memoireHisto.quand < 30_000) return memoireHisto.parImei;
+  const { appareils } = await photo();
+  const parImei = new Map<string, Historique>();
+  if (!appareils.length) return parImei;
+  const ids = (q: URLSearchParams) => { appareils.forEach((a) => q.append('deviceId', String(a.id))); return q; };
+  const maintenant = new Date().toISOString();
+  const qe = ids(new URLSearchParams({ from: new Date(Date.now() - 48 * 3600_000).toISOString(), to: maintenant }));
+  ['ignitionOn', 'ignitionOff', 'deviceMoving', 'deviceStopped'].forEach((t) => qe.append('type', t));
+  const qs = ids(new URLSearchParams({ from: minuitParis().toISOString(), to: maintenant }));
+  const [evts, resumes] = await Promise.all([
+    appel(`/api/reports/events?${qe}`).catch(() => []),
+    appel(`/api/reports/summary?${qs}`).catch(() => []),
+  ]);
+  const imeiDe = new Map(appareils.map((a) => [a.id, String(a.uniqueId)]));
+  const h = (id: number) => {
+    const imei = imeiDe.get(id); if (!imei) return null;
+    if (!parImei.has(imei)) parImei.set(imei, { contactLe: null, arretLe: null, mouvementLe: null, kmJour: null, minutesRoute: null });
+    return parImei.get(imei)!;
+  };
+  for (const e of [...(evts ?? [])].sort((x: any, y: any) => String(x.eventTime).localeCompare(String(y.eventTime)))) {
+    const x = h(e.deviceId); if (!x) continue;
+    if (e.type === 'ignitionOn' || e.type === 'ignitionOff') x.contactLe = e.eventTime;
+    else if (e.type === 'deviceStopped') x.arretLe = e.eventTime;
+    else if (e.type === 'deviceMoving') x.mouvementLe = e.eventTime;
+  }
+  for (const r of resumes ?? []) {
+    const x = h(r.deviceId); if (!x) continue;
+    x.kmJour = r.distance != null ? Math.round(Number(r.distance) / 1000) : null;
+    x.minutesRoute = r.engineHours != null ? Math.round(Number(r.engineHours) / 60000) : null;
+  }
+  memoireHisto = { quand: Date.now(), parImei };
+  return parImei;
+}
+
+// Trajet du jour d'un boîtier (points de la route depuis minuit), allégé pour l'affichage sur la carte
+export async function trajetDuJour(imei: string): Promise<{ inscrit: boolean; points: [number, number][]; km: number | null }> {
+  if (!traccarConfigure()) return { inscrit: false, points: [], km: null };
+  const { appareils } = await photo();
+  const a = appareils.find((x) => String(x.uniqueId) === imei);
+  if (!a) return { inscrit: false, points: [], km: null };
+  const q = new URLSearchParams({ deviceId: String(a.id), from: minuitParis().toISOString(), to: new Date().toISOString() });
+  const route: any[] = (await appel(`/api/reports/route?${q}`)) ?? [];
+  const tous = route.filter((p) => p.valid !== false && p.latitude && p.longitude).map((p) => [Number(p.longitude), Number(p.latitude)] as [number, number]);
+  const pas = Math.max(1, Math.ceil(tous.length / 600));
+  const points = tous.filter((_, i) => i % pas === 0 || i === tous.length - 1);
+  const dist = route.length ? Number(route[route.length - 1]?.attributes?.totalDistance ?? 0) - Number(route[0]?.attributes?.totalDistance ?? 0) : 0;
+  return { inscrit: true, points, km: dist > 0 ? Math.round(dist / 1000) : null };
 }
