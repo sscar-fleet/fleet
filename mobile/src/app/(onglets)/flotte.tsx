@@ -23,10 +23,12 @@ import { appeler } from '@/lib/messages';
 import { urlSite } from '@/lib/site';
 import { heure, jour, km, nomClient, plaque, estAujourdhui } from '@/lib/format';
 
-type Filtre = 'tous' | 'loue' | 'parking' | 'retard' | 'roule' | 'arret' | 'coupe' | 'hors_ligne';
-const LIBELLE: Record<Filtre, string> = { tous: 'Toutes', loue: 'En location', parking: 'Au parking', retard: 'En retard', roule: 'Roule', arret: 'À l’arrêt', coupe: 'Coupé', hors_ligne: 'Hors ligne' };
+type Filtre = 'tous' | 'loue' | 'parking' | 'atelier' | 'retard' | 'roule' | 'arret' | 'coupe' | 'hors_ligne';
+const LIBELLE: Record<Filtre, string> = { tous: 'Toutes', loue: 'En location', parking: 'Disponibles', atelier: 'À l’atelier', retard: 'En retard', roule: 'Roule', arret: 'À l’arrêt', coupe: 'Coupé', hors_ligne: 'Hors ligne' };
 const ETATS: Filtre[] = ['roule', 'arret', 'coupe', 'hors_ligne'];
 type Suivi = { v: VehiculeLigne; e: EtatGps; loc?: LocationLigne };
+// Ni louée ni à l'atelier = disponible (au parking, prêtée à un employé, ailleurs : peu importe)
+const aLAtelier = (s: Suivi) => s.v.statut === 'maintenance' || s.v.statut === 'hors_service';
 const enRetard = (s: Suivi) => !!s.loc && new Date(s.loc.fin_prevue).getTime() < Date.now();
 // Km faits depuis le départ du client : compteur estimé par le traceur moins le km noté à l'état des lieux de départ
 const kmDepuisDepart = (s: Suivi) => {
@@ -63,7 +65,7 @@ export default function EspaceSuivi() {
   const enCours = (id: string) => locations.find((l) => l.statut === 'en_cours' && l.vehicules?.id === id);
   const suivis: Suivi[] = vehicules.filter((v) => gps.parVehicule[v.id]).map((v) => ({ v, e: gps.parVehicule[v.id], loc: enCours(v.id) }));
   const sansTraceur = vehicules.filter((v) => !gps.parVehicule[v.id]);
-  const garde = (f: Filtre, s: Suivi) => f === 'tous' || (f === 'loue' ? !!s.loc : f === 'parking' ? !s.loc : f === 'retard' ? enRetard(s) : s.e.etat === f);
+  const garde = (f: Filtre, s: Suivi) => f === 'tous' || (f === 'loue' ? !!s.loc : f === 'parking' ? !s.loc && !aLAtelier(s) : f === 'atelier' ? !s.loc && aLAtelier(s) : f === 'retard' ? enRetard(s) : s.e.etat === f);
   const nb = (f: Filtre) => suivis.filter((s) => garde(f, s)).length;
   // Les urgences d'abord : retard, moteur coupé, puis ce qui roule, ce qui est arrêté, ce qui ne répond plus
   const rang = (s: Suivi) => (enRetard(s) ? 0 : ({ coupe: 1, roule: 2, arret: 3, hors_ligne: 4 } as Record<string, number>)[s.e.etat]);
@@ -83,7 +85,7 @@ export default function EspaceSuivi() {
   const retour = (iso: string) => `${estAujourdhui(iso) ? 'aujourd’hui' : jour(iso)} à ${heure(iso)}`;
   const ou = (s: Suivi) => s.loc
     ? (enRetard(s) ? `En retard de ${duree(s.loc.fin_prevue)} · ${nomClient(s.loc.clients)}` : `Louée · ${nomClient(s.loc.clients)} · retour ${retour(s.loc.fin_prevue)}`)
-    : s.v.statut === 'maintenance' || s.v.statut === 'hors_service' ? 'À l’atelier' : 'Au parking · libre';
+    : aLAtelier(s) ? 'À l’atelier' : 'Disponible';
   const couleurOu = (s: Suivi) => (enRetard(s) ? c.orange : s.loc ? c.texte2 : c.gris);
   // « À l'arrêt, moteur allumé » se remarque : c'est souvent un oubli ou quelqu'un qui attend dans la voiture
   const couleurEtat = (s: Suivi) => (s.e.etat === 'arret' && s.e.contact === true ? c.orange : couleurGps(s.e, c));
@@ -168,9 +170,9 @@ export default function EspaceSuivi() {
         </View>
         {suivis.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingRight: 12 }} keyboardShouldPersistTaps="handled">
-            {(['tous', 'loue', 'parking', 'retard', ...ETATS] as Filtre[]).filter((f) => f === 'tous' || f === filtre || (nb(f) > 0 && (f !== 'parking' || nb('loue') > 0))).map((f) => {
+            {(['tous', 'loue', 'parking', 'atelier', 'retard', ...ETATS] as Filtre[]).filter((f) => f === 'tous' || f === filtre || (nb(f) > 0 && (f !== 'parking' || nb('loue') > 0))).map((f) => {
               const actif = filtre === f;
-              const coul = f === 'tous' || f === 'loue' ? c.accent : f === 'parking' ? c.vert : f === 'retard' ? c.orange : couleurGps({ etat: f } as EtatGps, c);
+              const coul = f === 'tous' || f === 'loue' ? c.accent : f === 'parking' ? c.vert : f === 'atelier' ? c.orange : f === 'retard' ? c.orange : couleurGps({ etat: f } as EtatGps, c);
               const separe = f === 'roule';
               return (
                 <Pressable key={f} accessibilityLabel={`${LIBELLE[f]} : ${nb(f)}`} onPress={() => { vibrer(); setFiltre(f); setChoisi(null); setTimeout(() => carte.current?.cadrer(), 120); }}
@@ -358,8 +360,8 @@ function FicheVoiture({ s, retourTexte, envoi, onCouper, trajetAffiche, trajetKm
         </Pressable>
       ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 2 }}>
-          <Icone nom="voiture" couleur={c.vert} taille={18} />
-          <Text style={{ flex: 1, color: c.vert, fontSize: 15, fontWeight: '700' }}>{s.v.statut === 'maintenance' || s.v.statut === 'hors_service' ? 'À l’atelier' : 'Disponible · au parking'}</Text>
+          <Icone nom={aLAtelier(s) ? 'outil' : 'voiture'} couleur={aLAtelier(s) ? c.orange : c.vert} taille={18} />
+          <Text style={{ flex: 1, color: aLAtelier(s) ? c.orange : c.vert, fontSize: 15, fontWeight: '700' }}>{aLAtelier(s) ? 'À l’atelier' : 'Disponible'}</Text>
         </View>
       )}
 
