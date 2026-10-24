@@ -61,6 +61,12 @@
           "backgroundColor": "#000000",
           "resizeMode": "contain"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#19f7d6"
+        }
       ]
     ],
     "scheme": "sscarfleet",

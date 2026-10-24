@@ -22,22 +22,25 @@ const nomClient = (c: any) => [c?.prenom, c?.nom].filter(Boolean).join(' ') || '
 const voiture = (v: any) => `${[v?.marque, v?.modele].filter(Boolean).join(' ')} ${plaque(v?.immatriculation ?? '')}`.trim();
 const enTemps = (n: number) => (n <= 0 ? 'aujourd’hui' : n === 1 ? 'demain' : `dans ${n} jours`);
 
-export async function calculerNotifications(supabase: any, profil: { id: string; role: string; agence_id: string }) {
+// parAgence : appel par la tournée serveur (clé complète, sans règles d'accès) : chaque requête est alors
+// limitée explicitement à l'agence de l'utilisateur
+export async function calculerNotifications(supabase: any, profil: { id: string; role: string; agence_id: string }, options: { parAgence?: boolean } = {}) {
+  const ag = (q: any) => (options.parAgence ? q.eq('agence_id', profil.agence_id) : q);
   const maintenant = Date.now();
   const iso = (ms: number) => new Date(ms).toISOString();
   const [
     { data: fps }, { data: amendes }, { data: retards }, { data: departs }, { data: vehicules },
     { data: entretiens }, { data: cautions }, { data: dommages }, { data: locsRecentes }, { data: agence }, { data: etats },
   ] = await Promise.all([
-    supabase.from('fps').select('*, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').not('statut', 'in', '(rembourse,abandonne)'),
-    supabase.from('amendes').select('id, numero_avis, montant, echeance, statut, vehicules(immatriculation, marque, modele)').in('statut', ['a_designer', 'infos_manquantes']),
-    supabase.from('locations').select('id, numero, fin_prevue, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').eq('statut', 'en_cours').lt('fin_prevue', iso(maintenant - 3600e3)),
-    supabase.from('locations').select('id, numero, debut, caution_statut, caution_montant, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone, permis_path, piece_identite_path)').eq('statut', 'reservee').lt('debut', iso(maintenant + 2 * 3600e3)),
-    supabase.from('vehicules').select('*, traceurs(moteur_coupe)').neq('statut', 'sorti'),
-    supabase.from('entretiens').select('*, vehicules(id, immatriculation, marque, modele, prix_jour)').in('statut', ['en_cours', 'prevu']),
-    supabase.from('locations').select('id, numero, fin_reelle, caution_montant, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').eq('statut', 'terminee').eq('caution_statut', 'prise').lt('fin_reelle', iso(maintenant - 2 * JOUR)),
-    supabase.from('dommages').select('location_id').not('location_id', 'is', null),
-    supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, clients(nom)').in('statut', ['reservee', 'en_cours', 'terminee']).gt('fin_prevue', iso(maintenant - 60 * JOUR)),
+    ag(supabase.from('fps').select('*, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').not('statut', 'in', '(rembourse,abandonne)')),
+    ag(supabase.from('amendes').select('id, numero_avis, montant, echeance, statut, vehicules(immatriculation, marque, modele)').in('statut', ['a_designer', 'infos_manquantes'])),
+    ag(supabase.from('locations').select('id, numero, fin_prevue, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').eq('statut', 'en_cours').lt('fin_prevue', iso(maintenant - 3600e3))),
+    ag(supabase.from('locations').select('id, numero, debut, caution_statut, caution_montant, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone, permis_path, piece_identite_path)').eq('statut', 'reservee').lt('debut', iso(maintenant + 2 * 3600e3))),
+    ag(supabase.from('vehicules').select('*, traceurs(moteur_coupe)').neq('statut', 'sorti')),
+    ag(supabase.from('entretiens').select('*, vehicules(id, immatriculation, marque, modele, prix_jour)').in('statut', ['en_cours', 'prevu'])),
+    ag(supabase.from('locations').select('id, numero, fin_reelle, caution_montant, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').eq('statut', 'terminee').eq('caution_statut', 'prise').lt('fin_reelle', iso(maintenant - 2 * JOUR))),
+    ag(supabase.from('dommages').select('location_id').not('location_id', 'is', null)),
+    ag(supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, clients(nom)').in('statut', ['reservee', 'en_cours', 'terminee']).gt('fin_prevue', iso(maintenant - 60 * JOUR))),
     supabase.from('agences').select('*').eq('id', profil.agence_id).single(),
     supabase.from('notifications_etat').select('cle, jusqua, ignoree').eq('utilisateur_id', profil.id),
   ]);

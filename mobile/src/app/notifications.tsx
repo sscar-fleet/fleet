@@ -8,25 +8,12 @@ import Icone from '@/composants/Icone';
 import { useCouleurs } from '@/lib/theme';
 import { api, urlSite } from '@/lib/site';
 import { ouvrirWhatsApp } from '@/lib/messages';
+import { ouvrir } from '@/lib/lien';
 
 type Action = { type: 'lien'; libelle: string; href: string } | { type: 'tel'; libelle: string; numero: string } | { type: 'whatsapp'; libelle: string; numero: string; texte: string }
   | { type: 'faire'; libelle: string; action: string; id: string; jours?: number };
 type Notif = { cle: string; niveau: 'rouge' | 'orange' | 'gris'; titre: string; detail: string; actions: Action[] };
 const GROUPES = [{ niveau: 'rouge', titre: 'URGENT' }, { niveau: 'orange', titre: 'CETTE SEMAINE' }, { niveau: 'gris', titre: 'À SAVOIR' }] as const;
-
-// Lien du logiciel -> écran de l'appli quand il existe
-function ouvrir(href: string) {
-  if (href.startsWith('http')) return Linking.openURL(href);
-  const m = href.match(/^\/(locations|vehicules|clients)\/([0-9a-f-]{36})/);
-  if (m) return router.push({ pathname: (m[1] === 'locations' ? '/location/[id]' : m[1] === 'vehicules' ? '/vehicule/[id]' : '/client/[id]') as any, params: { id: m[2] } });
-  if (href.startsWith('/amendes') || href.startsWith('/fps')) return router.push('/(onglets)/amendes' as any);
-  if (href.startsWith('/locations/nouvelle')) { const v = href.match(/vehicule=([0-9a-f-]{36})/); return router.push({ pathname: '/nouvelle', params: v ? { vehicule: v[1] } : {} }); }
-  const carte = href.match(/^\/carte\?vehicule=([0-9a-f-]{36})/);
-  if (carte) return router.push({ pathname: '/vehicule/[id]', params: { id: carte[1] } });
-  if (href.startsWith('/carte')) return router.push('/(onglets)/flotte' as any);
-  if (href.startsWith('/planning') || href === '/locations') return router.push('/(onglets)/locations' as any);
-  return Linking.openURL(urlSite(href)); // fiche maintenance, prêts, réglages : dans le logiciel
-}
 
 export default function Notifications() {
   const c = useCouleurs();

@@ -8,11 +8,16 @@ import { envoyerFile } from '@/lib/hors-ligne';
 import { useCouleurs } from '@/lib/theme';
 import { Chargement } from '@/composants/ui';
 import { FournisseurToast } from '@/composants/Toast';
+import { inscrirePush, ecouterTouchers } from '@/lib/push';
 
 function Navigation() {
   const { session, pret, profil } = useSession();
   const c = useCouleurs();
   useEffect(() => { if (session) envoyerFile().catch(() => {}); }, [session]);
+  // Notifications sur le téléphone : inscription dès que l'utilisateur est connecté avec un compte ouvert
+  const peutRecevoir = !!session && !profil?.ferme && profil?.acces !== 'logiciel';
+  useEffect(() => { if (peutRecevoir) inscrirePush().catch(() => {}); }, [peutRecevoir, session?.user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => (pret && session ? ecouterTouchers() : undefined), [pret, !!session]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!pret) return <View style={{ flex: 1, backgroundColor: c.fond, justifyContent: 'center', padding: 16 }}><Chargement /></View>;
   // Compte pas encore ouvert, essai terminé ou suspendu : rien n'est perdu, l'accès revient à la réactivation
   if (session && profil?.ferme) {

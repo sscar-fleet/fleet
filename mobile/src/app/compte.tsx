@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Titre, Rangee, Etiquette } from '@/composants/ui';
 import Logo from '@/composants/Logo';
 import { useToast } from '@/composants/Toast';
+import { desinscrirePush, etatPush, inscrirePush } from '@/lib/push';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
@@ -18,7 +19,14 @@ export default function Compte() {
   const { profil, session } = useSession();
   const { gps } = useGps();
   const [attente, setAttente] = useState(0);
-  useFocusEffect(useCallback(() => { enAttente().then(setAttente).catch(() => {}); }, []));
+  const [notif, setNotif] = useState<'ok' | 'refuse' | 'demander' | 'impossible' | null>(null);
+  useFocusEffect(useCallback(() => { enAttente().then(setAttente).catch(() => {}); etatPush().then(setNotif).catch(() => {}); }, []));
+  async function activerNotif() {
+    if (notif === 'refuse') return Linking.openSettings();
+    const r = await inscrirePush();
+    setNotif(r === 'ok' ? 'ok' : r === 'refuse' ? 'refuse' : notif);
+    toast(r === 'ok' ? 'Notifications activées' : 'Notifications non activées', r === 'ok' ? 'ok' : 'alerte');
+  }
   const nbSuivis = Object.keys(gps.parVehicule).length;
 
   return (
@@ -29,6 +37,15 @@ export default function Compte() {
           sous={attente ? 'Photos, signatures et états des lieux partent tout seuls au retour du réseau' : dernierRefus ? `Dernier refus : ${dernierRefus}` : 'Vous pouvez travailler sans réseau, rien n’est perdu'}
           droite={attente ? <Text onPress={() => envoyerFile().then(() => enAttente().then((n) => { setAttente(n); toast(n ? 'Toujours pas de réseau' : 'Tout est envoyé', n ? 'alerte' : 'ok'); }))} style={{ color: c.accent, fontWeight: '800' }}>Réessayer</Text> : undefined} />
       </Carte>
+
+      {notif && notif !== 'impossible' && <>
+        <Titre>Notifications</Titre>
+        <Carte style={{ paddingVertical: 4 }}>
+          <Rangee fin icone="cloche" couleur={notif === 'ok' ? c.vert : c.orange} titre={notif === 'ok' ? 'Activées sur ce téléphone' : 'Désactivées sur ce téléphone'}
+            sous={notif === 'ok' ? 'Alertes des boîtiers, urgences et point du matin' : notif === 'refuse' ? 'À réactiver dans les réglages du téléphone' : 'Pour être prévenu d’un vol, d’un retard ou d’une amende'}
+            droite={notif === 'ok' ? undefined : <Text onPress={activerNotif} style={{ color: c.accent, fontWeight: '800' }}>{notif === 'refuse' ? 'Réglages' : 'Activer'}</Text>} />
+        </Carte>
+      </>}
 
       <Titre>Suivi GPS</Titre>
       <Carte style={{ paddingVertical: 4 }}>
@@ -44,7 +61,7 @@ export default function Compte() {
         <Rangee fin icone="site" couleur={c.accent} titre="Ouvrir le site" sous="Pilotage, devis, factures, réglages" onPress={() => Linking.openURL(urlSite('/'))} />
       </Carte>
 
-      <GrosBouton secondaire icone="sortie" titre="Se déconnecter" onPress={() => supabase.auth.signOut()} style={{ marginTop: 18 }} />
+      <GrosBouton secondaire icone="sortie" titre="Se déconnecter" onPress={async () => { await desinscrirePush(); supabase.auth.signOut(); }} style={{ marginTop: 18 }} />
       <View style={{ alignItems: 'center', marginTop: 20, opacity: 0.7 }}><Logo largeur={110} /></View>
     </Ecran>
   );
