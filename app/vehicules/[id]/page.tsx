@@ -1,5 +1,5 @@
 import Historique, { CHAMPS_HISTORIQUE } from '../../_c/Historique';
-import LogoMarque from '@/app/_c/LogoMarque';
+import LogoMarque, { BadgeSport } from '@/app/_c/LogoMarque';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
@@ -75,7 +75,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
 
   return (
     <Cadre retour={{ lien: '/vehicules', texte: 'Véhicules' }} tables={['vehicules', 'locations', 'entretiens', 'dommages', 'amendes']}
-      titre={<>{plaque(v.immatriculation)} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span>{v.financement === 'pret' && <span className={`pastille ${v.pret_retour && new Date(v.pret_retour).getTime() - Date.now() < 7 * 864e5 ? 'proche' : ''}`} style={{ marginLeft: 10, fontSize: 13 }}>Prêté{v.pret_par ? ` par ${v.pret_par}` : ''}{v.pret_retour ? ` · à rendre le ${date(v.pret_retour)}` : ''}</span>}</>}
+      titre={<>{plaque(v.immatriculation)} <span className="gris" style={{ fontWeight: 400 }}>{[v.marque, v.modele].filter(Boolean).join(' ')}</span><BadgeSport marque={v.marque} modele={v.modele} />{v.financement === 'pret' && <span className={`pastille ${v.pret_retour && new Date(v.pret_retour).getTime() - Date.now() < 7 * 864e5 ? 'proche' : ''}`} style={{ marginLeft: 10, fontSize: 13 }}>Prêté{v.pret_par ? ` par ${v.pret_par}` : ''}{v.pret_retour ? ` · à rendre le ${date(v.pret_retour)}` : ''}</span>}</>}
       actions={<>
         <span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>
         {v.statut !== 'sorti' && <a className="bouton principal" href={`/locations/nouvelle?vehicule=${v.id}`}>+ Louer</a>}

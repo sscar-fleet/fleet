@@ -4,7 +4,7 @@ import { Linking, Pressable, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Ligne, Texte, Titre, Chargement, BandeauHorsLigne, Rangee, Etiquette, Action } from '@/composants/ui';
 import CarteLocation from '@/composants/CarteLocation';
-import LogoMarque from '@/composants/LogoMarque';
+import LogoMarque, { BadgeSport } from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import MiniCarte from '@/composants/MiniCarte';
 import Fenetre from '@/composants/Fenetre';
@@ -75,7 +75,7 @@ export default function FicheVehicule() {
     <Ecran retour titre={nomVehicule(v)} rafraichir={() => { recharger(); rafraichirGps(); }}
       surTitre={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }}>
         <LogoMarque marque={v.marque} modele={v.modele} taille={64} />
-        <View style={{ gap: 6 }}><Plaque immat={plaque(v.immatriculation)} /><Etiquette titre={statutVehicule[v.statut] ?? v.statut} couleur={couleurStatut[v.statut] ?? c.gris} /></View>
+        <View style={{ gap: 6 }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Plaque immat={plaque(v.immatriculation)} /><BadgeSport marque={v.marque} modele={v.modele} /></View><Etiquette titre={statutVehicule[v.statut] ?? v.statut} couleur={couleurStatut[v.statut] ?? c.gris} /></View>
       </View>}
       bas={v.statut === 'disponible'
         ? <GrosBouton icone="ajout" titre="Louer ce véhicule" onPress={() => router.push({ pathname: '/nouvelle', params: { vehicule: v.id } })} />

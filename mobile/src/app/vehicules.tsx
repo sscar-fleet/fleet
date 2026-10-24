@@ -4,7 +4,7 @@ import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ecran, Carte, Ligne, Chargement, BandeauHorsLigne, Vide, Etiquette, Segments, BoutonRond } from '@/composants/ui';
 import { Recherche } from '@/composants/champs';
-import LogoMarque from '@/composants/LogoMarque';
+import LogoMarque, { BadgeSport } from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import MiniCarte from '@/composants/MiniCarte';
 import { logoMarque } from '@/lib/logoMarque';
@@ -54,7 +54,7 @@ export default function Vehicules() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <LogoMarque marque={v.marque} modele={v.modele} />
               <View style={{ flex: 1, gap: 5 }}>
-                <Text numberOfLines={1} style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomVehicule(v)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomVehicule(v)}</Text><BadgeSport marque={v.marque} modele={v.modele} petit /></View>
                 <Plaque immat={plaque(v.immatriculation)} taille={0.7} />
               </View>
               <View style={{ alignItems: 'flex-end', gap: 4 }}>

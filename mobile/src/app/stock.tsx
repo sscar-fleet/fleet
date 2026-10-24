@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ecran, Carte, Chargement, BandeauHorsLigne, Vide, Etiquette, Titre } from '@/composants/ui';
-import LogoMarque from '@/composants/LogoMarque';
+import LogoMarque, { BadgeSport } from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import Icone from '@/composants/Icone';
 import { chargerStock, type VehiculeLigne, type LocationLigne } from '@/lib/donnees';
@@ -63,7 +63,7 @@ export default function Stock() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <LogoMarque marque={v.marque} modele={v.modele} />
           <View style={{ flex: 1, gap: 4 }}>
-            <Text numberOfLines={1} style={{ color: c.texte, fontSize: 16.5, fontWeight: '800' }}>{nomVehicule(v)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: c.texte, fontSize: 16.5, fontWeight: '800' }}>{nomVehicule(v)}</Text><BadgeSport marque={v.marque} modele={v.modele} petit /></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Plaque immat={plaque(v.immatriculation)} taille={0.62} />
               <Text style={{ color: c.gris, fontSize: 12.5 }}>{km(v.km)}</Text>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import 'leaflet/dist/leaflet.css';
 import { logoMarque } from '@/lib/logoMarque';
+import { BadgeSport, badgeSportHtml } from './LogoMarque';
 
 export type LigneSuivi = {
   id: string; immat: string; marque: string | null; modele: string | null;
@@ -88,7 +89,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial }: 
         if (l.lat == null || l.lng == null) return;
         const icone = L.divIcon({
           className: 'suivi-repere' + (choisi === l.id ? ' choisi' : ''),
-          html: `<span style="background:${COULEUR[l.etat]}">${l.etat === 'roule' ? '<i></i>' : ''}</span><b>${l.immat.replace(/</g, '')}</b>`,
+          html: `${logoMarque(l.marque, l.modele) ? `<em><img src="${logoMarque(l.marque, l.modele)}" alt="" onerror="this.remove()"/></em>` : ''}<span style="background:${COULEUR[l.etat]}">${l.etat === 'roule' ? '<i></i>' : ''}</span><b>${l.immat.replace(/</g, '')}${badgeSportHtml(l.marque, l.modele)}</b>`,
           iconSize: [0, 0],
         });
         const m = L.marker([l.lat, l.lng], { icon: icone, zIndexOffset: choisi === l.id ? 1000 : 0 }).addTo(calque.current);
@@ -145,9 +146,9 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial }: 
               const logo = logoMarque(l.marque, l.modele);
               return (
                 <button key={l.id} type="button" className={`suivi-ligne ${choisi === l.id ? 'actif' : ''}`} onClick={() => viser(l)}>
-                  <span className="logo">{logo ? <img src={logo} alt="" /> : null}<i style={{ background: COULEUR[l.etat] }} /></span>
+                  <span className="logo">{logo ? <img src={logo} alt="" onError={(e) => e.currentTarget.remove()} /> : null}<i style={{ background: COULEUR[l.etat] }} /></span>
                   <span className="txt">
-                    <span className="l1"><b>{l.immat}</b><span className="gris">{[l.marque, l.modele].filter(Boolean).join(' ')}</span></span>
+                    <span className="l1"><b>{l.immat}</b><span className="gris">{[l.marque, l.modele].filter(Boolean).join(' ')}</span><BadgeSport marque={l.marque} modele={l.modele} petit /></span>
                     <span className="l2">{l.client ? <>{l.client}{l.retour ? <span className="gris"> · retour {fmtHeure(l.retour)}</span> : null}</> : <span className="gris">{l.statut === 'disponible' ? 'Disponible' : l.statut === 'maintenance' ? 'Maintenance' : 'Pas de location'}</span>}</span>
                   </span>
                   <span className="droite">
@@ -165,7 +166,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial }: 
           {sel && (
             <div className="suivi-fiche">
               <div className="t">
-                <span><b>{sel.immat}</b> <span className="gris">{[sel.marque, sel.modele].filter(Boolean).join(' ')}</span></span>
+                <span><b>{sel.immat}</b> <span className="gris">{[sel.marque, sel.modele].filter(Boolean).join(' ')}</span><BadgeSport marque={sel.marque} modele={sel.modele} petit /></span>
                 <button type="button" aria-label="Fermer" onClick={() => setChoisi(null)}>×</button>
               </div>
               <div className="g">

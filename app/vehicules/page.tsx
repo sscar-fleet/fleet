@@ -7,7 +7,7 @@ import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Scanner from '../_c/Scanner';
 import ApercuModele from '../_c/ApercuModele';
-import LogoMarque from '../_c/LogoMarque';
+import LogoMarque, { BadgeSport } from '../_c/LogoMarque';
 import Envoyer from '../_c/Envoyer';
 import ImportTraceurs from '../_c/ImportTraceurs';
 import ChampEnLigne from '../_c/ChampEnLigne';
@@ -81,7 +81,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
               return (
                 <tr key={v.id}>
                   <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{plaque(v.immatriculation)}</b></a></td>
-                  <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}</a></td>
+                  <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}<BadgeSport marque={v.marque} modele={v.modele} petit /></a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>{v.financement === 'pret' ? <span className="pastille" style={{ marginLeft: 6 }} title={v.pret_par ? `Prêté par ${v.pret_par}` : 'Prêté par un confrère'}>Prêt</span> : null}</td>
                   <td className="masque-mobile"><ChampEnLigne table="vehicules" id={v.id} champ="km" valeur={v.km} affichage={km(v.km)} suffixe=" km" /></td>
                   <td className="masque-mobile"><ChampEnLigne table="vehicules" id={v.id} champ="prix_jour" valeur={v.prix_jour} affichage={v.prix_jour != null ? `${Number(v.prix_jour).toLocaleString('fr-FR')} €` : '—'} suffixe=" €" /></td>
