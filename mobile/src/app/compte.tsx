@@ -1,6 +1,6 @@
 // Compte, envoi des données, suivi GPS, accès au site
 import { useCallback, useState } from 'react';
-import { Linking, Text, View } from 'react-native';
+import { Linking, Switch, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Titre, Rangee, Etiquette } from '@/composants/ui';
 import Logo from '@/composants/Logo';
@@ -11,7 +11,7 @@ import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
 import { enAttente, envoyerFile, dernierRefus } from '@/lib/hors-ligne';
 import { useGps } from '@/lib/gps';
-import { urlSite } from '@/lib/site';
+import { api, urlSite } from '@/lib/site';
 
 export default function Compte() {
   const c = useCouleurs();
@@ -21,6 +21,17 @@ export default function Compte() {
   const [attente, setAttente] = useState(0);
   const [notif, setNotif] = useState<'ok' | 'refuse' | 'demander' | 'impossible' | null>(null);
   useFocusEffect(useCallback(() => { enAttente().then(setAttente).catch(() => {}); etatPush().then(setNotif).catch(() => {}); }, []));
+  type Famille = { cle: string; titre: string; detail: string };
+  const [familles, setFamilles] = useState<Famille[]>([]);
+  const [choix, setChoix] = useState<Record<string, boolean>>({});
+  useFocusEffect(useCallback(() => {
+    api<{ familles: Famille[]; choix: Record<string, boolean> }>('mobile/push/preferences').then((r) => { setFamilles(r.familles); setChoix(r.choix); }).catch(() => {});
+  }, []));
+  function basculer(cle: string, v: boolean) {
+    const suivant = { ...choix, [cle]: v };
+    setChoix(suivant);
+    api('mobile/push/preferences', { choix: suivant }).catch(() => { setChoix(choix); toast('Pas de réseau, réessayez', 'alerte'); });
+  }
   async function activerNotif() {
     if (notif === 'refuse') return Linking.openSettings();
     const r = await inscrirePush();
@@ -45,6 +56,20 @@ export default function Compte() {
             sous={notif === 'ok' ? 'Alertes des boîtiers, urgences et point du matin' : notif === 'refuse' ? 'À réactiver dans les réglages du téléphone' : 'Pour être prévenu d’un vol, d’un retard ou d’une amende'}
             droite={notif === 'ok' ? undefined : <Text onPress={activerNotif} style={{ color: c.accent, fontWeight: '800' }}>{notif === 'refuse' ? 'Réglages' : 'Activer'}</Text>} />
         </Carte>
+        {notif === 'ok' && familles.length > 0 && (
+          <Carte style={{ paddingVertical: 2 }}>
+            <Text style={{ color: c.gris, fontSize: 13, paddingTop: 10, paddingBottom: 4 }}>Gardez seulement ce qui vous sert : moins de notifications, plus on les lit.</Text>
+            {familles.map((f, i) => (
+              <View key={f.cle} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, borderTopWidth: i ? 1 : 0, borderTopColor: c.bord }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: c.texte, fontSize: 15.5, fontWeight: '700' }}>{f.titre}</Text>
+                  <Text style={{ color: c.gris, fontSize: 12.5, lineHeight: 17 }}>{f.detail}</Text>
+                </View>
+                <Switch value={!!choix[f.cle]} onValueChange={(v) => basculer(f.cle, v)} trackColor={{ true: c.accent, false: c.bord }} thumbColor="#fff" accessibilityLabel={f.titre} />
+              </View>
+            ))}
+          </Carte>
+        )}
       </>}
 
       <Titre>Suivi GPS</Titre>

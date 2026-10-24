@@ -45,3 +45,15 @@ select cron.schedule('fleet-tournee-notifications', '* * * * *', $tournee$
     timeout_milliseconds := 55000
   );
 $tournee$);
+
+-- Choix de chaque utilisateur : quelles notifications il veut recevoir sur son téléphone
+create table if not exists preferences_push (
+  utilisateur_id uuid primary key references utilisateurs(id) on delete cascade,
+  agence_id      uuid not null references agences(id) on delete cascade,
+  choix          jsonb not null default '{}'::jsonb,
+  maj_le         timestamptz not null default now()
+);
+alter table preferences_push enable row level security;
+drop policy if exists preferences_push_moi on preferences_push;
+create policy preferences_push_moi on preferences_push for all using (utilisateur_id = auth.uid())
+  with check (utilisateur_id = auth.uid() and agence_id = agence_courante());
