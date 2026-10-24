@@ -80,7 +80,7 @@ export default function Aujourdhui() {
               {[
                 { n: nbLibres, libelle: nbLibres > 1 ? 'Disponibles' : 'Disponible', couleur: c.vert },
                 { n: nbDehors, libelle: 'En location', couleur: c.accent },
-                { n: nbAtelier, libelle: 'En maintenance', couleur: c.orange },
+                { n: nbAtelier, libelle: 'Atelier', couleur: c.orange },
               ].map((x) => (
                 <View key={x.libelle} style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 14, backgroundColor: x.couleur + (x.n ? '1f' : '0d'), borderWidth: 1, borderColor: x.couleur + (x.n ? '55' : '22'), gap: 2 }}>
                   <Text style={{ color: x.n ? x.couleur : c.gris, fontSize: 30, fontWeight: '900', fontVariant: ['tabular-nums'], lineHeight: 34 }}>{x.n}</Text>

@@ -1,13 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { badgeSport, logoMarque } from '@/lib/logoMarque';
 
 // Logo de la marque posé directement sur le fond (sans pastille ni contour) ; rien si la marque n'est pas reconnue
 export default function LogoMarque({ marque, modele, className = 'vignette logo-marque' }: { marque?: string | null; modele?: string | null; className?: string }) {
   const [rate, setRate] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
   const src = logoMarque(marque, modele);
+  // Image déjà en échec avant que la page soit interactive : l'erreur a été manquée, on la rattrape ici
+  useEffect(() => { const i = img.current; if (i && i.complete && i.naturalWidth === 0) setRate(true); }, [src]);
   if (!src || rate) return <span className={className} />;
-  return <img className={className} src={src} alt={marque ?? ''} onError={() => setRate(true)} loading="lazy" />;
+  return <img ref={img} className={className} src={src} alt="" onError={() => setRate(true)} loading="lazy" />;
 }
 
 // Badge sport (RS, AMG, M, GTI…) déduit de la marque et du modèle

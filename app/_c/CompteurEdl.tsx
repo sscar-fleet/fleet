@@ -43,7 +43,7 @@ export default function CompteurEdl({ km, carburant, checklist, kmDepart, kmIncl
           ))}
           <span className="lettre">F</span>
         </div>
-        <input type="hidden" name="carburant" value={niveau != null ? String(niveau * 12.5) : ''} />
+        <input type="hidden" name="carburant" value={niveau != null ? String(Math.round(niveau * 12.5)) : ''} />
       </div>
 
       <div className="verifs">

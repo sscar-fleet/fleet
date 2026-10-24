@@ -69,7 +69,7 @@ export default function Assistant() {
     setBulles(suite); setSaisie(''); setAttente(true);
     try {
       const r = await api<{ reponse: string; propositions: Proposition[] }>('ia', { messages: suite.filter((b) => !b.erreur).slice(-12).map(({ role, content }) => ({ role, content })) });
-      setBulles([...suite, { role: 'assistant', content: r.reponse || 'Je n’ai pas de réponse. Pouvez-vous reformuler ?', propositions: r.propositions }]);
+      setBulles([...suite, { role: 'assistant', content: r.reponse || 'Fleet AI ne répond pas pour le moment. Réessayez dans un instant.', propositions: r.propositions }]);
       Haptics.selectionAsync().catch(() => {});
     } catch (e: any) {
       setBulles([...suite, { role: 'assistant', content: e?.message ?? 'Fleet AI ne répond pas pour le moment. Vérifiez le réseau.', erreur: true }]);

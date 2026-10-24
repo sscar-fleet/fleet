@@ -145,7 +145,12 @@ N'écris rien avant d'appeler un outil (pas de « je vais vérifier »). Si la d
     const appels = (rep.content ?? []).filter((b: any) => b.type === 'tool_use');
     const texte = (rep.content ?? []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n').trim();
     if (texte) dits.push(texte);
-    if (rep.stop_reason !== 'tool_use' || !appels.length) return { reponse: dits.join('\n\n'), propositions };
+    if (rep.stop_reason !== 'tool_use' || !appels.length) {
+      const reponse = dits.join('\n\n').trim();
+      // Réponse vide : on le dit clairement plutôt que de demander de reformuler
+      if (!reponse && !propositions.length) return { reponse: '', propositions, erreur: 'Fleet AI ne répond pas pour le moment. Réessayez dans un instant.' };
+      return { reponse, propositions };
+    }
     const resultats = [];
     for (const a of appels) {
       let contenu: unknown;

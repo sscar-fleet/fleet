@@ -19,7 +19,7 @@ export default function Etapes({ titres, recap, children }: {
       recap.forEach((r) => {
         const el = form.elements.namedItem(r.champ) as HTMLInputElement | HTMLSelectElement | null;
         if (!el) return;
-        if (el instanceof HTMLSelectElement) v[r.champ] = el.value ? el.options[el.selectedIndex]?.text ?? '' : '';
+        if (el instanceof HTMLSelectElement) { const o = el.options[el.selectedIndex]; v[r.champ] = el.value ? (o?.dataset.nom || o?.text || '').replace(/ · déjà réservé.*$/, '') : ''; }
         else if (/^\d{4}-\d{2}-\d{2}T/.test(el.value)) v[r.champ] = new Date(el.value).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
         else v[r.champ] = el.value;
       });
@@ -32,7 +32,16 @@ export default function Etapes({ titres, recap, children }: {
     const form = ancre.current?.closest('form');
     const bloc = form?.querySelector<HTMLElement>(`[data-etape="${etape}"]`);
     const champs = Array.from(bloc?.querySelectorAll<HTMLInputElement>('input:not([type=hidden]), select, textarea') ?? []);
+    const unDe = bloc?.dataset.unDe?.split(',').map((n) => form?.elements.namedItem(n.trim()) as HTMLInputElement | null).filter(Boolean) as HTMLInputElement[] | undefined;
+    unDe?.forEach((c) => c.setCustomValidity(''));
     for (const c of champs) if (c.offsetParent !== null && !c.checkValidity()) { c.reportValidity(); return; }
+    // Une étape peut exiger qu'au moins un des champs listés soit rempli (ex. client connu OU nom du nouveau client)
+    if (unDe?.length && !unDe.some((c) => c.value.trim())) {
+      const cible = unDe.find((c) => c.offsetParent !== null) ?? unDe[0];
+      cible.setCustomValidity(bloc?.dataset.unDeMessage || 'Ce champ est nécessaire.'); cible.reportValidity();
+      const effacer = () => { cible.setCustomValidity(''); cible.removeEventListener('input', effacer); cible.removeEventListener('change', effacer); };
+      cible.addEventListener('input', effacer); cible.addEventListener('change', effacer); return;
+    }
     setEtape((e) => Math.min(dernier, e + 1));
   }
 

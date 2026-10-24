@@ -56,7 +56,7 @@ export default function Stock() {
     const retard = loc && new Date(loc.fin_prevue).getTime() < maintenant;
     const papiers = echeance(v.assurance_echeance) === 'depasse' || echeance(v.ct_echeance) === 'depasse';
     const detail = g.cle === 'dehors' && loc ? `${nomClient(loc.clients)} · ${retard ? 'devait rentrer' : 'retour'} ${quand(loc.fin_prevue)}`
-      : g.cle === 'libres' ? (suite ? `Réservée ${quand(suite.debut)}` : 'Aucune réservation à venir')
+      : g.cle === 'libres' ? (suite ? (new Date(suite.debut).getTime() < maintenant ? `Départ en retard · prévu ${quand(suite.debut)}` : `Réservée ${quand(suite.debut)}`) : 'Aucune réservation à venir')
       : v.statut === 'hors_service' ? 'Hors service' : 'En maintenance';
     return (
       <Carte accent={retard ? c.rouge : g.couleur} onPress={() => (loc ? router.push({ pathname: '/location/[id]', params: { id: loc.id } }) : router.push({ pathname: '/vehicule/[id]', params: { id: v.id } }))}>

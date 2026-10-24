@@ -50,23 +50,35 @@ export async function ajouterDegat(p: { agenceId: string; vehiculeId: string; lo
 
 // Prolonger une location en cours : nouvelle date de retour, prix ajusté au tarif du jour
 export async function prolonger(l: { id: string; fin_prevue: string; prix_total: number | null; vehicules: { prix_jour: number | null } | null }, joursOuFin: number | Date) {
-  const fin = (typeof joursOuFin === 'number' ? new Date(new Date(l.fin_prevue).getTime() + joursOuFin * 864e5) : joursOuFin).toISOString();
+  const fin = (typeof joursOuFin === 'number' ? (() => { const x = new Date(l.fin_prevue); x.setDate(x.getDate() + joursOuFin); return x; })() : joursOuFin).toISOString();
   const jours = Math.max(0, Math.ceil((new Date(fin).getTime() - new Date(l.fin_prevue).getTime()) / 864e5 - 0.01));
   const prix = l.vehicules?.prix_jour && l.prix_total != null ? Number(l.prix_total) + Number(l.vehicules.prix_jour) * jours : l.prix_total;
   await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { fin_prevue: fin, prix_total: prix } });
   return { fin, prix };
 }
 
+// La voiture est-elle encore en location chez un autre client ? (null si libre ou si on ne peut pas vérifier hors ligne)
+export async function voitureEncoreDehors(vehiculeId: string, locationId: string): Promise<{ id: string; numero: number | null; client: string } | null> {
+  if (DEMO) return null;
+  try {
+    const { data } = await supabase.from('locations').select('id, numero, clients(prenom, nom)').eq('vehicule_id', vehiculeId).eq('statut', 'en_cours').neq('id', locationId).limit(1);
+    const x: any = data?.[0];
+    return x ? { id: x.id, numero: x.numero ?? null, client: [x.clients?.prenom, x.clients?.nom].filter(Boolean).join(' ') } : null;
+  } catch { return null; }
+}
+
 export async function terminerEdl(p: {
   edlId: string; type: 'depart' | 'retour'; locationId: string; vehiculeId: string;
-  km: number; carburant: number; checklist: Record<string, unknown>; latitude?: number; longitude?: number;
+  km: number; carburant: number; checklist: Record<string, unknown>; latitude?: number; longitude?: number; debutPrevu?: string | null;
 }) {
   const maintenant = new Date().toISOString();
   await mettreEnFile({ genre: 'maj', table: 'etats_des_lieux', id: p.edlId, champs: {
     km: p.km, carburant: p.carburant, checklist: p.checklist, latitude: p.latitude ?? null, longitude: p.longitude ?? null,
     signe_le: maintenant, statut: p.type === 'depart' ? 'termine' : 'a_comparer' } });
   if (p.type === 'depart') {
-    await mettreEnFile({ genre: 'maj', table: 'locations', id: p.locationId, champs: { statut: 'en_cours', km_depart: p.km, carburant_depart: p.carburant } });
+    // Départ très en avance ou en retard (plus de 2 h) : l'heure réelle remplace l'heure prévue (contrat, facture, amendes)
+    const ecart = p.debutPrevu ? Math.abs(Date.now() - new Date(p.debutPrevu).getTime()) : 0;
+    await mettreEnFile({ genre: 'maj', table: 'locations', id: p.locationId, champs: { statut: 'en_cours', km_depart: p.km, carburant_depart: p.carburant, ...(ecart > 2 * 3600e3 ? { debut: maintenant } : {}) } });
     await mettreEnFile({ genre: 'maj', table: 'vehicules', id: p.vehiculeId, champs: { statut: 'loue', km: p.km } });
   } else {
     await mettreEnFile({ genre: 'maj', table: 'locations', id: p.locationId, champs: { statut: 'terminee', km_retour: p.km, carburant_retour: p.carburant, fin_reelle: maintenant } });

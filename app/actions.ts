@@ -437,6 +437,8 @@ async function _creerLocation(formData: FormData) {
     client_id = data!.id;
   }
 
+  if (nombre(formData.get('km_inclus')) !== null && nombre(formData.get('prix_km_sup')) === null)
+    throw new Error('Indiquez le prix du km en plus : sans lui, les kilomètres en trop ne seront pas facturés.');
   const { data: v } = await supabase.from('vehicules').select('prix_jour, km').eq('id', vehicule_id).single();
   let prix = nombre(formData.get('prix_total'));
   if (prix === null && v?.prix_jour) prix = Number(v.prix_jour) * joursEntre(debut, fin);
@@ -500,8 +502,10 @@ async function _ajusterPlanning(id: string, p: { decalageJours?: number; vehicul
   const vehicule = p.vehicule_id && p.vehicule_id !== l.vehicule_id ? p.vehicule_id : l.vehicule_id;
   if (vehicule !== l.vehicule_id && l.statut !== 'reservee') throw new Error('Pour une location en cours, changez de voiture depuis sa fiche.');
   const J = 86_400_000;
-  let debut = new Date(new Date(l.debut).getTime() + decalage * J).toISOString();
-  let fin = new Date(new Date(l.fin_prevue).getTime() + decalage * J).toISOString();
+  // Décalage en jours de calendrier : même heure, y compris la nuit du changement d'heure
+  const decaler = (iso: string, n: number) => { const x = new Date(iso); x.setUTCDate(x.getUTCDate() + n); const avant = new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }); const apres = x.toLocaleString('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }); const ecart = (Number(avant.slice(0, 2)) - Number(apres.slice(0, 2))); return new Date(x.getTime() + (Math.abs(ecart) === 1 || Math.abs(ecart) === 23 ? Math.sign(ecart === 23 ? -1 : ecart === -23 ? 1 : ecart) * 3600e3 : 0)).toISOString(); };
+  let debut = decaler(l.debut, decalage);
+  let fin = decaler(l.fin_prevue, decalage);
   if (p.nouvelleFinJour && /^\d{4}-\d{2}-\d{2}$/.test(p.nouvelleFinJour)) {
     const heure = new Date(l.fin_prevue).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
     fin = depuisParis(`${p.nouvelleFinJour}T${heure}`)!;
@@ -584,7 +588,7 @@ async function _majEdl(edl_id: string, formData: FormData) {
   const voyantType = checklist.voyant ? texte(formData.get('voyant_type')) : null;
   if (voyantType) (checklist as any).voyant_type = voyantType;
   verifier((await supabase.from('etats_des_lieux').update({
-    km: nombre(formData.get('km')), carburant: nombre(formData.get('carburant')), checklist,
+    km: nombre(formData.get('km')), carburant: (() => { const n = nombre(formData.get('carburant')); return n === null ? null : Math.round(n); })(), checklist,
   }).eq('id', edl_id)).error);
   rafraichir();
 }
@@ -603,14 +607,24 @@ async function _positionEdl(edl_id: string, latitude: number, longitude: number)
 async function _terminerEdl(edl_id: string) {
   const { supabase } = await utilisateurCourant();
   const { data: e } = await supabase.from('etats_des_lieux')
-    .select('id, type, km, carburant, location_id, locations(vehicule_id, statut, km_depart)').eq('id', edl_id).single();
+    .select('id, type, km, carburant, location_id, locations(vehicule_id, statut, km_depart, debut)').eq('id', edl_id).single();
   if (!e) throw new Error('État des lieux introuvable.');
   if (e.km === null) throw new Error('Indiquez le kilométrage avant de terminer.');
   const l: any = e.locations;
   const maintenant = new Date().toISOString();
   if (e.type === 'depart') {
+    // La voiture ne peut pas partir tant que le client précédent ne l'a pas rendue
+    const { data: dehors } = await supabase.from('locations').select('numero, clients(prenom, nom)')
+      .eq('vehicule_id', l.vehicule_id).eq('statut', 'en_cours').neq('id', e.location_id).limit(1);
+    if (dehors?.length) {
+      const c: any = (dehors[0] as any).clients;
+      throw new Error(`Cette voiture n’est pas encore rendue (location n° ${(dehors[0] as any).numero ?? '—'}${c ? ` · ${[c.prenom, c.nom].filter(Boolean).join(' ')}` : ''}). Faites d’abord son retour.`);
+    }
     verifier((await supabase.from('etats_des_lieux').update({ statut: 'termine' }).eq('id', edl_id)).error);
-    verifier((await supabase.from('locations').update({ statut: 'en_cours', km_depart: e.km, carburant_depart: e.carburant }).eq('id', e.location_id)).error);
+    // Départ réel très en avance ou en retard sur l'heure prévue : on garde l'heure réelle (contrat, facture, amendes)
+    const ecart = l.debut ? Math.abs(Date.now() - new Date(l.debut).getTime()) : 0;
+    verifier((await supabase.from('locations').update({ statut: 'en_cours', km_depart: e.km, carburant_depart: e.carburant,
+      ...(ecart > 2 * 3600e3 ? { debut: maintenant } : {}) }).eq('id', e.location_id)).error);
     await supabase.from('vehicules').update({ statut: 'loue', km: e.km }).eq('id', l.vehicule_id);
     await journal(e.location_id, l.vehicule_id, 'Départ', `${e.km} km`);
     await recalerTraceur(supabase, l.vehicule_id, e.km);

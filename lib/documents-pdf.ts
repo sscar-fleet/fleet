@@ -27,7 +27,8 @@ export type EdlDoc = { type: 'depart' | 'retour'; km?: number | null; carburant?
 
 const voyantsPdf: Record<string, string> = { moteur: 'moteur', huile: 'huile', batterie: 'batterie', freins: 'freins', airbag: 'airbag', pneus: 'pression des pneus', temperature: 'température', abs: 'ABS / ESP', entretien: 'entretien', autre: 'autre' };
 const nomClient = (c: ClientDoc) => [c.prenom, c.nom].filter(Boolean).join(' ');
-const nomVehicule = (v: VehiculeDoc) => [v.marque, v.modele].filter(Boolean).join(' ') + ' · ' + v.immatriculation;
+const plaqueDoc = (s?: string | null) => { const t = String(s ?? '').toUpperCase().replace(/[\s-]/g, ''); const m = t.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/); return m ? `${m[1]}-${m[2]}-${m[3]}` : (s ?? ''); };
+const nomVehicule = (v: VehiculeDoc) => [v.marque, v.modele].filter(Boolean).join(' ') + ' · ' + plaqueDoc(v.immatriculation);
 const numero = (l: LocationDoc) => String(l.numero ?? '').padStart(5, '0');
 const PIED = 'Document édité avec SS CAR FLEET';
 const loueur = (a: AgenceDoc) => ({ titre: 'Loueur', lignes: [a.nom + (a.forme_juridique ? ' ' + a.forme_juridique : ''), a.adresse, a.telephone, a.email, a.siret ? 'SIRET ' + a.siret : null] });
@@ -87,7 +88,8 @@ export async function facturePdf(a: AgenceDoc, l: LocationDoc, v: VehiculeDoc, c
   d.entete('Facture', a, `N° F-${annee}-${numero(l)} · ${date(l.fin_reelle ?? new Date().toISOString())}`);
   d.boites({ ...loueur(a), titre: 'Émetteur' }, { titre: 'Facturé à', lignes: [nomClient(c), c.adresse, c.telephone, c.email] });
   const fin = l.fin_reelle ?? l.fin_prevue;
-  const jours = joursEntre(l.debut, fin);
+  // Jours facturés : la durée prévue au contrat, ou la durée réelle si la voiture est rendue plus tard
+  const jours = Math.max(joursEntre(l.debut, l.fin_prevue), joursEntre(l.debut, fin));
   const lignes: string[][] = [[`Location ${nomVehicule(v)} du ${date(l.debut)} au ${date(fin)}`, `${jours} j`, euros(l.prix_total)]];
   const sup = kmSupplementaires(l);
   if (sup.enTrop > 0) lignes.push([`Kilomètres supplémentaires (${sup.enTrop} km × ${euros(l.prix_km_sup)})`, `${sup.enTrop} km`, euros(sup.montant)]);

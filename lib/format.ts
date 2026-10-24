@@ -69,7 +69,7 @@ export const km = (n?: number | null) => (n === null || n === undefined ? '—' 
 
 export const JOUR = 24 * 3600 * 1000;
 export const joursEntre = (a: string | Date, b: string | Date) =>
-  Math.max(1, Math.ceil((new Date(b).getTime() - new Date(a).getTime()) / JOUR));
+  Math.max(1, Math.ceil((new Date(b).getTime() - new Date(a).getTime() - 3600e3) / JOUR));
 
 // Échéance : 'depasse' (rouge), 'proche' (< 30 jours, orange) ou ''
 export function echeance(d?: string | null, jours = 30) {

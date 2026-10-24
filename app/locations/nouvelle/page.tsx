@@ -11,6 +11,7 @@ import ChoixClient from '../../_c/ChoixClient';
 import AideTarif from '../../_c/AideTarif';
 import DispoVehicules from '../../_c/DispoVehicules';
 import ChoixVoiture from '../../_c/ChoixVoiture';
+import KmInclus from '../../_c/KmInclus';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +70,7 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
                 echeances: [v.assurance_echeance && { libelle: 'Assurance', date: v.assurance_echeance }, v.ct_echeance && { libelle: 'Contrôle technique', date: v.ct_echeance }].filter(Boolean) }))} />
             </div>
           </section>
-          <section className="carte" data-etape="1">
+          <section className="carte" data-etape="1" data-un-de="client_id,nom" data-un-de-message="Choisissez un client ou indiquez au moins le nom du nouveau client.">
             <h2>Pour quel client ?</h2>
             <div className="grille">
               <ChoixClient clients={(clients ?? []) as any} defaut={searchParams.client} dettes={dettes} />
@@ -86,11 +87,10 @@ export default async function NouvelleLocation({ searchParams }: { searchParams:
               <label>Prix total (€)<input name="prix_total" type="number" step="0.01" min={0} placeholder="Calculé avec le prix par jour" inputMode="decimal" /></label>
               <label>Caution (€)<input name="caution_montant" type="number" step="0.01" min={0} inputMode="decimal" /></label>
             </div>
+            <KmInclus />
             <details className="options">
-              <summary>+ Plus d&apos;options (kilomètres, note)</summary>
+              <summary>+ Plus d&apos;options (note)</summary>
               <div className="grille">
-                <label>Km inclus<input name="km_inclus" type="number" min={0} placeholder="Illimités si vide" inputMode="numeric" /></label>
-                <label>Prix du km en plus (€)<input name="prix_km_sup" type="number" step="0.01" min={0} inputMode="decimal" /></label>
                 <label className="pleine">Note<input name="note" placeholder="Livraison, siège bébé…" /></label>
               </div>
             </details>

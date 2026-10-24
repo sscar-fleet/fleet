@@ -41,6 +41,9 @@ const versIso = (t: string) => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t)
 const versJj = (iso: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
 const hh = (h: number, m: number) => `${h}:${String(m).padStart(2, '0')}`;
 
+// Même heure, j jours de calendrier plus tard (juste aussi les nuits de changement d'heure)
+const plusJours = (d: Date, j: number) => { const x = new Date(d); x.setDate(x.getDate() + j); return x; };
+
 export default function NouvelleLocation() {
   const c = useCouleurs();
   const toast = useToast();
@@ -60,7 +63,7 @@ export default function NouvelleLocation() {
   const [qv, setQv] = useState('');
   const [rapide, setRapide] = useState<string | null>('maintenant');
   const [debut, setDebut] = useState(() => depart('maintenant'));
-  const [fin, setFin] = useState(() => new Date(depart('maintenant').getTime() + 864e5));
+  const [fin, setFin] = useState(() => plusJours(depart('maintenant'), 1));
   const [prix, setPrix] = useState('');
   const [prixTouche, setPrixTouche] = useState(false);
   const [caution, setCaution] = useState('');
@@ -76,11 +79,14 @@ export default function NouvelleLocation() {
     chargerClients().then((r) => { setClients(r.donnees); if (params.client) setClient(r.donnees.find((x) => x.id === params.client)); }).catch(() => setClients([]));
   }, [params.vehicule, params.client]);
 
-  const jours = Math.max(1, Math.ceil((fin.getTime() - debut.getTime()) / 864e5 - 0.01));
-  const changerDebut = (d: Date) => { const duree = Math.max(3600e3, fin.getTime() - debut.getTime()); setDebut(d); setFin(new Date(d.getTime() + duree)); };
-  const fixerJours = (j: number) => setFin(new Date(debut.getTime() + j * 864e5));
+  const jours = Math.max(1, Math.ceil((fin.getTime() - debut.getTime() - 3600e3) / 864e5));
+  const changerDebut = (d: Date) => { const j = Math.round((fin.getTime() - debut.getTime()) / 864e5); if (j >= 1) { setDebut(d); setFin(plusJours(d, j)); return; } const duree = Math.max(3600e3, fin.getTime() - debut.getTime()); setDebut(d); setFin(new Date(d.getTime() + duree)); };
+  const fixerJours = (j: number) => setFin(plusJours(debut, j));
   const heureDe = (d: Date, h: number, m: number) => { const x = new Date(d); x.setHours(h, m, 0, 0); return x; };
   const [kmAutre, setKmAutre] = useState('');
+  const [prixKm, setPrixKm] = useState(''); // prix du km en plus, obligatoire dès qu'un forfait km est choisi
+  const prixKmNum = prixKm ? Number(prixKm.replace(',', '.')) : null;
+  const manquePrixKm = !!kmInclus && (prixKmNum == null || isNaN(prixKmNum));
   // Les heures défilent toutes seules jusqu'à l'heure choisie
   const refDepart = useRef<any>(null), refRetour = useRef<any>(null);
   const position = (d: Date) => Math.max(0, ((d.getHours() - 6) * 2 + (d.getMinutes() >= 30 ? 1 : 0)) * 78 - 120);
@@ -152,10 +158,10 @@ export default function NouvelleLocation() {
     const jeton = distance ? nouvelId() : null;
     const loc = { id, agence_id: profil.agence_id, vehicule_id: vehicule.id, client_id: clientId, debut: debut.toISOString(), fin_prevue: fin.toISOString(),
       prix_total: prix ? Number(prix.replace(',', '.')) : null, caution_montant: caution !== '' ? Number(caution) : null,
-      km_inclus: kmInclus ? Number(kmInclus) : null, km_depart: vehicule.km ?? null, ...(jeton ? { jeton_signature: jeton } : {}) };
+      km_inclus: kmInclus ? Number(kmInclus) : null, prix_km_sup: kmInclus && prixKmNum != null && !isNaN(prixKmNum) ? prixKmNum : null, km_depart: vehicule.km ?? null, ...(jeton ? { jeton_signature: jeton } : {}) };
     await mettreEnFile({ genre: 'ajout', table: 'locations', champs: loc });
     // La fiche s'affiche tout de suite, même avant l'envoi
-    const fiche = { ...loc, numero: null, statut: 'reservee', caution_statut: 'a_prendre', prix_km_sup: null, carburant_depart: null, signature_contrat_path: null, vehicules: vehicule, clients: clientObj, etats_des_lieux: [] };
+    const fiche = { ...loc, numero: null, statut: 'reservee', caution_statut: 'a_prendre', carburant_depart: null, signature_contrat_path: null, vehicules: vehicule, clients: clientObj, etats_des_lieux: [] };
     await garder('location-' + id, fiche);
     setCree({ id, jeton, loc: fiche });
   }
@@ -194,7 +200,7 @@ export default function NouvelleLocation() {
   const suivant = etape === 0 ? <GrosBouton titre="Suivant : la voiture" sousTitre={`${jour(debut.toISOString())} ${heure(debut.toISOString())} → ${jour(fin.toISOString())} ${heure(fin.toISOString())}`} onPress={() => setEtape(1)} />
     : etape === 1 ? <GrosBouton titre="Suivant : le client" desactive={!vehicule} onPress={() => setEtape(2)} />
     : etape === 2 ? <GrosBouton titre="Suivant : le prix" desactive={!clientPret} onPress={() => setEtape(3)} />
-    : <GrosBouton icone="ok" titre="Créer la location" sousTitre={prix ? euros(Number(prix.replace(',', '.'))) : undefined} onPress={() => (caution !== '' ? creer() : setQuestion('caution'))} />;
+    : <GrosBouton icone="ok" titre="Créer la location" desactive={manquePrixKm} sousTitre={manquePrixKm ? 'Indiquez le prix du km en plus' : prix ? euros(Number(prix.replace(',', '.'))) : undefined} onPress={() => (caution !== '' ? creer() : setQuestion('caution'))} />;
 
   return (
     <Ecran fermer titre="Nouvelle location" bas={suivant}>
@@ -237,10 +243,10 @@ export default function NouvelleLocation() {
         <Titre>Heure de retour</Titre>
         <ScrollView ref={refRetour} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
           {HEURES.map(([h, m]) => <Puce key={hh(h, m)} titre={hh(h, m)} couleur={c.vert} actif={fin.getHours() === h && fin.getMinutes() === m}
-            onPress={() => { const f = heureDe(fin, h, m); setFin(f > debut ? f : new Date(f.getTime() + 864e5)); }} />)}
+            onPress={() => { const f = heureDe(fin, h, m); setFin(f > debut ? f : plusJours(f, 1)); }} />)}
         </ScrollView>
         <Titre>Durée</Titre>
-        <Puces>{DUREES.map(([j, t]) => <Puce key={j} titre={t} actif={jours === j && Math.abs(fin.getTime() - debut.getTime() - j * 864e5) < 60000} onPress={() => fixerJours(j)} />)}</Puces>
+        <Puces>{DUREES.map(([j, t]) => <Puce key={j} titre={t} actif={Math.abs(fin.getTime() - plusJours(debut, j).getTime()) < 60000} onPress={() => fixerJours(j)} />)}</Puces>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, alignSelf: 'center', marginTop: 4 }}>
           <Pressable onPress={() => fixerJours(Math.max(1, jours - 1))} style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.panneau2, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: c.texte, fontSize: 26, fontWeight: '700' }}>−</Text></Pressable>
           <Text style={{ color: c.texte, fontSize: 28, fontWeight: '800', minWidth: 110, textAlign: 'center' }}>{jours} jour{jours > 1 ? 's' : ''}</Text>
@@ -335,6 +341,11 @@ export default function NouvelleLocation() {
         <Titre>Kilomètres inclus</Titre>
         <Puces>{[['', 'Illimités'], ['200', '200 km'], ['300', '300 km'], ['500', '500 km'], ['1000', '1 000 km']].map(([k, t]) => <Puce key={t} titre={t} actif={kmInclus === k && !kmAutre} onPress={() => { setKmAutre(''); setKmInclus(k); }} />)}</Puces>
         <Champ valeur={kmAutre} onChange={(t) => { const v = t.replace(/\D/g, ''); setKmAutre(v); setKmInclus(v); }} clavier="number-pad" placeholder="Autre : nombre de km inclus" />
+        {kmInclus ? <>
+          <Titre>Prix du km en plus</Titre>
+          <Puces>{['0.20', '0.30', '0.50', '1'].map((p) => <Puce key={p} titre={`${Number(p).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} €`} actif={prixKmNum === Number(p)} onPress={() => setPrixKm(p)} />)}</Puces>
+          <Champ valeur={prixKm} onChange={(t) => setPrixKm(t.replace(/[^\d.,]/g, ''))} clavier="decimal-pad" placeholder="Autre prix par km (€)" />
+        </> : null}
       </>}
 
       <Fenetre visible={question === 'caution'} question="Aucune caution n'est remplie" detail="Êtes-vous sûr de continuer sans caution ?"

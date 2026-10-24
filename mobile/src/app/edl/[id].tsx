@@ -15,7 +15,7 @@ import GuideAngle from '@/composants/GuideAngle';
 import { useToast } from '@/composants/Toast';
 import { useCouleurs, T } from '@/lib/theme';
 import { useSession } from '@/lib/session';
-import { POSITIONS, VOYANTS, TYPES_DEGAT, ouvrirEdl, ajouterPhoto, terminerEdl, ajouterSignature, ajouterDegat, lienPdfEdl } from '@/lib/edl';
+import { POSITIONS, VOYANTS, TYPES_DEGAT, ouvrirEdl, ajouterPhoto, terminerEdl, ajouterSignature, ajouterDegat, lienPdfEdl, voitureEncoreDehors } from '@/lib/edl';
 import { chargerLocation, photosDepart, type LocationFiche } from '@/lib/donnees';
 import { chargerGps } from '@/lib/gps';
 import { prendrePhoto } from '@/lib/photo';
@@ -119,6 +119,10 @@ export default function EtatDesLieux() {
     if (!edlId || !l?.vehicules || !profil) return;
     if (!signature.traits.length && !retour) { toast('La signature du client est obligatoire au départ', 'alerte'); return; }
     if (!forcer && !signature.traits.length) { setQuestion('sansSignature'); return; }
+    if (!retour) {
+      const dehors = await voitureEncoreDehors(l.vehicules.id, l.id);
+      if (dehors) { toast(`Voiture pas encore rendue : contrat n° ${dehors.numero ?? '—'}${dehors.client ? ` (${dehors.client})` : ''}. Faites d’abord son retour.`, 'alerte'); return; }
+    }
     setEnvoi(true);
     const image = await signatureEnImage(signature.traits, signature.largeur).catch(() => null);
     if (image) await ajouterSignature(edlId, profil.agence_id, image, contratASigner ? l.id : undefined);
@@ -130,7 +134,7 @@ export default function EtatDesLieux() {
     } catch {}
     await terminerEdl({ edlId, type, locationId: l.id, vehiculeId: l.vehicules.id, km: kmNum, carburant: Math.round((carburant / 8) * 100),
       checklist: { ...checklist, remarque: remarque.trim() || undefined, degats: nbDegats ? degats : undefined, km_traceur: kmGps ?? undefined },
-      latitude: pos?.coords.latitude, longitude: pos?.coords.longitude });
+      latitude: pos?.coords.latitude, longitude: pos?.coords.longitude, debutPrevu: l.debut });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setEnvoi(false); setFini(true);
   }

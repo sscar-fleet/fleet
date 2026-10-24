@@ -91,7 +91,7 @@ export default function Connexion() {
             </Pressable>
           </View>
 
-          <Text style={{ color: c.gris, fontSize: 13, textAlign: 'center', marginTop: 28, opacity: 0.7 }}>Les mêmes identifiants que sur le site · SS CAR SYSTEM</Text>
+          <Text style={{ color: c.gris, fontSize: 13, textAlign: 'center', marginTop: 28, opacity: 0.7 }}>Les mêmes identifiants que sur le site · SS CAR FLEET</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>

@@ -22,7 +22,7 @@ import { useSession } from '@/lib/session';
 import { useCouleurs } from '@/lib/theme';
 import { mettreEnFile, enAttente, envoyerFile } from '@/lib/hors-ligne';
 import { prendrePhoto } from '@/lib/photo';
-import { prolonger, lienDocument } from '@/lib/edl';
+import { prolonger, lienDocument, voitureEncoreDehors } from '@/lib/edl';
 import { useGps, libelleGps, couleurGps, depuis, itineraire, commanderMoteur } from '@/lib/gps';
 import { signatureDistance } from '@/lib/capacites';
 import { urlSite } from '@/lib/site';
@@ -43,6 +43,7 @@ export default function FicheLocation() {
   const [distance, setDistance] = useState(false);
   const [changement, setChangement] = useState<null | 'charge' | Voiture[]>(null);
   const [envoiChangement, setEnvoiChangement] = useState('');
+  const [dehors, setDehors] = useState<{ id: string; numero: number | null; client: string } | null>(null);
   const [question, setQuestion] = useState<null | 'moteur' | 'manque' | { prevenir: { fin: string; prix: number | null } }>(null);
   const [envoiMoteur, setEnvoiMoteur] = useState(false);
   const [feuilleFin, setFeuilleFin] = useState<Date | null>(null);
@@ -123,6 +124,8 @@ export default function FicheLocation() {
   const edlRetour = l.etats_des_lieux.find((e) => e.type === 'retour' && e.statut !== 'en_attente');
   async function validerDepart() {
     if (!edlDepart || !v) return;
+    const encore = await voitureEncoreDehors(v.id, l.id);
+    if (encore) { setDehors(encore); return; }
     await mettreEnFile({ genre: 'maj', table: 'locations', id: l.id, champs: { statut: 'en_cours', km_depart: edlDepart.km ?? l.km_depart, carburant_depart: edlDepart.carburant ?? null } });
     await mettreEnFile({ genre: 'maj', table: 'vehicules', id: v.id, champs: { statut: 'loue', ...(edlDepart.km != null ? { km: edlDepart.km } : {}) } });
     setLocal((x) => ({ ...x, statut: 'en_cours', km_depart: edlDepart.km ?? l.km_depart }));
@@ -157,6 +160,12 @@ export default function FicheLocation() {
     </View>
   );
   const lancerEdl = (type: 'depart' | 'retour') => router.push({ pathname: '/edl/[id]', params: { id: l.id, type } });
+  // Avant un départ : la voiture doit avoir été rendue par le client précédent (bloquant, pas de « quand même »)
+  async function commencerDepart() {
+    if (v) { const encore = await voitureEncoreDehors(v.id, l.id); if (encore) { setDehors(encore); return; } }
+    const autres = manque.filter((x) => x.titre !== 'Voiture');
+    if (autres.length || manque.length) setQuestion('manque'); else lancerEdl('depart');
+  }
 
   const bas = reservee && edlDepart
     ? (attente > 0
@@ -169,7 +178,7 @@ export default function FicheLocation() {
     : reservee
     ? <GrosBouton icone="photo" titre="État des lieux de départ"
         sousTitre={manque.length ? `${manque.length} point${manque.length > 1 ? 's' : ''} à régler` : 'Tout est prêt'}
-        onPress={() => (manque.length ? setQuestion('manque') : lancerEdl('depart'))} />
+        onPress={commencerDepart} />
     : enCours ? <GrosBouton icone="arrivee" titre="État des lieux de retour" sousTitre={retard ? `En retard ${relatif(l.fin_prevue).replace('depuis ', '')}` : `Prévu ${jour(l.fin_prevue)} ${heure(l.fin_prevue)}`} onPress={() => lancerEdl('retour')} />
     : undefined;
 
@@ -338,6 +347,10 @@ export default function FicheLocation() {
 
       <Fenetre visible={question === 'moteur'} danger icone="moteur" question={`Couper le moteur de ${v?.immatriculation ?? 'la voiture'} ?`}
         detail="La voiture ne pourra plus redémarrer. La coupure se fait à l’arrêt ou à vitesse lente, selon le boîtier." non="Annuler" oui="Couper le moteur" onNon={() => setQuestion(null)} onOui={moteur} />
+      <Fenetre visible={!!dehors} danger icone="voiture" question={`${v?.immatriculation ?? 'Cette voiture'} n’est pas encore rendue`}
+        detail={dehors ? `Elle est toujours en location${dehors.client ? ` chez ${dehors.client}` : ''} (contrat n° ${dehors.numero ?? '—'}). Faites d’abord l’état des lieux de retour de cette location.` : ''}
+        non="Fermer" oui="Ouvrir cette location" ouiEnAvant onNon={() => setDehors(null)}
+        onOui={() => { const id = dehors?.id; setDehors(null); if (id) router.push({ pathname: '/location/[id]', params: { id } }); }} />
       <Fenetre visible={question === 'manque'} question="Il reste des points à régler" detail={manque.map((x) => x.titre).join(', ')}
         non="Les régler d’abord" oui="Commencer quand même" onNon={() => setQuestion(null)} onOui={() => { setQuestion(null); lancerEdl('depart'); }} />
       <Fenetre visible={typeof question === 'object' && question !== null} icone="whatsapp" ouiEnAvant question={`Prévenir ${cl?.prenom ?? 'le client'} ?`} detail="WhatsApp s’ouvre avec le message prêt, vous n’avez plus qu’à envoyer."
