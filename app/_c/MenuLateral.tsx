@@ -44,7 +44,7 @@ export default function MenuLateral({ gerant, compteurs, pied }: { gerant: boole
   return (
     <aside className="menu-lateral" aria-label="Menu principal">
       <div className="ml-haut">
-        <a href="/" className="ml-logo" aria-label="Accueil"><span className="logo-double"><img src="/logo-blanc.svg" alt="SS CAR FLEET" className="logo-sombre" /><img src="/logo-noir.svg" alt="" className="logo-clair" /></span></a>
+        <a href="/" className="ml-logo" aria-label="Accueil"><span className="logo-double"><img src="/fleet-blanc.svg" alt="FLEET" className="logo-sombre" /><img src="/fleet-noir.svg" alt="" className="logo-clair" /></span></a>
         <button type="button" className="ml-replier" onClick={basculer} aria-label={replie ? 'Déplier le menu' : 'Replier le menu'} title={replie ? 'Déplier le menu' : 'Replier le menu'}><Icone nom="replier" /></button>
       </div>
       <a href="/locations/nouvelle" className="ml-nouvelle" title="Nouvelle location"><Icone nom="plus" /><span>Nouvelle location</span></a>

@@ -50,7 +50,7 @@ a { color: inherit; text-decoration: none; }
 
 /* En-tête et menu */
 .entete { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
-.entete .logo img { height: 40px; display: block; }
+.entete .logo img { height: 32px; display: block; }
 .entete .agence { color: var(--gris); font-size: 14px; text-align: right; }
 .nav { display: flex; gap: 6px; flex-wrap: wrap; padding-bottom: 6px; margin-bottom: 20px; position: relative; z-index: 20; }
 .nav::-webkit-scrollbar { display: none; }
@@ -332,7 +332,7 @@ details.options[open] > summary { margin-bottom: 12px; }
 }
 .connexion .logo-double { display: block; text-align: center; margin-bottom: 28px; }
 .connexion .logo-double img { width: 100%; max-width: 280px; margin: 0 auto; }
-.entete .logo-double img { height: 40px; display: block; }
+.entete .logo-double img { height: 32px; display: block; }
 
 /* En-tête : profil et interrupteur jour / nuit */
 .entete .droite { display: flex; align-items: center; gap: 12px; margin-left: auto; }
@@ -469,7 +469,7 @@ input[name="immatriculation"] { text-transform: uppercase; }
   .menu-lateral { display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; height: 100vh; width: 252px; flex: none;
     background: var(--panneau); border-right: 1px solid var(--bord); padding: 18px 14px 14px; overflow-y: auto; transition: width .18s ease; z-index: 30; }
   .ml-haut { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
-  .ml-logo img { height: 38px; display: block; }
+  .ml-logo img { height: 30px; display: block; }
   .ml-replier { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--bord); background: var(--panneau2); color: var(--gris); display: grid; place-items: center; cursor: pointer; flex: none; transition: transform .18s ease; }
   .ml-replier:hover { color: var(--texte); }
   .ml-nouvelle { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--turquoise); color: var(--sur-turquoise); font-weight: 800; border-radius: 12px; padding: 12px 14px; font-size: 15px; white-space: nowrap; }

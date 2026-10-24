@@ -49,7 +49,7 @@ export default function Aujourdhui() {
     <Ecran titre={`${h < 18 ? 'Bonjour' : 'Bonsoir'}${profil?.nom ? ' ' + profil.nom.split(' ')[0] : ''}`} sousTitre={`${date.charAt(0).toUpperCase() + date.slice(1)} · ${profil?.agence ?? ''}`}
       rafraichir={recharger} enChargement={enChargement && !!donnees}
       haut={<Ligne style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
-        <Logo largeur={96} />
+        <Logo largeur={92} variante="fleet" />
         <Ligne style={{ flexWrap: 'nowrap' }}><Synchro /><BoutonRond icone="eclair" label="Fleet AI" couleur={c.accent} onPress={() => router.push('/assistant')} /><ClocheAppli /><BoutonRond icone="client" label="Clients" onPress={() => router.push('/clients')} /><BoutonRond icone="outil" label="Mon compte" onPress={() => router.push('/compte')} /></Ligne>
       </Ligne>}>
       {horsLigne && <BandeauHorsLigne majLe={majLe} />}

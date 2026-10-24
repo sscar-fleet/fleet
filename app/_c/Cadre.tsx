@@ -36,7 +36,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
       <FleetAI prenom={String(profil.nom ?? '').split(' ')[0]} />
       <main className="page">
         <header className="entete">
-          <a href="/" className="logo"><Logo /></a>
+          <a href="/" className="logo"><Logo variante="fleet" /></a>
           <BarreRecherche />
           <Cloche />
           <span className="droite">
