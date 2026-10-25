@@ -570,7 +570,8 @@ input[name="immatriculation"] { text-transform: uppercase; }
 .suivi-repere b { position: absolute; left: 13px; top: -10px; white-space: nowrap; background: #0b0f12; color: #fff; font: 700 11.5px/1 system-ui, sans-serif; padding: 4px 6px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.35); letter-spacing: .02em; }
 .suivi-repere.choisi span { width: 24px; height: 24px; left: -12px; top: -12px; }
 .suivi-repere em { position: absolute; right: 13px; top: -14px; width: 28px; height: 28px; display: grid; place-items: center; }
-.suivi-repere em img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
+/* Leaflet impose « width: auto » aux images des repères (.leaflet-container .leaflet-marker-pane img) : on reprend la main */
+.leaflet-container .leaflet-marker-pane .suivi-repere em img { width: 28px !important; height: 28px !important; max-width: 28px !important; max-height: 28px !important; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
 .suivi-repere b .badge-sport { vertical-align: 0; }
 .suivi-repere.choisi b { background: var(--turquoise); color: var(--sur-turquoise); }
 @media (max-width: 900px) {
