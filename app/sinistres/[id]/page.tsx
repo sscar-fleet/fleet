@@ -87,6 +87,7 @@ export default async function Sinistre({ params }: { params: { id: string } }) {
 
       <section className="carte">
         <h2 style={{ marginTop: 0 }}>Dossier</h2>
+        {s.source === 'appli' && <p style={{ marginTop: 0, color: 'var(--turquoise)', fontWeight: 700 }}>Déclaré par le chauffeur depuis l’appli : vérifiez les photos et le constat, puis déclarez à l’assureur.</p>}
         <p className="gris" style={{ marginTop: 0 }}>{dateHeure(s.date_sinistre)}{conducteur ? ` · conducteur : ${nomChauffeur(conducteur)}` : ''}{conducteur?.telephone ? ` · ${conducteur.telephone}` : ''}</p>
         <Formulaire action={S.majSinistre.bind(null, s.id)} className="grille" succes="Dossier enregistré">
           <label>Véhicule<select name="vehicule_id" defaultValue={s.vehicule_id ?? ''}><option value="">—</option>{(vehicules ?? []).map((v: any) => <option key={v.id} value={v.id}>{plaque(v.immatriculation)}</option>)}</select></label>

@@ -10,6 +10,12 @@ export type Suivi =
 const vide = (raison: string): Suivi => ({ actif: false, raison, etats: new Map(), disponibles: [] });
 
 // etats : traceurs reliés à l'agence (par IMEI) ; disponibles : boîtiers du compte pas encore reliés
+// Compte principal SS CAR SYSTEM (pas de sous-compte) : seul SS CAR SYSTEM (administrateur) voit tous les boîtiers
+async function principalOuvert(supabase: any) {
+  const { data } = await supabase.rpc('est_admin').then((r: any) => r, () => ({ data: false }));
+  return data === true;
+}
+
 export async function suiviAgence(supabase: any): Promise<Suivi> {
   const { data: compte, error } = await supabase.from('telematique').select('fournisseur, compte_externe_id').maybeSingle();
   if (error) return vide('Suivi GPS en cours d’installation.');
@@ -22,7 +28,9 @@ export async function suiviAgence(supabase: any): Promise<Suivi> {
     const relies = new Set((traceurs ?? []).map((t: any) => String(t.imei)));
     const etats = new Map<string, EtatTraceur>();
     tous.forEach((e) => { if (relies.has(e.imei)) etats.set(e.imei, e); });
-    return { actif: true, demo: whatsgpsDemo(), etats, disponibles: tous.filter((e) => !relies.has(e.imei)) };
+    // Sans sous-compte à elle, l'agence ne voit que les boîtiers que SS CAR SYSTEM lui a rattachés (jamais ceux des autres clients)
+    const disponibles = compte.compte_externe_id || await principalOuvert(supabase) ? tous.filter((e) => !relies.has(e.imei)) : [];
+    return { actif: true, demo: whatsgpsDemo(), etats, disponibles };
   } catch (e: any) {
     return vide(e?.message || 'Suivi GPS momentanément indisponible.');
   }
@@ -32,6 +40,11 @@ export async function suiviAgence(supabase: any): Promise<Suivi> {
 export async function imeiDeLAgence(supabase: any, imei: string) {
   const { data: compte } = await supabase.from('telematique').select('compte_externe_id').maybeSingle();
   if (!compte) throw new Error('Le suivi GPS n’est pas activé pour votre agence.');
+  if (!compte.compte_externe_id && !(await principalOuvert(supabase))) {
+    // Compte principal SS CAR SYSTEM : seulement un boîtier déjà rattaché à cette agence
+    const { data: t } = await supabase.from('traceurs').select('imei').eq('imei', imei).maybeSingle();
+    if (!t) throw new Error('Ce boîtier n’est pas rattaché à votre agence.');
+  }
   const tous = await etatsDuCompte(compte.compte_externe_id);
   const e = tous.find((x) => x.imei === imei);
   if (!e) throw new Error('Ce boîtier n’est pas sur le compte de suivi de votre agence.');
@@ -57,7 +70,7 @@ export function depuis(isoDate: string | null) {
 // Boîtiers du compte de l'agence pas encore reliés, avec plaque et nom lus chez WhatsGPS : prêts à importer
 export async function boitiersAImporter(supabase: any): Promise<{ fiches: (FicheBoitier & { enLigne: boolean; existe: string | null })[]; erreur?: string }> {
   const { data: compte } = await supabase.from('telematique').select('compte_externe_id').maybeSingle();
-  if (!compte) return { fiches: [] };
+  if (!compte || (!compte.compte_externe_id && !(await principalOuvert(supabase)))) return { fiches: [] }; // compte principal : réservé à SS CAR SYSTEM
   try {
     const [fiches, etats, { data: traceurs }, { data: vehicules }] = await Promise.all([
       fichesDuCompte(compte.compte_externe_id), etatsDuCompte(compte.compte_externe_id),

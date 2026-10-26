@@ -66,6 +66,7 @@ export default async function Sinistres({ searchParams }: { searchParams: { filt
               <h2 style={{ margin: 0 }}>{TYPES_SINISTRE[s.type] ?? 'Sinistre'} · {plaque(s.vehicules?.immatriculation) || 'véhicule ?'}</h2>
               <span className="ligne">
                 <span className={`pastille ${FINIS.includes(s.statut) ? 'termine' : 'en_cours'}`}>{STATUT_SINISTRE[s.statut] ?? s.statut}</span>
+                {s.source === 'appli' && s.statut === 'a_declarer' && <span className="badge">Déclaré par le chauffeur</span>}
                 {relance && <span className="badge rouge">À relancer</span>}
               </span>
             </div>

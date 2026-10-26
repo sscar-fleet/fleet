@@ -62,3 +62,40 @@ export async function terminerTournee(t: { id: string; agence_id: string }, cham
   }
   envoyerFile().catch(() => {});
 }
+
+// « J'ai eu un accrochage » : photos et constat partent d'abord, puis le dossier sinistre est créé chez le responsable
+// (bon camion, bon chauffeur, tournée). Marche sans réseau : envoyé dès que le réseau revient.
+export async function declarerAccrochage(
+  t: { id: string; agence_id: string; vehicule_id: string | null; chauffeur_id: string | null },
+  champs: { description: string | null; lieu: string | null; tiers: boolean },
+  photos: string[], constat: string | null,
+) {
+  const base = `${t.agence_id}/sinistres/appli-${t.id}-${Date.now()}`;
+  const cheminsPhotos = photos.map((_, i) => `${base}/photo-${i}.jpg`);
+  const cheminConstat = constat ? `${base}/constat.jpg` : null;
+  const documents = [
+    { nom: 'Constat amiable', fait: !!cheminConstat, chemin: cheminConstat },
+    { nom: 'Photos des dégâts', fait: cheminsPhotos.length > 0, chemin: cheminsPhotos[0] ?? null },
+    { nom: 'Déclaration à l’assureur', fait: false }, { nom: 'Carte grise', fait: false }, { nom: 'Permis du conducteur', fait: false },
+    { nom: 'Rapport d’expertise', fait: false }, { nom: 'Devis de réparation', fait: false }, { nom: 'Facture de réparation', fait: false },
+  ];
+  const ajout = { genre: 'ajout' as const, table: 'sinistres', champs: {
+    agence_id: t.agence_id, vehicule_id: t.vehicule_id, chauffeur_id: t.chauffeur_id, tournee_id: t.id, source: 'appli',
+    date_sinistre: new Date().toISOString(), type: 'accident', statut: 'a_declarer',
+    description: champs.description, lieu: champs.lieu, tiers: champs.tiers ? 'Un autre véhicule est impliqué (voir le constat)' : null,
+    photos: cheminsPhotos, documents, prochaine_relance: new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' }),
+  } };
+  const fichiers = [...photos.map((uri, i) => ({ uri, chemin: cheminsPhotos[i] })), ...(constat && cheminConstat ? [{ uri: constat, chemin: cheminConstat }] : [])];
+  if (!fichiers.length) await mettreEnFile(ajout);
+  else for (let i = 0; i < fichiers.length; i++) await mettreEnFile({ genre: 'fichier', chemin: fichiers[i].chemin, uri: fichiers[i].uri, type: 'image/jpeg', ensuite: i === fichiers.length - 1 ? ajout : undefined });
+  envoyerFile().catch(() => {});
+}
+
+// Photo du permis envoyée par le chauffeur : vaut preuve de validité du jour (contrôle tous les 3 mois)
+export async function envoyerPermis(chauffeur: { id: string; agence_id: string }, uri: string) {
+  const chemin = `${chauffeur.agence_id}/chauffeurs/${chauffeur.id}/permis-${Date.now()}.jpg`;
+  const jour = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  await mettreEnFile({ genre: 'fichier', chemin, uri, type: 'image/jpeg', ensuite: { genre: 'maj', table: 'chauffeurs', id: chauffeur.id, champs: { permis_path: chemin, permis_valide_le: jour } } });
+  envoyerFile().catch(() => {});
+}
+export const permisAVerifier = (d?: string | null) => !d || Date.now() - new Date(d).getTime() > 90 * 864e5;

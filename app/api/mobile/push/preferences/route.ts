@@ -10,9 +10,9 @@ export async function GET(request: Request) {
   if (!c) return NextResponse.json({ erreur: 'Connexion expirée.' }, { status: 401 });
   const [{ data }, { data: u }] = await Promise.all([
     c.supabase.from('preferences_push').select('choix').eq('utilisateur_id', c.user.id).maybeSingle(),
-    c.supabase.from('utilisateurs').select('agences(metier)').eq('id', c.user.id).maybeSingle(),
+    c.supabase.from('utilisateurs').select('acces, agences(metier)').eq('id', c.user.id).maybeSingle(),
   ]);
-  return NextResponse.json({ familles: famillesDe((u as any)?.agences?.metier), choix: choixComplets(data?.choix) });
+  return NextResponse.json({ familles: famillesDe((u as any)?.agences?.metier, (u as any)?.agences?.metier === 'transport' && (u as any)?.acces === 'chauffeur'), choix: choixComplets(data?.choix) });
 }
 
 export async function POST(request: Request) {

@@ -7,6 +7,9 @@ import { urlSite } from './site';
 export function ouvrir(href: string) {
   if (href.startsWith('http')) return Linking.openURL(href);
   if (href === '/notifications') return router.push('/notifications' as any);
+  if (href === '/') return router.push('/(onglets)' as any);
+  if (href === '/permis') return router.push('/permis' as any);
+  if (href === '/tournees') return router.push('/(onglets)/tournees' as any);
   const m = href.match(/^\/(locations|vehicules|clients)\/([0-9a-f-]{36})/);
   if (m) return router.push({ pathname: (m[1] === 'locations' ? '/location/[id]' : m[1] === 'vehicules' ? '/vehicule/[id]' : '/client/[id]') as any, params: { id: m[2] } });
   if (href.startsWith('/amendes') || href.startsWith('/fps')) return router.push('/(onglets)/amendes' as any);

@@ -70,6 +70,8 @@ function Navigation() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="compte" />
         <Stack.Screen name="fin-tournee/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="accrochage/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="permis" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack.Protected>
     </Stack>
   );

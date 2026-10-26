@@ -155,6 +155,61 @@ async function tournee(request: Request) {
     }
   }
 
+  // 4. Accrochage déclaré par un chauffeur depuis l'appli : le responsable est prévenu tout de suite
+  const agencesU = [...new Set((utilisateurs ?? []).map((u: any) => u.agence_id))];
+  if (agencesU.length) {
+    const { data: accrochages } = await db.from('sinistres').select('id, agence_id, description, vehicules(immatriculation), chauffeurs(prenom, nom)')
+      .in('agence_id', agencesU).eq('source', 'appli').gt('created_at', new Date(Date.now() - 2 * 3600e3).toISOString()).then((r: any) => (r.error ? { data: [] } : r));
+    for (const x of accrochages ?? []) {
+      for (const u of (utilisateurs ?? []).filter((y: any) => y.agence_id === x.agence_id)) {
+        pour(u, `accrochage-${x.id}`, { title: `Accrochage : ${nomChauffeur(x.chauffeurs) || 'un chauffeur'} · ${plaque(x.vehicules?.immatriculation ?? '')}`.trim(), body: `${x.description ? x.description.slice(0, 120) + ' · ' : ''}photos dans le dossier sinistre`, data: { href: `/sinistres/${x.id}` }, urgent: true });
+      }
+    }
+  }
+
+  // 5. Appli chauffeur : planning du lendemain (19 h), changements de planning (regroupés), rappel photo du permis
+  const { data: chauffeursU } = await db.from('utilisateurs').select('id, role, agence_id, acces').in('id', ids).eq('acces', 'chauffeur');
+  if ((chauffeursU ?? []).length) {
+    const idsU = (chauffeursU ?? []).map((u: any) => u.id);
+    const { data: fiches } = await db.from('chauffeurs').select('id, agence_id, prenom, utilisateur_id, permis_valide_le').in('utilisateur_id', idsU).eq('actif', true).then((r: any) => (r.error ? { data: [] } : r));
+    const uDe = (ch: any) => (chauffeursU ?? []).find((u: any) => u.id === ch.utilisateur_id);
+    const jourCourt = (j: string) => new Date(j + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    const idsCh = (fiches ?? []).map((c: any) => c.id);
+    if (idsCh.length) {
+      const demain = ajouterJours(jour, 1);
+      const [{ data: tDemain }, { data: changements }] = await Promise.all([
+        h === 19 && m < 30 ? db.from('tournees').select('chauffeur_id, debut, fin, libelle, donneurs_ordre(nom), depots(nom), vehicules(immatriculation)').in('chauffeur_id', idsCh).eq('jour', demain).neq('statut', 'annulee').order('debut') : Promise.resolve({ data: [] as any[] }),
+        db.from('tournees_changements').select('*').in('chauffeur_id', idsCh).is('envoye_le', null).order('created_at').then((r: any) => (r.error ? { data: [] } : r)),
+      ]);
+      for (const ch of fiches ?? []) {
+        const u = uDe(ch); if (!u) continue;
+        // La veille au soir
+        const siens = (tDemain ?? []).filter((t: any) => t.chauffeur_id === ch.id);
+        if (siens.length) {
+          const t: any = siens[0];
+          pour(u, `demain-${ch.id}-${demain}`, { title: `Demain, ${String(t.debut).slice(0, 5)}`, body: `${[t.donneurs_ordre?.nom ?? t.libelle, t.depots?.nom].filter(Boolean).join(' · ')}${t.vehicules ? ` · camion ${plaque(t.vehicules.immatriculation)}` : ''}${siens.length > 1 ? ` (+${siens.length - 1} autre${siens.length > 2 ? 's' : ''})` : ''}`, data: { href: '/' } });
+        }
+        // Changements : on attend 2 minutes de calme pour regrouper une série de modifications
+        const ch2 = (changements ?? []).filter((x: any) => x.chauffeur_id === ch.id);
+        if (ch2.length && Date.now() - new Date(ch2[ch2.length - 1].created_at).getTime() > 2 * 60e3) {
+          const jours = [...new Set(ch2.map((x: any) => x.jour))].sort() as string[];
+          const un = ch2.length === 1 ? ch2[0] : null;
+          const titre = un ? (un.genre === 'nouvelle' ? 'Nouvelle tournée' : un.genre === 'retiree' ? 'Tournée retirée' : un.detail === 'camion' ? 'Changement de camion' : un.detail === 'horaire' ? 'Changement d’horaire' : 'Tournée modifiée') : 'Ton planning a changé';
+          pour(u, `planif-${ch2[ch2.length - 1].id}`, { title: titre, body: `${jours.slice(0, 3).map(jourCourt).join(', ')}${jours.length > 3 ? '…' : ''} · ouvre l’appli pour voir`, data: { href: '/' } });
+          await db.from('tournees_changements').update({ envoye_le: new Date().toISOString() }).in('id', ch2.map((x: any) => x.id));
+        }
+        // Permis : preuve de plus de 3 mois, rappel une fois par semaine à 10 h
+        const vieux = !ch.permis_valide_le || Date.now() - new Date(ch.permis_valide_le).getTime() > 90 * 864e5;
+        if (vieux && h === 10 && m < 30) {
+          const semaine = Math.floor(Date.now() / (7 * 864e5));
+          pour(u, `permis-ch-${ch.id}-${semaine}`, { title: 'Photo de ton permis', body: 'Ton responsable a besoin d’une photo récente de ton permis : 10 secondes dans l’appli.', data: { href: '/permis' } });
+        }
+      }
+    }
+    // Ménage : les changements des chauffeurs sans appli ne s'accumulent pas
+    if (m === 30) await db.from('tournees_changements').delete().lt('created_at', new Date(Date.now() - 14 * 864e5).toISOString());
+  }
+
   const envoyes = messages.length ? await envoyerPush(messages, db) : 0;
   // Rien n'est parti (service Expo injoignable) : on ne note rien, la prochaine tournée réessaie
   if (notes.length && (envoyes > 0 || !messages.length)) await db.from('push_envoyes').upsert(notes.map((n) => ({ ...n, envoye_le: new Date().toISOString() })), { onConflict: 'utilisateur_id,cle' });
