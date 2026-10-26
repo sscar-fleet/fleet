@@ -24,7 +24,7 @@ export default async function Compte() {
   return (
     <main style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 24 }}>
       <div className="carte" style={{ maxWidth: 480, display: 'grid', gap: 14, textAlign: 'center' }}>
-        <div style={{ margin: '0 auto' }}><Logo /></div>
+        <div style={{ margin: '0 auto' }}><Logo style={{ width: 220, maxWidth: '100%', height: 'auto' }} /></div>
         <h1 style={{ margin: 0, fontSize: 24 }}>{titre}</h1>
         <p className="gris" style={{ margin: 0 }}>{texte}</p>
         <a className="bouton principal" href="mailto:fleet@sscarsystem.com">Écrire à SS CAR FLEET</a>
