@@ -67,7 +67,7 @@ export default function Connexion() {
         </button>
         {mode === 'connexion' && <button className="bouton" type="button" onClick={() => setMode('oubli')}>Mot de passe oublié ?</button>}
         <button className="bouton" type="button" onClick={() => { setMode(mode === 'connexion' ? 'creation' : 'connexion'); setErreur(''); setInfo(''); }}>
-          {mode === 'connexion' ? 'Nouveau loueur ? Créer un compte' : 'Revenir à la connexion'}
+          {mode === 'connexion' ? 'Nouveau sur Fleet ? Créer un compte' : 'Revenir à la connexion'}
         </button>
       </form>
       <p className="gris" style={{ fontSize: 12.5, textAlign: 'center', marginTop: 24 }}>

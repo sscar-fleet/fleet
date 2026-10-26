@@ -952,3 +952,11 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
 .qr-tel { flex-basis: 100%; display: flex; gap: 14px; align-items: center; padding: 12px; margin-top: 8px; border: 1px dashed var(--turquoise); border-radius: 12px; background: var(--panneau2); }
 .qr-tel img { width: 132px; height: 132px; border-radius: 8px; background: #fff; padding: 4px; flex: none; }
 .qr-tel > div { display: grid; gap: 6px; font-size: 14px; justify-items: start; }
+/* Inscription : choix du métier */
+.choix-metier { border: 0; padding: 0; margin: 0 0 6px; display: grid; gap: 10px; }
+.choix-metier legend { font-size: 14px; color: var(--gris); margin-bottom: 8px; }
+.choix-metier label { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1.5px solid var(--bord); border-radius: 14px; cursor: pointer; background: var(--panneau); }
+.choix-metier label:has(input:checked) { border-color: var(--turquoise); background: var(--panneau2); }
+.choix-metier input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--turquoise); flex: none; }
+.choix-metier span { display: grid; gap: 3px; color: var(--texte); }
+.choix-metier small { color: var(--gris); font-size: 13px; }
