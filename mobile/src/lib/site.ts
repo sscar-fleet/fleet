@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 
 const FLEET = process.env.EXPO_PUBLIC_FLEET_URL ?? '';
 export const urlSite = (chemin = '') => {
-  const base = FLEET || (Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : 'https://fleet-beryl-seven.vercel.app');
+  const base = FLEET || (Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : 'https://app.sscarfleet.com');
   return base.replace(/\/$/, '') + chemin;
 };
 

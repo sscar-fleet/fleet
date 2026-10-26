@@ -5,7 +5,7 @@
       "environment": "production",
       "autoIncrement": true,
       "ios": { "resourceClass": "default" },
-      "env": { "EXPO_PUBLIC_FLEET_URL": "https://fleet-beryl-seven.vercel.app" }
+      "env": { "EXPO_PUBLIC_FLEET_URL": "https://app.sscarfleet.com" }
     }
   },
   "submit": {
