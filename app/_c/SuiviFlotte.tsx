@@ -25,7 +25,7 @@ const depuis = (iso: string | null) => {
 const fmtKm = (n: number | null) => (n == null ? '—' : `${Math.round(n).toLocaleString('fr-FR')} km`);
 const fmtHeure = (iso: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }) : '');
 
-export default function SuiviFlotte({ lignes, demo, compact = false, initial }: { lignes: LigneSuivi[]; demo: boolean; compact?: boolean; initial?: string }) {
+export default function SuiviFlotte({ lignes, demo, compact = false, initial, transport = false }: { lignes: LigneSuivi[]; demo: boolean; compact?: boolean; initial?: string; transport?: boolean }) {
   const router = useRouter();
   const [filtre, setFiltre] = useState<Filtre>('tous');
   const [q, setQ] = useState('');
@@ -149,7 +149,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial }: 
                   <span className="logo">{logo ? <img src={logo} alt="" onError={(e) => e.currentTarget.remove()} /> : null}<i style={{ background: COULEUR[l.etat] }} /></span>
                   <span className="txt">
                     <span className="l1"><b>{l.immat}</b><span className="gris">{[l.marque, l.modele].filter(Boolean).join(' ')}</span><BadgeSport marque={l.marque} modele={l.modele} petit /></span>
-                    <span className="l2">{l.client ? <>{l.client}{l.retour ? <span className="gris"> · retour {fmtHeure(l.retour)}</span> : null}</> : <span className="gris">{l.statut === 'disponible' ? 'Disponible' : l.statut === 'maintenance' ? 'Maintenance' : 'Pas de location'}</span>}</span>
+                    <span className="l2">{l.client ? <>{l.client}{l.retour ? <span className="gris"> · retour {fmtHeure(l.retour)}</span> : null}</> : <span className="gris">{transport ? (l.statut === 'maintenance' ? 'Maintenance' : 'Pas de tournée en cours') : l.statut === 'disponible' ? 'Disponible' : l.statut === 'maintenance' ? 'Maintenance' : 'Pas de location'}</span>}</span>
                   </span>
                   <span className="droite">
                     <span className="etat" style={{ color: COULEUR[l.etat] }}>{l.etat === 'roule' ? `${l.vitesse} km/h` : LIBELLE[l.etat]}</span>

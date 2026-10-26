@@ -3,13 +3,15 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-type Ico = 'prets' | 'fps' | 'accueil' | 'planning' | 'locations' | 'vehicules' | 'clients' | 'carte' | 'amendes' | 'entretiens' | 'pilotage' | 'devis' | 'reglages' | 'plus' | 'replier';
+type Ico = 'tournees' | 'chauffeurs' | 'prets' | 'fps' | 'accueil' | 'planning' | 'locations' | 'vehicules' | 'clients' | 'carte' | 'amendes' | 'entretiens' | 'pilotage' | 'devis' | 'reglages' | 'plus' | 'replier';
 function Icone({ nom }: { nom: Ico }) {
   const p = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
       {nom === 'accueil' && <><path d="M3.5 11 12 4l8.5 7" {...p} /><path d="M6 9.5V20h12V9.5" {...p} /><path d="M10 20v-5h4v5" {...p} /></>}
       {nom === 'planning' && <><rect x="3" y="4.5" width="18" height="16" rx="3" {...p} /><path d="M3 9.5h18M8 2.5v4M16 2.5v4M7 13.5h4M13 13.5h4M7 17h4" {...p} /></>}
+      {nom === 'tournees' && <><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7" {...p} /><circle cx="7" cy="17.5" r="1.6" {...p} /><circle cx="17" cy="17.5" r="1.6" {...p} /></>}
+      {nom === 'chauffeurs' && <><circle cx="12" cy="8" r="3.6" {...p} /><path d="M4.5 20c1-3.6 4-5.6 7.5-5.6s6.5 2 7.5 5.6" {...p} /></>}
       {nom === 'locations' && <><path d="M4 8h13l-3-3M20 16H7l3 3" {...p} /></>}
       {nom === 'vehicules' && <><path d="M5 16.5V12l2-5h10l2 5v4.5" {...p} /><path d="M3.5 16.5h17V19h-17z" {...p} /><circle cx="7.5" cy="13.5" r="1" fill="currentColor" /><circle cx="16.5" cy="13.5" r="1" fill="currentColor" /></>}
       {nom === 'clients' && <><circle cx="9" cy="8.5" r="3.5" {...p} /><path d="M2.5 20c.9-3.4 3.4-5.2 6.5-5.2s5.6 1.8 6.5 5.2M16 5.5a3.2 3.2 0 0 1 0 6.2M18 14.8c1.8.6 3 2.3 3.5 5" {...p} /></>}
@@ -27,18 +29,25 @@ function Icone({ nom }: { nom: Ico }) {
   );
 }
 
-const GROUPES: { titre: string; liens: [string, string, Ico][] }[] = [
+type Groupe = { titre: string; liens: [string, string, Ico][] };
+// Version transport : planning des tournées et chauffeurs à la place des locations et des clients
+const GROUPES_TRANSPORT: Groupe[] = [
+  { titre: 'Au quotidien', liens: [['/', 'Accueil', 'accueil'], ['/tournees', 'Planning', 'tournees'], ['/chauffeurs', 'Chauffeurs', 'chauffeurs'], ['/vehicules', 'Camions', 'vehicules']] },
+  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens']] },
+  { titre: 'Gestion', liens: [['/pilotage', 'Pilotage', 'pilotage'], ['/tournees/reglages', 'Réglages transport', 'reglages'], ['/parametres', 'Réglages', 'reglages']] },
+];
+const GROUPES: Groupe[] = [
   { titre: 'Au quotidien', liens: [['/', 'Accueil', 'accueil'], ['/planning', 'Planning', 'planning'], ['/locations', 'Locations', 'locations'], ['/vehicules', 'Véhicules', 'vehicules'], ['/clients', 'Clients', 'clients']] },
   { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens'], ['/prets', 'Prêts confrères', 'prets']] },
   { titre: 'Gestion', liens: [['/pilotage', 'Pilotage', 'pilotage'], ['/devis', 'Devis', 'devis'], ['/parametres', 'Réglages', 'reglages']] },
 ];
 
-export default function MenuLateral({ gerant, compteurs, pied }: { gerant: boolean; compteurs: Record<string, number>; pied: React.ReactNode }) {
+export default function MenuLateral({ gerant, compteurs, pied, transport = false }: { gerant: boolean; compteurs: Record<string, number>; pied: React.ReactNode; transport?: boolean }) {
   const chemin = usePathname();
   const [replie, setReplie] = useState(false);
   useEffect(() => { try { setReplie(localStorage.getItem('fleet-menu-replie') === '1'); } catch {} }, []);
   useEffect(() => { document.documentElement.dataset.menu = replie ? 'replie' : 'ouvert'; }, [replie]);
-  const actif = (href: string) => (href === '/' ? chemin === '/' : chemin.startsWith(href));
+  const actif = (href: string) => (href === '/' ? chemin === '/' : href === '/tournees' ? chemin === '/tournees' : chemin.startsWith(href));
   const basculer = () => { setReplie((r) => { try { localStorage.setItem('fleet-menu-replie', r ? '0' : '1'); } catch {} return !r; }); };
 
   return (
@@ -47,9 +56,11 @@ export default function MenuLateral({ gerant, compteurs, pied }: { gerant: boole
         <a href="/" className="ml-logo" aria-label="Accueil"><span className="logo-double"><img src="/fleet-blanc.svg" alt="FLEET" className="logo-sombre" /><img src="/fleet-noir.svg" alt="" className="logo-clair" /></span></a>
         <button type="button" className="ml-replier" onClick={basculer} aria-label={replie ? 'Déplier le menu' : 'Replier le menu'} title={replie ? 'Déplier le menu' : 'Replier le menu'}><Icone nom="replier" /></button>
       </div>
-      <a href="/locations/nouvelle" className="ml-nouvelle" title="Nouvelle location"><Icone nom="plus" /><span>Nouvelle location</span></a>
+      {transport
+        ? <a href="/tournees" className="ml-nouvelle" title="Planning de la semaine"><Icone nom="tournees" /><span>Planning de la semaine</span></a>
+        : <a href="/locations/nouvelle" className="ml-nouvelle" title="Nouvelle location"><Icone nom="plus" /><span>Nouvelle location</span></a>}
       <nav className="ml-liens">
-        {GROUPES.map((g) => (
+        {(transport ? GROUPES_TRANSPORT : GROUPES).map((g) => (
           <div key={g.titre} className="ml-groupe">
             <div className="ml-titre">{g.titre}</div>
             {g.liens.filter(([h]) => gerant || h !== '/pilotage').map(([h, t, i]) => (

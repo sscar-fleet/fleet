@@ -8,6 +8,7 @@ import Envoyer from '../_c/Envoyer';
 import Fichier from '../_c/Fichier';
 import Signature from '../_c/Signature';
 import Deconnexion from './Deconnexion';
+import * as T from '../tournees/actions';
 import ChampAdresse from '../_c/ChampAdresse';
 
 const ACCES: [string, string][] = [['appli', 'Appli'], ['logiciel', 'Logiciel'], ['les_deux', 'Les deux']];
@@ -31,6 +32,15 @@ export default async function Parametres() {
 
   return (
     <Cadre titre="Réglages" actions={<Deconnexion />}>
+      <section className="carte">
+        <h2 style={{ marginTop: 0 }}>Votre métier</h2>
+        <p className="gris" style={{ fontSize: 13.5, marginTop: 0 }}>Fleet s&apos;adapte : <b>location</b> (contrats, cautions, états des lieux) ou <b>transport</b> (tournées, chauffeurs, planning automatique). Vos données restent toutes là si vous changez.</p>
+        <Formulaire action={T.changerMetier} className="ligne" style={{ gap: 10, flexWrap: 'wrap' }} succes="Métier enregistré">
+          <label className="case"><input type="radio" name="metier" value="location" defaultChecked={(a.metier ?? 'location') === 'location'} disabled={!gerant} /> Location de véhicules</label>
+          <label className="case"><input type="radio" name="metier" value="transport" defaultChecked={a.metier === 'transport'} disabled={!gerant} /> Transport et livraison</label>
+          {gerant && <Envoyer className="bouton petit">Enregistrer</Envoyer>}
+        </Formulaire>
+      </section>
       <div className="colonnes">
         <section className="carte">
           <h2>Identité de l&apos;agence</h2>

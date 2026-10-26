@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { clientApi } from '@/lib/api';
-import { FAMILLES_PUSH, choixComplets } from '@/lib/choixPush';
+import { famillesDe, choixComplets } from '@/lib/choixPush';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,8 +8,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const c = await clientApi(request);
   if (!c) return NextResponse.json({ erreur: 'Connexion expirée.' }, { status: 401 });
-  const { data } = await c.supabase.from('preferences_push').select('choix').eq('utilisateur_id', c.user.id).maybeSingle();
-  return NextResponse.json({ familles: FAMILLES_PUSH, choix: choixComplets(data?.choix) });
+  const [{ data }, { data: u }] = await Promise.all([
+    c.supabase.from('preferences_push').select('choix').eq('utilisateur_id', c.user.id).maybeSingle(),
+    c.supabase.from('utilisateurs').select('agences(metier)').eq('id', c.user.id).maybeSingle(),
+  ]);
+  return NextResponse.json({ familles: famillesDe((u as any)?.agences?.metier), choix: choixComplets(data?.choix) });
 }
 
 export async function POST(request: Request) {

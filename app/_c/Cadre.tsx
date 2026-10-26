@@ -17,7 +17,7 @@ import { Suspense } from 'react';
 export default async function Cadre({ titre, actions, tables = [], children, retour }: {
   titre?: React.ReactNode; actions?: React.ReactNode; tables?: string[]; children: React.ReactNode; retour?: { lien: string; texte: string };
 }) {
-  const { supabase, profil } = await utilisateurCourant();
+  const { supabase, profil, transport } = await utilisateurCourant();
   // Petits compteurs rouges du menu : retours en retard, amendes à traiter
   const [retards, amendes, fps] = await Promise.all([
     supabase.from('locations').select('id', { count: 'exact', head: true }).eq('statut', 'en_cours').lt('fin_prevue', new Date().toISOString()),
@@ -32,7 +32,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
   );
   return (
     <div className="coque">
-      <MenuLateral gerant={profil.role === 'gerant'} compteurs={{ '/locations': retards.count ?? 0, '/amendes': amendes.count ?? 0, '/fps': fps.count ?? 0 }} pied={pied} />
+      <MenuLateral transport={transport} gerant={profil.role === 'gerant'} compteurs={{ '/locations': retards.count ?? 0, '/amendes': amendes.count ?? 0, '/fps': fps.count ?? 0 }} pied={pied} />
       <FleetAI prenom={String(profil.nom ?? '').split(' ')[0]} />
       <main className="page">
         <header className="entete">
@@ -44,7 +44,7 @@ export default async function Cadre({ titre, actions, tables = [], children, ret
             <BoutonTheme />
           </span>
         </header>
-        <Navigation gerant={profil.role === 'gerant'} />
+        <Navigation transport={transport} gerant={profil.role === 'gerant'} />
         {retour && <a className="retour" href={retour.lien}>← {retour.texte}</a>}
         {(titre || actions) && (
           <div className="titre">

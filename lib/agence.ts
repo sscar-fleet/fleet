@@ -7,7 +7,7 @@ export type Profil = {
   nom: string;
   role: 'gerant' | 'employe';
   agence_id: string;
-  agences: { nom: string } | null;
+  agences: { nom: string; metier?: 'location' | 'transport' | null; regles_transport?: Record<string, unknown> | null } | null;
 };
 
 // Renvoie l'utilisateur connecté et son agence, ou redirige vers la connexion / l'inscription.
@@ -17,7 +17,7 @@ export const utilisateurCourant = cache(async () => {
   if (!auth.user) redirect('/login');
   const { data } = await supabase
     .from('utilisateurs')
-    .select('id, nom, role, agence_id, agences(nom)')
+    .select('id, nom, role, agence_id, agences(*)')
     .eq('id', auth.user.id)
     .maybeSingle();
   if (!data) redirect('/bienvenue');
@@ -28,7 +28,7 @@ export const utilisateurCourant = cache(async () => {
   // Employé qui n'a accès qu'à l'appli téléphone
   const { data: a } = await supabase.from('utilisateurs').select('acces').eq('id', auth.user.id).maybeSingle();
   if ((a as any)?.acces === 'appli') redirect('/acces-appli');
-  return { supabase, profil: data as unknown as Profil };
+  return { supabase, profil: data as unknown as Profil, transport: (data as any)?.agences?.metier === 'transport' };
 });
 
 // Erreur lisible en français à partir d'une erreur Supabase

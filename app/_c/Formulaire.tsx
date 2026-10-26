@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react';
 import { annoncer } from './Toast';
 
-type Resultat = { erreur?: string } | void;
+type Resultat = { erreur?: string; message?: string } | void;
 
 // Formulaire relié à une action serveur : erreur en français, message vert après succès,
 // et pour les actions importantes une question « Vous êtes sûr ? » avant d'agir.
@@ -20,7 +20,8 @@ export default function Formulaire({ action, children, className, style, vider =
     setErreur('');
     const r = await action(fd);
     if (r && r.erreur) { setErreur(r.erreur); annoncer(r.erreur, true); return; }
-    if (succes) annoncer(succes);
+    const message = r && (r as { message?: string }).message;
+    if (message) annoncer(message); else if (succes) annoncer(succes);
     if (vider) ref.current?.reset();
   }
 

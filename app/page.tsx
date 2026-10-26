@@ -15,11 +15,13 @@ import LienAction from './_c/LienAction';
 import Formulaire from './_c/Formulaire';
 import Envoyer from './_c/Envoyer';
 import * as A from './actions';
+import AccueilTransport from './_c/AccueilTransport';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Accueil() {
-  const { supabase, profil } = await utilisateurCourant();
+  const { supabase, profil, transport } = await utilisateurCourant();
+  if (transport) return <Cadre tables={['tournees', 'vehicules']}><AccueilTransport supabase={supabase} prenom={String(profil.nom ?? '').split(' ')[0]} regles={profil.agences?.regles_transport} /></Cadre>;
   const aujourdhui = debutJour(0);
   const demain = debutJour(1);
   const maintenant = new Date().toISOString();

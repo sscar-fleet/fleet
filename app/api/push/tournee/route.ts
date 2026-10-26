@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { adminConfigure, supabaseAdmin } from '@/lib/supabaseAdmin';
 import { envoyerPush, type MessagePush } from '@/lib/push';
-import { alertesTraccar } from '@/lib/traccar';
+import { alertesTraccar, demarragesTraccar, etatsTraccar } from '@/lib/traccar';
+import { rapportJour, heureParis as heureDe } from '@/lib/rapportTransport';
+import { reglesDe } from '@/lib/planning';
+import { ajouterJours, nomChauffeur } from '@/lib/transport';
 import { calculerNotifications, resumeDuJour } from '@/lib/notifications';
 import { plaque } from '@/lib/format';
 import { choixComplets, familleDeCle, jamaisEnPush } from '@/lib/choixPush';
@@ -62,8 +65,62 @@ async function tournee(request: Request) {
     }
   }
 
-  // 2 et 3. Urgences de la cloche et point du matin
+  // Version transport : démarrages, prise de poste (jour et nuit) et rapport du matin
   const { h, m, jour } = heureParis();
+  const agencesIds = [...new Set((utilisateurs ?? []).map((u: any) => u.agence_id))];
+  // (si la base n'a pas encore la version transport, la requête échoue sans bloquer le reste de la tournée)
+  const { data: agencesT } = agencesIds.length ? await db.from('agences').select('id, metier, regles_transport').in('id', agencesIds).eq('metier', 'transport').then((r: any) => (r.error ? { data: [] } : r)) : { data: [] as any[] };
+  if ((agencesT ?? []).length) {
+    const idsT = (agencesT ?? []).map((a: any) => a.id);
+    const [demarrages, etats, { data: camions }, { data: tourneesJour }, { data: chauffeursT }] = await Promise.all([
+      demarragesTraccar(3).catch(() => []), etatsTraccar().catch(() => []),
+      db.from('vehicules').select('id, agence_id, immatriculation, traceurs(imei)').in('agence_id', idsT).neq('statut', 'sorti'),
+      db.from('tournees').select('id, agence_id, jour, debut, fin, chauffeur_id, vehicule_id, statut').in('agence_id', idsT).in('jour', [ajouterJours(jour, -1), jour]).neq('statut', 'annulee'),
+      db.from('chauffeurs').select('id, prenom, nom').in('agence_id', idsT),
+    ]);
+    const parImeiT = new Map((camions ?? []).filter((v: any) => v.traceurs?.imei).map((v: any) => [String(v.traceurs.imei), v]));
+    const etatDe = new Map(etats.map((e) => [e.imei, e]));
+    const minParis = h * 60 + m;
+    const mn = (x: string) => { const [a, b] = String(x).split(':').map(Number); return a * 60 + b; };
+    // Créneau d'une tournée en minutes depuis minuit aujourd'hui (une tournée d'hier qui finit après minuit compte aussi)
+    const creneau = (t: any) => { let d = mn(t.debut), f = mn(t.fin); if (f <= d) f += 1440; if (t.jour !== jour) { d -= 1440; f -= 1440; } return [d, f]; };
+    const chNom = (id?: string | null) => nomChauffeur((chauffeursT ?? []).find((c: any) => c.id === id));
+    for (const ev of demarrages) {
+      const v: any = parImeiT.get(ev.imei); if (!v) continue;
+      const avance = reglesDe((agencesT ?? []).find((a: any) => a.id === v.agence_id)?.regles_transport).prisePosteMinutes;
+      const t: any = (tourneesJour ?? []).find((x: any) => x.vehicule_id === v.id && (() => { const [d, f] = creneau(x); return minParis >= d - avance - 30 && minParis <= f + 30; })());
+      const quand = heureDe(ev.le);
+      for (const u of (utilisateurs ?? []).filter((x: any) => x.agence_id === v.agence_id)) {
+        if (t) pour(u, `dem-${ev.id}`, { title: `${plaque(v.immatriculation)} a démarré`, body: `${chNom(t.chauffeur_id) || 'Chauffeur non indiqué'} · tournée de ${String(t.debut).slice(0, 5)} · ${quand}`, data: { href: `/carte?vehicule=${v.id}` } });
+        else pour(u, `hors-${ev.id}`, { title: `${plaque(v.immatriculation)} démarre hors tournée`, body: `Aucune tournée prévue à cette heure · ${quand}`, data: { href: `/carte?vehicule=${v.id}` }, urgent: true });
+      }
+    }
+    // Prise de poste : la tournée commence dans le délai réglé et le camion n'a pas bougé
+    for (const t of (tourneesJour ?? []).filter((x: any) => x.jour === jour && x.statut === 'prevue' && x.vehicule_id)) {
+      const reg = reglesDe((agencesT ?? []).find((a: any) => a.id === t.agence_id)?.regles_transport);
+      if (!reg.prisePosteMinutes) continue;
+      const [d] = creneau(t);
+      if (minParis < d - reg.prisePosteMinutes || minParis > d + 20) continue;
+      const v: any = (camions ?? []).find((x: any) => x.id === t.vehicule_id);
+      const e = v?.traceurs?.imei ? etatDe.get(String(v.traceurs.imei)) : undefined;
+      if (!e || !e.enLigne || e.enMouvement || e.contact === true) continue; // pas de donnée fiable, ou déjà parti
+      for (const u of (utilisateurs ?? []).filter((x: any) => x.agence_id === t.agence_id)) {
+        pour(u, `prise-${t.id}`, { title: `${chNom(t.chauffeur_id) || 'Un chauffeur'} n’est pas encore parti`, body: `Tournée de ${String(t.debut).slice(0, 5)} · ${plaque(v.immatriculation)} à l’arrêt`, data: { href: '/' }, urgent: true });
+      }
+    }
+    // Rapport du matin, une fois par jour à partir de 9 h
+    if (minParis >= 9 * 60 && minParis < 12 * 60) {
+      for (const a of agencesT ?? []) {
+        const destinataires = (utilisateurs ?? []).filter((u: any) => u.agence_id === a.id && !envoye.has(`${u.id}|rapport-${jour}`) && veut(u, `rapport-${jour}`));
+        if (!destinataires.length) continue;
+        const r = await rapportJour(db, ajouterJours(jour, -1), a.id).catch(() => null);
+        if (!r || !r.total.tournees) continue;
+        for (const u of destinataires) pour(u, `rapport-${jour}`, { title: 'Le rapport d’hier', body: `${r.total.tournees} tournée${r.total.tournees > 1 ? 's' : ''} · ${r.total.km.toLocaleString('fr-FR')} km${r.total.anomalies ? ` · ${r.total.anomalies} camion${r.total.anomalies > 1 ? 's' : ''} à regarder` : ' · rien d’anormal'}`, data: { href: `/tournees/rapport?jour=${ajouterJours(jour, -1)}` } });
+      }
+    }
+  }
+
+  // 2 et 3. Urgences de la cloche et point du matin
   const minutes = h * 60 + m;
   if (minutes >= 7 * 60 && minutes < 22 * 60) {
     for (const u of utilisateurs ?? []) {

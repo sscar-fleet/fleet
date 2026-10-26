@@ -217,3 +217,47 @@ export async function trajetDuJour(imei: string): Promise<{ inscrit: boolean; po
   const dist = route.length ? Number(route[route.length - 1]?.attributes?.totalDistance ?? 0) - Number(route[0]?.attributes?.totalDistance ?? 0) : 0;
   return { inscrit: true, points, km: dist > 0 ? Math.round(dist / 1000) : null };
 }
+
+// Minuit à Paris d'un jour AAAA-MM-JJ, en heure universelle
+function minuitParisDe(jour: string) {
+  const brut = new Date(jour + 'T00:00:00Z');
+  const paris = new Date(brut.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const utc = new Date(brut.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return new Date(brut.getTime() - (paris.getTime() - utc.getTime()));
+}
+
+// Journée de chaque camion (rapport du matin) : heure de départ, heure de fin, km, nombre de trajets
+export type JourneeCamion = { depart: string | null; fin: string | null; km: number; trajets: number };
+export async function journeesTraccar(jour: string): Promise<Map<string, JourneeCamion>> {
+  const res = new Map<string, JourneeCamion>();
+  if (!traccarConfigure()) return res;
+  const { appareils } = await photo();
+  if (!appareils.length) return res;
+  const de = minuitParisDe(jour); const a = new Date(de.getTime() + 24 * 3600_000);
+  const q = new URLSearchParams({ from: de.toISOString(), to: (a.getTime() > Date.now() ? new Date() : a).toISOString() });
+  appareils.forEach((x) => q.append('deviceId', String(x.id)));
+  const trajets: any[] = (await appel(`/api/reports/trips?${q}`).catch(() => [])) ?? [];
+  const imeiDe = new Map(appareils.map((x) => [x.id, String(x.uniqueId)]));
+  for (const t of trajets) {
+    const imei = imeiDe.get(t.deviceId); if (!imei) continue;
+    const j = res.get(imei) ?? { depart: null, fin: null, km: 0, trajets: 0 };
+    if (!j.depart || String(t.startTime) < j.depart) j.depart = t.startTime;
+    if (!j.fin || String(t.endTime) > j.fin) j.fin = t.endTime;
+    j.km += Number(t.distance ?? 0) / 1000; j.trajets++;
+    res.set(imei, j);
+  }
+  res.forEach((j) => { j.km = Math.round(j.km); });
+  return res;
+}
+
+// Démarrages (contact mis) des dernières minutes, pour la notification « camion démarré »
+export async function demarragesTraccar(minutesAvant = 3): Promise<{ id: string; imei: string; le: string }[]> {
+  if (!traccarConfigure()) return [];
+  const { appareils } = await photo();
+  if (!appareils.length) return [];
+  const q = new URLSearchParams({ from: new Date(Date.now() - minutesAvant * 60_000).toISOString(), to: new Date().toISOString(), type: 'ignitionOn' });
+  appareils.forEach((x) => q.append('deviceId', String(x.id)));
+  const evts: any[] = (await appel(`/api/reports/events?${q}`).catch(() => [])) ?? [];
+  const imeiDe = new Map(appareils.map((x) => [x.id, String(x.uniqueId)]));
+  return evts.filter((e) => imeiDe.has(e.deviceId)).map((e) => ({ id: `d${e.id}`, imei: imeiDe.get(e.deviceId)!, le: e.eventTime }));
+}
