@@ -14,6 +14,8 @@ import Icone from '@/composants/Icone';
 import ClocheAppli from '@/composants/ClocheAppli';
 import { useDonnees } from '@/lib/useDonnees';
 import { useSession } from '@/lib/session';
+import JourneeTransport from '@/composants/transport/JourneeTransport';
+import MesTournees from '@/composants/transport/MesTournees';
 import { useCouleurs } from '@/lib/theme';
 import { useGps } from '@/lib/gps';
 import { appeler, ouvrirWhatsApp, msg } from '@/lib/messages';
@@ -21,7 +23,14 @@ import { heure, nomClient, nomVehicule, relatif, enRetard, duree, plaque } from 
 
 type Tache = { l: LocationLigne; genre: 'depart' | 'retour'; quand: string };
 
-export default function Aujourdhui() {
+// Accueil selon le métier : location, transport (responsable) ou chauffeur
+export default function Accueil() {
+  const { profil } = useSession();
+  if (profil?.metier === 'transport') return profil.acces === 'chauffeur' ? <MesTournees /> : <JourneeTransport />;
+  return <Aujourdhui />;
+}
+
+function Aujourdhui() {
   const c = useCouleurs();
   const { profil } = useSession();
   const { gps } = useGps();

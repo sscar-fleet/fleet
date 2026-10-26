@@ -69,6 +69,7 @@ function Navigation() {
         <Stack.Screen name="stock" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="compte" />
+        <Stack.Screen name="fin-tournee/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
       </Stack.Protected>
     </Stack>
   );

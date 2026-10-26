@@ -33,7 +33,7 @@ async function tournee(request: Request) {
   appareils.forEach((a: any) => { const u = parUtilisateur.get(a.utilisateur_id) ?? { agence_id: a.agence_id as string, jetons: [] as string[] }; u.jetons.push(a.jeton); parUtilisateur.set(a.utilisateur_id, u); });
   const ids = [...parUtilisateur.keys()];
   const [{ data: utilisateurs }, { data: deja }, { data: prefs }] = await Promise.all([
-    db.from('utilisateurs').select('id, role, agence_id').in('id', ids),
+    db.from('utilisateurs').select('id, role, agence_id, acces').in('id', ids).neq('acces', 'chauffeur'),
     db.from('push_envoyes').select('utilisateur_id, cle').in('utilisateur_id', ids).gt('envoye_le', new Date(Date.now() - 30 * 864e5).toISOString()),
     db.from('preferences_push').select('utilisateur_id, choix').in('utilisateur_id', ids),
   ]);

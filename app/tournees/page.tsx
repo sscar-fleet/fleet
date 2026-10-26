@@ -139,7 +139,7 @@ export default async function Tournees({ searchParams }: { searchParams: { semai
                       )}
                     </div>
                     {t.statut === 'faite' ? (
-                      <p className="tournee-faite">Faite · {nomChauffeur(chauffeur(t.chauffeur_id)) || '—'}{t.livres != null ? ` · ${t.livres} livrés` : ''}{t.absents ? `, ${t.absents} absents` : ''}</p>
+                      <p className="tournee-faite">Faite · {nomChauffeur(chauffeur(t.chauffeur_id)) || '—'}{t.livres != null ? ` · ${t.livres} livré${t.livres > 1 ? "s" : ""}` : ''}{t.absents ? `, ${t.absents} absent${t.absents > 1 ? "s" : ""}` : ''}</p>
                     ) : <>
                       <ChoixTournee libelle="Chauffeur" vide="Sans chauffeur" valeur={t.chauffeur_id} options={optionsChauffeurs(t)} action={T.affecter.bind(null, t.id, 'chauffeur_id')} />
                       <ChoixTournee libelle="Camion" vide="Sans camion" valeur={t.vehicule_id} options={optionsCamions(t)} action={T.affecter.bind(null, t.id, 'vehicule_id')} />

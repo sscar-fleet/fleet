@@ -258,3 +258,16 @@ export const creerTourneesLues = proteger(async (lundiBrut: string, lues: Tourne
   verifier((await supabase.from('tournees').insert(lignes)).error);
   return `${lignes.length} tournée${lignes.length > 1 ? 's' : ''} ajoutée${lignes.length > 1 ? 's' : ''}`;
 });
+
+// Accès à l'appli pour un chauffeur : il reçoit un lien, crée son mot de passe, et ne voit que ses tournées
+export const inviterChauffeur = proteger(async (chauffeurId: string, fd: FormData) => {
+  const { supabase, profil } = await gerant();
+  const email = (texte(fd.get('email')) ?? '').toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Indiquez l’adresse e-mail du chauffeur.');
+  const { data: c } = await supabase.from('chauffeurs').select('id, prenom, nom').eq('id', chauffeurId).maybeSingle();
+  if (!c) throw new Error('Chauffeur introuvable.');
+  const nom = [c.prenom, c.nom].filter(Boolean).join(' ');
+  await supabase.from('invitations').delete().eq('chauffeur_id', chauffeurId).eq('utilisee', false);
+  verifier((await supabase.from('invitations').insert({ agence_id: profil.agence_id, email, nom, role: 'employe', acces: 'chauffeur', chauffeur_id: chauffeurId })).error, 'Invitation');
+  return 'Invitation créée : envoyez-lui le lien';
+});

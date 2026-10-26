@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import { utilisateurCourant } from '@/lib/agence';
 import { date, tel } from '@/lib/format';
 import { nomChauffeur, lundiDe, semaineDe } from '@/lib/transport';
@@ -14,11 +15,14 @@ export default async function Chauffeurs() {
   const { supabase } = await utilisateurCourant();
   const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
   const semaine = semaineDe(lundiDe(aujourdhui));
-  const [{ data: chauffeurs }, { data: depots }, { data: indispos }, { data: tournees }] = await Promise.all([
+  const h = headers();
+  const origine = `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('host')}`;
+  const [{ data: chauffeurs }, { data: depots }, { data: indispos }, { data: tournees }, { data: invitations }] = await Promise.all([
     supabase.from('chauffeurs').select('*').eq('actif', true).order('prenom').order('nom'),
     supabase.from('depots').select('*').eq('actif', true).order('nom'),
     supabase.from('indispos_chauffeurs').select('*').gte('au', aujourdhui).order('du'),
     supabase.from('tournees').select('chauffeur_id, jour').gte('jour', semaine[0]).lte('jour', semaine[6]).neq('statut', 'annulee'),
+    supabase.from('invitations').select('chauffeur_id, jeton, email').eq('utilisee', false).not('chauffeur_id', 'is', null),
   ]);
   const depot = (id?: string | null) => (depots ?? []).find((d: any) => d.id === id);
   const permisAVerifier = (c: any) => !c.permis_valide_le || Date.now() - new Date(c.permis_valide_le).getTime() > 90 * JOUR;
@@ -95,6 +99,21 @@ export default async function Chauffeurs() {
                 <label className="pleine">Note<input name="note" defaultValue={c.note ?? ''} /></label>
                 <Envoyer>Enregistrer</Envoyer>
               </Formulaire>
+              <div className="carte" style={{ margin: '6px 0 10px', padding: 12 }}>
+                <b>Appli chauffeur</b>
+                {c.utilisateur_id ? <p className="gris" style={{ margin: '4px 0 0', fontSize: 13.5 }}>Il a son accès : il voit ses tournées et envoie ses fins de tournée depuis l&apos;appli.</p> : (() => {
+                  const inv = (invitations ?? []).find((i: any) => i.chauffeur_id === c.id);
+                  const lien = inv ? `${origine}/invitation/${inv.jeton}` : null;
+                  return <>
+                    <p className="gris" style={{ margin: '4px 0 8px', fontSize: 13.5 }}>Il verra seulement ses tournées et pourra envoyer sa fin de tournée (livrés, absents, photo des bons) au lieu du message WhatsApp.</p>
+                    {lien && inv ? <p style={{ fontSize: 13.5 }}>Lien à lui envoyer ({inv.email}) : <a href={lien}>{lien}</a>{c.telephone ? <> · <a href={`https://wa.me/${String(c.telephone).replace(/\D/g, '').replace(/^0/, '33')}?text=${encodeURIComponent(`Bonjour ${c.prenom ?? ''}, voici ton accès à l'appli SS CAR FLEET pour tes tournées : ${lien}`)}`} target="_blank" rel="noreferrer">Envoyer par WhatsApp</a></> : null}</p> : null}
+                    <Formulaire action={T.inviterChauffeur.bind(null, c.id)} className="ligne" style={{ gap: 8, flexWrap: 'wrap' }} succes="Invitation créée">
+                      <input name="email" type="email" required placeholder="E-mail du chauffeur" defaultValue={inv?.email ?? ''} />
+                      <Envoyer className="bouton petit">{inv ? 'Refaire le lien' : 'Créer son accès'}</Envoyer>
+                    </Formulaire>
+                  </>;
+                })()}
+              </div>
               <Formulaire action={T.archiverChauffeur.bind(null, c.id)} confirmer={`Retirer ${nomChauffeur(c)} ? Il sort des plannings à venir (l'historique est gardé).`} succes="Chauffeur retiré">
                 <Envoyer className="bouton petit">Retirer ce chauffeur</Envoyer>
               </Formulaire>

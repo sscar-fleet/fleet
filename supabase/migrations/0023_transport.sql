@@ -121,3 +121,28 @@ end $$;
 
 do $$ begin alter publication supabase_realtime add table tournees; exception when duplicate_object then null; end $$;
 do $$ begin alter publication supabase_realtime add table chauffeurs; exception when duplicate_object then null; end $$;
+
+-- Photos des bons de livraison envoyées par le chauffeur en fin de tournée
+alter table tournees add column if not exists photos text[] not null default '{}';
+
+-- Accès chauffeur à l'appli : l'invitation est reliée à sa fiche chauffeur
+alter table invitations add column if not exists chauffeur_id uuid references chauffeurs(id) on delete set null;
+create or replace function accepter_invitation(le_jeton uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare inv invitations%rowtype; courriel text;
+begin
+  if auth.uid() is null then raise exception 'Non connecté'; end if;
+  select * into inv from invitations where jeton = le_jeton;
+  if not found then raise exception 'Invitation introuvable'; end if;
+  if inv.utilisee then raise exception 'Cette invitation a déjà été utilisée'; end if;
+  select lower(u.email) into courriel from auth.users u where u.id = auth.uid();
+  if courriel is distinct from lower(inv.email) then raise exception 'Connectez-vous avec l''adresse %', inv.email; end if;
+  if exists (select 1 from utilisateurs where id = auth.uid()) then raise exception 'Ce compte appartient déjà à une agence'; end if;
+  insert into utilisateurs (id, agence_id, nom, role, email, acces) values (auth.uid(), inv.agence_id, inv.nom, inv.role, inv.email, coalesce(inv.acces, 'les_deux'));
+  if inv.chauffeur_id is not null then
+    update chauffeurs set utilisateur_id = auth.uid() where id = inv.chauffeur_id and agence_id = inv.agence_id;
+  end if;
+  update invitations set utilisee = true where id = inv.id;
+  return inv.agence_id;
+end $$;
+grant execute on function accepter_invitation(uuid) to authenticated;
