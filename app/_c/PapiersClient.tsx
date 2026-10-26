@@ -18,7 +18,7 @@ export default function PapiersClient({ c, agenceId, liens }: { c: any; agenceId
   return (
     <>
       {papiers.map((p) => (
-        <Fichier key={p.champ} agenceId={agenceId} dossier={`clients/${c.id}`} nom={p.nom} libelle={p.libelle} camera
+        <Fichier telephone="document" key={p.champ} agenceId={agenceId} dossier={`clients/${c.id}`} nom={p.nom} libelle={p.libelle} camera
           lien={liens[c[p.champ]]} action={A.documentClient.bind(null, c.id, p.champ)} />
       ))}
     </>

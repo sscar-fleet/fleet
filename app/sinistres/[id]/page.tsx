@@ -55,7 +55,7 @@ export default async function Sinistre({ params }: { params: { id: string } }) {
               <Formulaire action={S.cocherDocument.bind(null, s.id, i)} succes={false}>
                 <button className="case-doc" aria-label={d.fait ? `Décocher ${d.nom}` : `Cocher ${d.nom}`}>{d.fait ? '☑' : '☐'} <span style={{ textDecoration: d.fait ? 'line-through' : undefined, color: d.fait ? 'var(--gris)' : undefined }}>{d.nom}</span></button>
               </Formulaire>
-              <Fichier compact agenceId={profil.agence_id} dossier={`sinistres/${s.id}`} nom={`doc-${i}`} libelle={d.chemin ? 'Voir / remplacer' : 'Joindre'} lien={d.chemin ? liens[d.chemin] : null} camera action={S.joindreDocument.bind(null, s.id, i)} />
+              <Fichier telephone="document" compact agenceId={profil.agence_id} dossier={`sinistres/${s.id}`} nom={`doc-${i}`} libelle={d.chemin ? 'Voir / remplacer' : 'Joindre'} lien={d.chemin ? liens[d.chemin] : null} camera action={S.joindreDocument.bind(null, s.id, i)} />
             </div>
           ))}
           <Formulaire action={S.ajouterDocument.bind(null, s.id)} className="ligne" vider style={{ gap: 8, marginTop: 10 }} succes="Ajouté">
@@ -64,7 +64,7 @@ export default async function Sinistre({ params }: { params: { id: string } }) {
           <h3>Photos</h3>
           <div className="ligne" style={{ gap: 8, flexWrap: 'wrap' }}>
             {(s.photos ?? []).map((p: string) => liens[p] ? <a key={p} href={liens[p]} target="_blank" rel="noreferrer"><img src={liens[p]} alt="Photo du sinistre" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 10 }} /></a> : null)}
-            <Fichier compact agenceId={profil.agence_id} dossier={`sinistres/${s.id}`} nom="photo" libelle="+ Photo" camera accept="image/*" action={S.photoSinistre.bind(null, s.id)} />
+            <Fichier telephone="photo" compact agenceId={profil.agence_id} dossier={`sinistres/${s.id}`} nom="photo" libelle="+ Photo" camera accept="image/*" action={S.photoSinistre.bind(null, s.id)} />
           </div>
         </section>
 
@@ -75,7 +75,7 @@ export default async function Sinistre({ params }: { params: { id: string } }) {
             <label className="pleine">Ce qui s&apos;est passé<input name="texte" placeholder="Appelé l'assureur : expert passe jeudi…" /></label>
             <Envoyer>Ajouter</Envoyer>
           </Formulaire>
-          <div style={{ marginTop: 8 }}><Fichier agenceId={profil.agence_id} dossier={`sinistres/${s.id}`} nom="courrier" libelle="Ajouter un courrier de l'assureur (photo ou PDF)" camera action={S.courrierSinistre.bind(null, s.id)} /></div>
+          <div style={{ marginTop: 8 }}><Fichier telephone="document" agenceId={profil.agence_id} dossier={`sinistres/${s.id}`} nom="courrier" libelle="Ajouter un courrier de l'assureur (photo ou PDF)" camera action={S.courrierSinistre.bind(null, s.id)} /></div>
           <p className="gris" style={{ fontSize: 12.5 }}>Chaque appel, relance ou courrier repousse la prochaine relance de 7 jours. Fleet vous prévient quand il faut relancer.</p>
           {(suivi ?? []).map((x: any) => (
             <div key={x.id} className="fichier" style={{ alignItems: 'flex-start' }}>

@@ -105,7 +105,8 @@ function champsChauffeur(fd: FormData) {
   const base = { prenom, nom: nomComplet, telephone: texte(fd.get('telephone')) ? tel(texte(fd.get('telephone'))) : null, ville: texte(fd.get('ville')), depot_id: id(fd.get('depot_id')), note: texte(fd.get('note')), permis_valide_le: texte(fd.get('permis_valide_le')) };
   // Identité pour la désignation des amendes : seulement si le formulaire la contient (fiche complète)
   if (!fd.has('numero_permis')) return base;
-  return { ...base, date_naissance: texte(fd.get('date_naissance')), lieu_naissance: texte(fd.get('lieu_naissance')), adresse: texte(fd.get('adresse')), numero_permis: texte(fd.get('numero_permis')), date_permis: texte(fd.get('date_permis')) };
+  const permis_path = texte(fd.get('permis_path'));
+  return { ...base, ...(permis_path ? { permis_path } : {}), date_naissance: texte(fd.get('date_naissance')), lieu_naissance: texte(fd.get('lieu_naissance')), adresse: texte(fd.get('adresse')), numero_permis: texte(fd.get('numero_permis')), date_permis: texte(fd.get('date_permis')) };
 }
 export const ajouterChauffeur = proteger(async (fd: FormData) => {
   const { supabase, profil } = await utilisateurCourant();

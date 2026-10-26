@@ -69,7 +69,7 @@ export default async function FicheVehicule({ params }: { params: { id: string }
   }));
   const ouverts = (dommages ?? []).filter((d: any) => d.statut === 'ouvert').length;
   const papier = (titre: string, champ: string, ech?: string | null) => (
-    <Fichier agenceId={profil.agence_id} dossier={`vehicules/${v.id}`} nom={champ.replace('_path', '')} libelle={titre}
+    <Fichier telephone="document" agenceId={profil.agence_id} dossier={`vehicules/${v.id}`} nom={champ.replace('_path', '')} libelle={titre}
       lien={liens[v[champ]]} action={A.documentVehicule.bind(null, v.id, champ)} camera={false} />
   );
 
@@ -255,9 +255,9 @@ export default async function FicheVehicule({ params }: { params: { id: string }
             <span><span className={`pastille ${d.statut === 'ouvert' ? d.gravite : d.statut}`}>{typeDommage[d.type]} · {graviteDommage[d.gravite]}</span>
               <br /><span className="gris">{d.zone ? photosGuidees.find((p) => p.position === d.zone)?.libelle : 'Zone non précisée'} · {date(d.created_at)}{d.cout ? ' · ' + euros(d.cout) : ''}</span></span>
             <span className="ligne">
-              <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="zone" libelle="Zone" camera accept="image/*"
+              <Fichier telephone="photo" compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="zone" libelle="Zone" camera accept="image/*"
                 lien={liens[d.photo_zone_path]} action={A.photoDommage.bind(null, d.id, 'photo_zone_path')} />
-              <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="gros-plan" libelle="Gros plan" camera accept="image/*"
+              <Fichier telephone="photo" compact agenceId={profil.agence_id} dossier={`dommages/${d.id}`} nom="gros-plan" libelle="Gros plan" camera accept="image/*"
                 lien={liens[d.photo_gros_plan_path]} action={A.photoDommage.bind(null, d.id, 'photo_gros_plan_path')} />
               {d.statut === 'ouvert'
                 ? <Formulaire action={A.statutDommage.bind(null, d.id, 'repare')}><Envoyer className="bouton petit">Réparé</Envoyer></Formulaire>

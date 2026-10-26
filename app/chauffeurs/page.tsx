@@ -1,18 +1,19 @@
 import { headers } from 'next/headers';
-import { utilisateurCourant } from '@/lib/agence';
+import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import { date, tel } from '@/lib/format';
 import { nomChauffeur, lundiDe, semaineDe } from '@/lib/transport';
 import * as T from '../tournees/actions';
 import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Envoyer from '../_c/Envoyer';
+import Scanner from '../_c/Scanner';
 
 export const dynamic = 'force-dynamic';
 const JOUR = 864e5;
 
 // Chauffeurs : liste, ajout un par un ou toute la liste d'un coup, dépôt, ville (pour les camions partagés), absences
 export default async function Chauffeurs() {
-  const { supabase } = await utilisateurCourant();
+  const { supabase, profil } = await utilisateurCourant();
   const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
   const semaine = semaineDe(lundiDe(aujourdhui));
   const h = headers();
@@ -24,6 +25,7 @@ export default async function Chauffeurs() {
     supabase.from('tournees').select('chauffeur_id, jour').gte('jour', semaine[0]).lte('jour', semaine[6]).neq('statut', 'annulee'),
     supabase.from('invitations').select('chauffeur_id, jeton, email').eq('utilisee', false).not('chauffeur_id', 'is', null),
   ]);
+  const liensPermis = await liensFichiers(supabase, (chauffeurs ?? []).map((c: any) => c.permis_path));
   const depot = (id?: string | null) => (depots ?? []).find((d: any) => d.id === id);
   const permisAVerifier = (c: any) => !c.permis_valide_le || Date.now() - new Date(c.permis_valide_le).getTime() > 90 * JOUR;
   const choixDepot = (valeur?: string | null) => (
@@ -35,12 +37,20 @@ export default async function Chauffeurs() {
       <div className="deux-colonnes">
         <section className="carte">
           <h2 style={{ marginTop: 0 }}>Ajouter un chauffeur</h2>
+          <p className="gris" style={{ marginTop: 0, fontSize: 13.5 }}>Le plus simple : la photo de son permis. Nom, prénom, naissance et n° de permis se remplissent tout seuls.</p>
           <Formulaire action={T.ajouterChauffeur} className="grille" vider succes="Chauffeur ajouté">
+            <Scanner genre="permis" agenceId={profil.agence_id} champChemin="permis_path" libelle="Photo du permis : remplissage automatique" telephone />
+            <input type="hidden" name="permis_path" />
             <label>Prénom<input name="prenom" /></label>
             <label>Nom *<input name="nom" required /></label>
             <label>Téléphone<input name="telephone" type="tel" /></label>
             <label>Ville<input name="ville" placeholder="Pour partager les camions entre voisins" /></label>
             <label>Dépôt{choixDepot()}</label>
+            <label>Date de naissance<input name="date_naissance" type="date" /></label>
+            <label>Lieu de naissance<input name="lieu_naissance" /></label>
+            <label>N° de permis<input name="numero_permis" /></label>
+            <label>Permis délivré le<input name="date_permis" type="date" /></label>
+            <label className="pleine">Adresse<input name="adresse" placeholder="Pour la désignation des amendes" /></label>
             <Envoyer>Ajouter</Envoyer>
           </Formulaire>
         </section>
@@ -95,6 +105,9 @@ export default async function Chauffeurs() {
                 <label>Téléphone<input name="telephone" type="tel" defaultValue={c.telephone ? tel(c.telephone) : ''} /></label>
                 <label>Ville<input name="ville" defaultValue={c.ville ?? ''} /></label>
                 <label>Dépôt{choixDepot(c.depot_id)}</label>
+                <Scanner genre="permis" agenceId={profil.agence_id} champChemin="permis_path" libelle={c.permis_path ? 'Reprendre la photo du permis' : 'Photo du permis : remplit les cases vides'} telephone />
+                <input type="hidden" name="permis_path" />
+                {c.permis_path && liensPermis[c.permis_path] ? <p className="pleine" style={{ margin: 0, fontSize: 13.5 }}><a className="lien" href={liensPermis[c.permis_path]} target="_blank" rel="noreferrer">Voir le permis enregistré</a></p> : null}
                 <label>Permis vérifié le<input name="permis_valide_le" type="date" defaultValue={c.permis_valide_le ?? ''} max={aujourdhui} /></label>
                 <label>Date de naissance<input name="date_naissance" type="date" defaultValue={c.date_naissance ?? ''} /></label>
                 <label>Lieu de naissance<input name="lieu_naissance" defaultValue={c.lieu_naissance ?? ''} /></label>

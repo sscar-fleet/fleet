@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 type Seance = { agence_id: string; agence: string; couleur: string | null; client: string | null; pieces: Record<string, string>; expire_le: string; genre?: string } | null;
-type Piece = { cle: string; titre: string; face: string; format: 'carte' | 'a4'; lire?: string };
+type Piece = { cle: string; titre: string; face: string; format: 'carte' | 'a4' | 'photo'; lire?: string };
 const PIECES_CLIENT: Piece[] = [
   { cle: 'permis_path', titre: 'Permis de conduire', face: 'recto', format: 'carte', lire: 'permis' },
   { cle: 'permis_verso_path', titre: 'Permis de conduire', face: 'verso', format: 'carte' },
@@ -18,9 +18,14 @@ const DOCUMENTS: Record<string, Piece> = {
   fps: { cle: 'document_path', titre: 'Avis de FPS', face: 'la page avec le montant', format: 'a4', lire: 'fps' },
   amende: { cle: 'document_path', titre: 'Avis de contravention', face: 'la page avec l’infraction', format: 'a4', lire: 'amende' },
   carte_grise: { cle: 'document_path', titre: 'Carte grise', face: 'ouverte, bien à plat', format: 'a4', lire: 'carte_grise' },
+  permis: { cle: 'document_path', titre: 'Permis de conduire', face: 'recto', format: 'carte', lire: 'permis' },
+  document: { cle: 'document_path', titre: 'Document', face: 'bien à plat', format: 'a4' },
+  photo: { cle: 'document_path', titre: 'Photo', face: 'cadrez ce qu’il faut montrer', format: 'photo' },
 };
-const SORTIE = { carte: { l: 1400, h: 883 }, a4: { l: 1240, h: 1754 } };
-const nomPiece = (p: Piece) => (p.format === 'a4' ? p.titre : `${p.titre} (${p.face})`);
+// Photos et documents : on peut en envoyer plusieurs à la suite avec le même QR code
+const PLUSIEURS = ['photo', 'document'];
+const SORTIE = { carte: { l: 1400, h: 883 }, a4: { l: 1240, h: 1754 }, photo: { l: 1600, h: 1200 } };
+const nomPiece = (p: Piece) => (p.format !== 'carte' ? p.titre : `${p.titre} (${p.face})`);
 
 // Nettoyage « scan » : niveaux étirés (fond plus blanc, texte plus net), couleurs gardées
 function nettoyer(ctx: CanvasRenderingContext2D, l: number, h: number) {
@@ -83,7 +88,7 @@ export default function ScanTelephone({ jeton, seance }: { jeton: string; seance
     const ctx = c.getContext('2d')!;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(source, Math.max(0, zone.x), Math.max(0, zone.y), Math.min(sl, zone.l), Math.min(sh, zone.h), 0, 0, s.l, s.h);
-    nettoyer(ctx, s.l, s.h);
+    if (piece.format !== 'photo') nettoyer(ctx, s.l, s.h); // une photo de dégâts garde ses couleurs
     const dataUrl = c.toDataURL('image/jpeg', 0.86);
     c.toBlob((blob) => blob && setApercu({ url: URL.createObjectURL(blob), blob, dataUrl }), 'image/jpeg', 0.86);
   }
@@ -152,7 +157,10 @@ export default function ScanTelephone({ jeton, seance }: { jeton: string; seance
         {(!manquants.length || accepte) && <>
           <div className="scan-ok">✓</div>
           <h1>C’est envoyé</h1>
-          <p>{PIECES.length - manquants.length} papier{PIECES.length - manquants.length > 1 ? 's' : ''} sur l’ordinateur{seance.client ? `, dans la fiche de ${seance.client}` : ''}.</p>
+          <p>{seance.genre === 'photo' ? 'Photo envoyée' : `${PIECES.length - manquants.length} papier${PIECES.length - manquants.length > 1 ? 's' : ''}`} sur l’ordinateur{seance.client ? `, dans la fiche de ${seance.client}` : ''}.</p>
+          {seance.genre && PLUSIEURS.includes(seance.genre)
+            ? <button className="scan-btn" onClick={() => { if (flux.current?.getTracks().every((t) => t.readyState === 'ended')) flux.current = null; setPris({}); setEtape(0); setFini(false); }}>{seance.genre === 'photo' ? 'Encore une photo' : 'Encore un document'}</button>
+            : null}
           <p className="gris">Vous pouvez fermer cette page.</p>
         </>}
       </div>
@@ -169,7 +177,7 @@ export default function ScanTelephone({ jeton, seance }: { jeton: string; seance
       {apercu ? (
         <section className="scan-apercu">
           <img src={apercu.url} alt="" className={`f-${piece.format}`} />
-          <p>Le texte est-il bien lisible, sans reflet ?</p>
+          <p>{piece.format === 'photo' ? 'La photo est-elle nette ?' : 'Le texte est-il bien lisible, sans reflet ?'}</p>
           {erreur && <p className="scan-erreur">{erreur}</p>}
           <div className="scan-actions">
             <button className="scan-btn sec" disabled={envoi} onClick={() => setApercu(null)}>Reprendre</button>
@@ -181,7 +189,7 @@ export default function ScanTelephone({ jeton, seance }: { jeton: string; seance
           <video ref={video} playsInline muted autoPlay />
           <div className="scan-masque">
             <div ref={cadre} className={`scan-cadre f-${piece.format}`}><i /><i /><i /><i /></div>
-            <p>{camera === 'non' ? 'Caméra indisponible : utilisez « Choisir une photo ».' : piece.format === 'a4' ? 'Placez la feuille dans le cadre' : 'Placez la carte dans le cadre, bien à plat'}</p>
+            <p>{camera === 'non' ? 'Caméra indisponible : utilisez « Choisir une photo ».' : piece.format === 'a4' ? 'Placez la feuille dans le cadre' : piece.format === 'photo' ? 'Cadrez puis appuyez' : 'Placez la carte dans le cadre, bien à plat'}</p>
           </div>
           <div className="scan-bas">
             <button className="scan-lien" onClick={() => fichier.current?.click()}>Choisir une photo</button>
@@ -205,7 +213,7 @@ const CSS = `
 .scan-camera video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
 .scan-masque{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding-bottom:120px}
 .scan-cadre{position:relative;border-radius:14px;box-shadow:0 0 0 100vmax rgba(0,0,0,.55);outline:2px solid rgba(255,255,255,.85)}
-.scan-cadre.f-carte{width:88vw;max-width:520px;aspect-ratio:85.6/54}
+.scan-cadre.f-carte{width:88vw;max-width:520px;aspect-ratio:85.6/54}.f-photo{width:92vw;max-width:640px;aspect-ratio:4/3}
 .scan-cadre.f-a4{height:min(62vh,120vw);aspect-ratio:210/297}
 .scan-cadre i{position:absolute;width:30px;height:30px;border:4px solid var(--accent)}
 .scan-cadre i:nth-child(1){top:-4px;left:-4px;border-right:0;border-bottom:0;border-top-left-radius:14px}

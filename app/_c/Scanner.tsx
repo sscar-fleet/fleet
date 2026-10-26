@@ -6,16 +6,17 @@ import { compresser } from '@/lib/image';
 
 // Documents qu'on reçoit souvent par courrier : on peut aussi les photographier avec le téléphone (QR code)
 const AVEC_TELEPHONE = ['fps', 'amende', 'carte_grise'];
-const NOMS: Record<string, string> = { fps: 'l’avis de FPS', amende: 'l’avis de contravention', carte_grise: 'la carte grise' };
+const NOMS: Record<string, string> = { fps: 'l’avis de FPS', amende: 'l’avis de contravention', carte_grise: 'la carte grise', permis: 'le permis' };
 
 // Photo d'un papier : la photo est rangée dans le stockage (champ caché) et les champs du formulaire se remplissent seuls
-export default function Scanner({ genre, agenceId, champChemin, libelle, lire: lecture = true }: {
+export default function Scanner({ genre, agenceId, champChemin, libelle, lire: lecture = true, telephone = false }: {
   genre: 'carte_grise' | 'permis' | 'identite' | 'domicile' | 'fps' | 'amende'; agenceId: string; champChemin: string; libelle: string; lire?: boolean;
+  telephone?: boolean; // grande zone avec QR code même pour ce papier (ex. permis d'un chauffeur)
 }) {
   const bouton = useRef<HTMLButtonElement>(null);
   const champ = useRef<HTMLInputElement>(null);
   const [etat, setEtat] = useState('');
-  const grand = AVEC_TELEPHONE.includes(genre);
+  const grand = telephone || AVEC_TELEPHONE.includes(genre);
   const [survol, setSurvol] = useState(false);
   const [qr, setQr] = useState<{ id: string; image: string; expire: string } | null>(null);
   const [qrEtat, setQrEtat] = useState('');
@@ -138,7 +139,7 @@ export default function Scanner({ genre, agenceId, champChemin, libelle, lire: l
         </button>
         <button type="button" className="zone-scan-btn" onClick={qr ? () => setQr(null) : ouvrirTelephone}>
           <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><path d="M11 18h2" /></svg>
-          <span><b>{qr ? 'Fermer le QR code' : 'Prendre en photo avec le téléphone'}</b><small>Pour un avis reçu par courrier</small></span>
+          <span><b>{qr ? 'Fermer le QR code' : 'Prendre en photo avec le téléphone'}</b><small>{genre === 'permis' ? 'Le chauffeur est à côté de vous' : 'Pour un avis reçu par courrier'}</small></span>
         </button>
       </div>
       {qr && (

@@ -3,7 +3,7 @@ export const consignes: Record<string, string> = {
   carte_grise: `Carte grise française (certificat d'immatriculation). Renvoie uniquement ce JSON :
 {"immatriculation": champ A, "marque": champ D.1, "modele": nom commercial champ D.3, "carburant": champ P.3 traduit en "essence" | "diesel" | "hybride" | "electrique" | "gpl" ou null, "date_premiere_immatriculation": champ B au format AAAA-MM-JJ, "vin": champ E}`,
   permis: `Permis de conduire. Renvoie uniquement ce JSON :
-{"nom": champ 1, "prenom": champ 2, "date_naissance": champ 3 au format AAAA-MM-JJ, "numero_permis": champ 5, "date_permis": date d'obtention de la catégorie B (colonne 10) ou à défaut date de délivrance (4a), format AAAA-MM-JJ}`,
+{"nom": champ 1, "prenom": champ 2, "date_naissance": date du champ 3 au format AAAA-MM-JJ, "lieu_naissance": lieu du champ 3 (ville et département ou pays, tel qu'écrit), "numero_permis": champ 5, "date_permis": date d'obtention de la catégorie B (colonne 10) ou à défaut date de délivrance (4a), format AAAA-MM-JJ}`,
   amende: `Avis de contravention français (ANTAI). Renvoie uniquement ce JSON :
 {"immatriculation": immatriculation du véhicule sans espaces ni tirets, "date_infraction": date et heure de l'infraction au format AAAA-MM-JJTHH:MM, "lieu": lieu de l'infraction, "type": nature de l'infraction en quelques mots (ex. "Excès de vitesse", "Stationnement"), "montant": montant de l'amende forfaitaire en euros (nombre), "numero_avis": numéro de l'avis}`,
   fps: `Avis de paiement de forfait post-stationnement (FPS) français. Renvoie uniquement ce JSON :

@@ -948,3 +948,7 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
 .etapes-sinistre span.actuel { background: var(--turquoise); color: var(--sur-turquoise); border-color: var(--turquoise); }
 .case-doc { background: none; border: 0; color: var(--texte); font-size: 15px; cursor: pointer; padding: 2px 0; text-align: left; }
 .carte-lien:hover { border-color: var(--turquoise); }
+/* Photo avec le téléphone (QR code) */
+.qr-tel { flex-basis: 100%; display: flex; gap: 14px; align-items: center; padding: 12px; margin-top: 8px; border: 1px dashed var(--turquoise); border-radius: 12px; background: var(--panneau2); }
+.qr-tel img { width: 132px; height: 132px; border-radius: 8px; background: #fff; padding: 4px; flex: none; }
+.qr-tel > div { display: grid; gap: 6px; font-size: 14px; justify-items: start; }

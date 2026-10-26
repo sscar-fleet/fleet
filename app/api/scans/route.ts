@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const c = await clientApi(request);
   if (!c) return NextResponse.json({ erreur: 'Connexion expirée.' }, { status: 401 });
   const { client_id, genre } = await request.json().catch(() => ({}));
-  const g = ['fps', 'amende', 'carte_grise'].includes(genre) ? genre : 'client';
+  const g = ['fps', 'amende', 'carte_grise', 'permis', 'photo', 'document'].includes(genre) ? genre : 'client';
   const { data: u } = await c.supabase.from('utilisateurs').select('agence_id').eq('id', c.user.id).single();
   if (!u) return NextResponse.json({ erreur: 'Agence introuvable.' }, { status: 400 });
   const { data, error } = await c.supabase.from('scans').insert({ agence_id: u.agence_id, client_id: client_id || null, cree_par: c.user.id, ...(g !== 'client' ? { genre: g } : {}) })

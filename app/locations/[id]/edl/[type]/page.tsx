@@ -100,9 +100,9 @@ export default async function EtatDesLieux({ params }: { params: { id: string; t
               <span><span className={`pastille ${x.gravite}`}>{typeDommage[x.type]} · {graviteDommage[x.gravite]}</span><br />
                 <span className="gris">{x.zone ? libellePosition[x.zone] : 'Zone non précisée'}{x.cout ? ' · ' + euros(x.cout) : ''}</span></span>
               <span className="ligne">
-                <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${x.id}`} nom="zone" libelle="Zone" camera accept="image/*"
+                <Fichier telephone="photo" compact agenceId={profil.agence_id} dossier={`dommages/${x.id}`} nom="zone" libelle="Zone" camera accept="image/*"
                   lien={x.photo_zone} action={A.photoDommage.bind(null, x.id, 'photo_zone_path')} />
-                <Fichier compact agenceId={profil.agence_id} dossier={`dommages/${x.id}`} nom="gros-plan" libelle="Gros plan" camera accept="image/*"
+                <Fichier telephone="photo" compact agenceId={profil.agence_id} dossier={`dommages/${x.id}`} nom="gros-plan" libelle="Gros plan" camera accept="image/*"
                   lien={x.photo_gros_plan} action={A.photoDommage.bind(null, x.id, 'photo_gros_plan_path')} />
               </span>
             </div>

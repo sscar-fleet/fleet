@@ -106,7 +106,7 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
               <div><span>À désigner avant le</span><b className={urgent ? 'retard' : ''}>{date(a.echeance)}</b></div>
             </div>
             <div className="ligne" style={{ marginTop: 12 }}>
-              <Fichier compact agenceId={profil.agence_id} dossier={`amendes/${a.id}`} nom="avis" libelle="Avis" camera
+              <Fichier telephone="document" compact agenceId={profil.agence_id} dossier={`amendes/${a.id}`} nom="avis" libelle="Avis" camera
                 lien={liens[a.avis_path]} action={A.avisAmende.bind(null, a.id)} />
               {!a.personne && transport && (
                 <Formulaire action={T.chauffeurAmende.bind(null, a.id)} className="ligne" succes="Chauffeur associé">
