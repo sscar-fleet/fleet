@@ -73,6 +73,12 @@ export default async function Tournees({ searchParams }: { searchParams: { semai
             <li className={s.chauffeurs.length ? 'fait' : ''}><a href="/chauffeurs">Vos chauffeurs</a> (vous pouvez coller toute votre liste d&apos;un coup)</li>
             <li><a href="/tournees/reglages#regles">Vos règles de planning</a> (déjà réglées sur 2 jours de repos, 2 créneaux par jour)</li>
           </ol>
+          {profil.role === 'gerant' && !s.chauffeurs.length && (
+            <Formulaire action={T.chargerExemple.bind(null, lundi)} succes="Exemple chargé" style={{ marginTop: 12 }}>
+              <p className="gris" style={{ fontSize: 13.5, margin: '0 0 8px' }}>Pour découvrir ou faire une démonstration : un exemple complet (chauffeurs, dépôts et tournées fictifs), effaçable en un clic.</p>
+              <Envoyer className="bouton">Voir avec un exemple</Envoyer>
+            </Formulaire>
+          )}
         </section>
       )}
 
@@ -110,6 +116,9 @@ export default async function Tournees({ searchParams }: { searchParams: { semai
           <div className="carte" style={{ marginTop: 8, maxWidth: 640 }}><ImportPlanning lundi={lundi} lire={T.lirePlanningSemaine} creer={T.creerTourneesLues} /></div>
         </details>
         <Formulaire action={T.creerFixesSemaine.bind(null, lundi)} succes="Tournées fixes ajoutées"><Envoyer className="bouton">Ajouter les tournées fixes</Envoyer></Formulaire>
+        {s.chauffeurs.some((c: any) => c.note === 'Exemple Fleet') && profil.role === 'gerant' && (
+          <Formulaire action={T.effacerExemple} confirmer="Effacer tout l'exemple (chauffeurs, dépôts, tournées fictifs) ?" succes="Exemple effacé"><Envoyer className="bouton">Effacer l&apos;exemple</Envoyer></Formulaire>
+        )}
         <Formulaire action={T.viderAffectations.bind(null, lundi)} confirmer="Effacer les chauffeurs et camions des tournées à venir de cette semaine ?" succes="Affectations effacées"><Envoyer className="bouton">Tout effacer</Envoyer></Formulaire>
         {(depots ?? []).length > 1 && (
           <span className="ligne" style={{ gap: 6, marginLeft: 'auto' }}>

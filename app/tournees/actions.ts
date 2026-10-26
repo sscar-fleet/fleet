@@ -271,3 +271,45 @@ export const inviterChauffeur = proteger(async (chauffeurId: string, fd: FormDat
   verifier((await supabase.from('invitations').insert({ agence_id: profil.agence_id, email, nom, role: 'employe', acces: 'chauffeur', chauffeur_id: chauffeurId })).error, 'Invitation');
   return 'Invitation créée : envoyez-lui le lien';
 });
+
+// Exemple pour découvrir (ou faire une démonstration) : dépôts, donneurs d'ordre, chauffeurs et tournées fictifs,
+// puis planning rempli. Tout est marqué « exemple » et s'efface en un clic.
+const EXEMPLE = 'Exemple Fleet';
+export const chargerExemple = proteger(async (lundiBrut: string) => {
+  const { supabase, profil } = await gerant();
+  const lundi = lundiValide(lundiBrut); if (!lundi) throw new Error('Semaine invalide.');
+  const A = profil.agence_id;
+  const { data: deps, error: e1 } = await supabase.from('depots').insert([{ agence_id: A, nom: 'Wissous (exemple)', adresse: EXEMPLE }, { agence_id: A, nom: 'Bonneuil (exemple)', adresse: EXEMPLE }]).select('id, nom');
+  verifier(e1);
+  const [wissous, bonneuil] = [deps![0].id, deps![1].id];
+  const { data: dons, error: e2 } = await supabase.from('donneurs_ordre').insert([
+    { agence_id: A, nom: 'Amazon (exemple)', tarif_tournee: 160, couleur: '#f59e0b' },
+    { agence_id: A, nom: 'Rexel (exemple)', tarif_tournee: 210, couleur: '#3b82f6' },
+    { agence_id: A, nom: 'UPS (exemple)', tarif_tournee: 150, couleur: '#a855f7' },
+  ]).select('id, nom');
+  verifier(e2);
+  const [amazon, rexel, ups] = [dons![0].id, dons![1].id, dons![2].id];
+  const noms: [string, string, string, string][] = [['Karim', 'Benali', 'Brétigny', wissous], ['Yanis', 'Laurent', 'Brétigny', wissous], ['Sarah', 'Petit', 'Évry', wissous], ['Mehdi', 'Ouali', 'Évry', wissous],
+    ['Lucas', 'Martin', 'Massy', wissous], ['Inès', 'Moreau', 'Massy', wissous], ['Amina', 'Diallo', 'Brétigny', wissous], ['Omar', 'Haddad', 'Évry', wissous],
+    ['Paul', 'Girard', 'Créteil', bonneuil], ['Nadia', 'Belkacem', 'Créteil', bonneuil], ['Hugo', 'Fontaine', 'Créteil', bonneuil]];
+  verifier((await supabase.from('chauffeurs').insert(noms.map(([prenom, nom, ville, depot_id]) => ({ agence_id: A, prenom, nom, ville, depot_id, note: EXEMPLE })))).error);
+  verifier((await supabase.from('tournees_fixes').insert([{ agence_id: A, donneur_id: rexel, depot_id: bonneuil, libelle: EXEMPLE, debut: '07:00', fin: '15:00', jours: [1, 2, 3, 4, 5], nombre: 2 }])).error);
+  const jours = semaineDe(lundi).slice(0, 6);
+  const creneaux: [string, string, number, string][] = [['06:35', '10:30', 2, amazon], ['11:00', '13:30', 2, amazon], ['14:00', '17:00', 2, amazon], ['17:30', '20:30', 1, amazon], ['09:00', '16:00', 1, ups]];
+  verifier((await supabase.from('tournees').insert(jours.flatMap((jour) => creneaux.flatMap(([debut, fin, n, donneur_id]) => Array.from({ length: n }, () => ({ agence_id: A, jour, debut, fin, donneur_id, depot_id: wissous, libelle: EXEMPLE })))))).error);
+  await creerFixes(supabase, A, lundi);
+  const r = await remplirSemaine(supabase, lundi, profil.agences?.regles_transport);
+  return `Exemple chargé : ${r.total} tournées, ${noms.length} chauffeurs`;
+});
+export const effacerExemple = proteger(async () => {
+  const { supabase } = await gerant();
+  const { data: deps } = await supabase.from('depots').select('id').eq('adresse', EXEMPLE);
+  const ids = (deps ?? []).map((d: any) => d.id);
+  await supabase.from('tournees').delete().eq('libelle', EXEMPLE);
+  await supabase.from('tournees_fixes').delete().eq('libelle', EXEMPLE);
+  if (ids.length) await supabase.from('tournees').delete().in('depot_id', ids);
+  await supabase.from('chauffeurs').delete().eq('note', EXEMPLE);
+  await supabase.from('donneurs_ordre').delete().like('nom', '%(exemple)');
+  if (ids.length) verifier((await supabase.from('depots').delete().in('id', ids)).error);
+  return 'Exemple effacé';
+});
