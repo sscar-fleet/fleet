@@ -17,7 +17,10 @@ export default function Confidentialite() {
         <li><b>Clients du loueur</b> : identité, coordonnées, date de naissance, numéro et date du permis, copies du permis et de la pièce d&apos;identité,
           historique des locations, signatures, amendes.</li>
         <li><b>Véhicules</b> : immatriculation, papiers (carte grise, assurance, contrôle technique), photos des états des lieux, dommages, position GPS au moment de l&apos;état des lieux.</li>
-        <li><b>Utilisateurs de Fleet</b> (loueur et employés) : nom, e-mail, mot de passe chiffré, actions effectuées.</li>
+        <li><b>Chauffeurs</b> (version transport) : identité, téléphone, date et lieu de naissance, adresse, numéro et date du permis, photo du permis,
+          tournées effectuées, photos des bons de livraison et des sinistres, position GPS du camion pendant les tournées.</li>
+        <li><b>Utilisateurs de Fleet</b> (loueur, transporteur, employés, chauffeurs) : nom, e-mail, mot de passe chiffré, actions effectuées,
+          identifiant de l&apos;appareil pour les notifications (si elles sont activées).</li>
       </ul>
 
       <h2>Pourquoi</h2>
