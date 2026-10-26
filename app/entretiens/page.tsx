@@ -18,7 +18,7 @@ export default async function Entretiens({ searchParams }: { searchParams: { fil
   ]);
 
   return (
-    <Cadre titre="Maintenance et transferts" tables={['entretiens', 'vehicules']} actions={<><a className="bouton" href="/export/entretiens">Exporter</a><OuvrirFormulaire>+ Maintenance, réparation ou transfert</OuvrirFormulaire></>}>
+    <Cadre titre="Maintenance et transferts" tables={['entretiens', 'vehicules']} actions={<><a className="bouton" href="/entretiens/plan">Entretien au km</a><a className="bouton" href="/export/entretiens">Exporter</a><OuvrirFormulaire>+ Maintenance, réparation ou transfert</OuvrirFormulaire></>}>
       <details className="formulaire carte formulaire-haut">
         <summary>Maintenance, réparation ou transfert</summary>
         <Formulaire vider action={A.ajouterEntretien} className="grille">

@@ -679,8 +679,10 @@ async function _statutAmende(id: string, statut: string) {
   const { supabase } = await utilisateurCourant();
   const maj: any = { statut };
   if (statut === 'designee') {
-    const { data } = await supabase.from('amendes').select('clients(nom, prenom)').eq('id', id).single();
-    const c: any = data?.clients;
+    const { data } = await supabase.from('amendes').select('*, clients(nom, prenom)').eq('id', id).single();
+    let c: any = data?.clients;
+    // Version transport : le conducteur est le chauffeur retrouvé par le planning
+    if (!c && (data as any)?.chauffeur_id) c = (await supabase.from('chauffeurs').select('nom, prenom').eq('id', (data as any).chauffeur_id).maybeSingle()).data;
     if (c) maj.conducteur_designe = [c.prenom, c.nom].filter(Boolean).join(' ');
   }
   verifier((await supabase.from('amendes').update(maj).eq('id', id)).error);
@@ -695,8 +697,8 @@ async function _statutAmendes(ids: string[], statut: string) {
   for (const id of liste) {
     if (statut === 'designee') {
       const { supabase } = await utilisateurCourant();
-      const { data } = await supabase.from('amendes').select('client_id').eq('id', id).single();
-      if (!data?.client_id) { sautees++; continue; }
+      const { data } = await supabase.from('amendes').select('*').eq('id', id).single();
+      if (!data?.client_id && !(data as any)?.chauffeur_id) { sautees++; continue; }
     }
     await _statutAmende(id, statut); faites++;
   }

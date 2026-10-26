@@ -96,6 +96,11 @@ export default async function Chauffeurs() {
                 <label>Ville<input name="ville" defaultValue={c.ville ?? ''} /></label>
                 <label>Dépôt{choixDepot(c.depot_id)}</label>
                 <label>Permis vérifié le<input name="permis_valide_le" type="date" defaultValue={c.permis_valide_le ?? ''} max={aujourdhui} /></label>
+                <label>Date de naissance<input name="date_naissance" type="date" defaultValue={c.date_naissance ?? ''} /></label>
+                <label>Lieu de naissance<input name="lieu_naissance" defaultValue={c.lieu_naissance ?? ''} /></label>
+                <label className="pleine">Adresse<input name="adresse" defaultValue={c.adresse ?? ''} /></label>
+                <label>N° de permis<input name="numero_permis" defaultValue={c.numero_permis ?? ''} /></label>
+                <label>Permis délivré le<input name="date_permis" type="date" defaultValue={c.date_permis ?? ''} /></label>
                 <label className="pleine">Note<input name="note" defaultValue={c.note ?? ''} /></label>
                 <Envoyer>Enregistrer</Envoyer>
               </Formulaire>

@@ -6,14 +6,14 @@ const principauxLocation: [string, string, string][] = [
   ['/', 'Accueil', '⌂'], ['/planning', 'Planning', '▦'], ['/locations', 'Locations', '⇄'], ['/vehicules', 'Véhicules', '🚗'], ['/clients', 'Clients', '👤'],
 ];
 const autres: [string, string][] = [
-  ['/carte', 'Suivi GPS'], ['/devis', 'Devis'], ['/amendes', 'Amendes'], ['/entretiens', 'Maintenance'], ['/prets', 'Prêts confrères'], ['/pilotage', 'Pilotage (argent)'], ['/parametres', 'Réglages'],
+  ['/carte', 'Suivi GPS'], ['/devis', 'Devis'], ['/amendes', 'Amendes'], ['/sinistres', 'Sinistres'], ['/entretiens', 'Maintenance'], ['/prets', 'Prêts confrères'], ['/pilotage', 'Pilotage (argent)'], ['/parametres', 'Réglages'],
 ];
 
 const principauxTransport: [string, string, string][] = [
   ['/', 'Accueil', '⌂'], ['/tournees', 'Planning', '▦'], ['/chauffeurs', 'Chauffeurs', '👤'], ['/carte', 'Suivi', '◎'], ['/vehicules', 'Camions', '🚚'],
 ];
 const autresTransport: [string, string][] = [
-  ['/amendes', 'Amendes'], ['/fps', 'FPS'], ['/entretiens', 'Maintenance'], ['/pilotage', 'Pilotage (argent)'], ['/tournees/reglages', 'Réglages transport'], ['/parametres', 'Réglages'],
+  ['/amendes', 'Amendes'], ['/sinistres', 'Sinistres'], ['/fps', 'FPS'], ['/entretiens', 'Maintenance'], ['/tournees/couts', 'Coût par camion'], ['/pilotage', 'Pilotage (argent)'], ['/tournees/reglages', 'Réglages transport'], ['/parametres', 'Réglages'],
 ];
 
 export default function Navigation({ gerant = true, transport = false }: { gerant?: boolean; transport?: boolean }) {

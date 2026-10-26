@@ -3,6 +3,7 @@
 // Une notification par sujet (clé stable), qui disparaît d'elle-même quand le problème est réglé.
 import { plaque, euros } from './format';
 import { relanceDue, totalFps } from './fps';
+import { echeancePlan, libellePlan, phraseEcheance } from './entretienKm';
 
 export type Niveau = 'rouge' | 'orange' | 'gris';
 export type Famille = 'argent' | 'terrain' | 'flotte' | 'papiers';
@@ -31,6 +32,7 @@ export async function calculerNotifications(supabase: any, profil: { id: string;
   const [
     { data: fps }, { data: amendes }, { data: retards }, { data: departs }, { data: vehicules },
     { data: entretiens }, { data: cautions }, { data: dommages }, { data: locsRecentes }, { data: agence }, { data: etats },
+    { data: sinistres }, { data: plans },
   ] = await Promise.all([
     ag(supabase.from('fps').select('*, vehicules(immatriculation, marque, modele), clients(nom, prenom, telephone)').not('statut', 'in', '(rembourse,abandonne)')),
     ag(supabase.from('amendes').select('id, numero_avis, montant, echeance, statut, vehicules(immatriculation, marque, modele)').in('statut', ['a_designer', 'infos_manquantes'])),
@@ -43,6 +45,9 @@ export async function calculerNotifications(supabase: any, profil: { id: string;
     ag(supabase.from('locations').select('id, numero, vehicule_id, debut, fin_prevue, fin_reelle, statut, clients(nom)').in('statut', ['reservee', 'en_cours', 'terminee']).gt('fin_prevue', iso(maintenant - 60 * JOUR))),
     supabase.from('agences').select('*').eq('id', profil.agence_id).single(),
     supabase.from('notifications_etat').select('cle, jusqua, ignoree').eq('utilisateur_id', profil.id),
+    // Tables de la migration 0024 : sans elles, la requête renvoie une erreur et la liste reste vide
+    ag(supabase.from('sinistres').select('id, type, assureur, numero_dossier, prochaine_relance, statut, vehicules(immatriculation, marque, modele)').not('statut', 'in', '(clos,refuse)').lte('prochaine_relance', new Date(maintenant).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' }))),
+    ag(supabase.from('entretien_plans').select('*').eq('actif', true)),
   ]);
 
   const liste: Notif[] = [];
@@ -175,6 +180,26 @@ export async function calculerNotifications(supabase: any, profil: { id: string;
   if ((agence as any)?.kbis_date && maintenant - new Date((agence as any).kbis_date).getTime() > 92 * JOUR)
     liste.push({ cle: `kbis-${(agence as any).kbis_date}`, niveau: 'orange', famille: 'papiers', titre: 'Extrait Kbis de plus de 3 mois',
       detail: 'Les fourrières et certains partenaires le refusent', actions: [{ type: 'lien', libelle: 'Télécharger', href: 'https://www.infogreffe.fr' }, { type: 'lien', libelle: 'Réglages', href: '/parametres' }] });
+
+  // ——— Sinistres : l'assureur n'a pas donné de nouvelles depuis une semaine
+  (sinistres ?? []).forEach((x: any) => {
+    liste.push({ cle: `sinistre-${x.id}-${x.prochaine_relance}`, niveau: 'orange', famille: 'argent', quand: x.prochaine_relance,
+      titre: `Sinistre ${plaque(x.vehicules?.immatriculation ?? '')} : relancer ${x.assureur || 'l’assureur'}`.replace('  ', ' '),
+      detail: `${x.numero_dossier ? `Dossier ${x.numero_dossier} · ` : ''}pas de nouvelles depuis une semaine`,
+      actions: [{ type: 'lien', libelle: 'Ouvrir le dossier', href: `/sinistres/${x.id}` }] });
+  });
+
+  // ——— Entretien au kilomètre : à faire maintenant ou bientôt (compteur du véhicule)
+  const aujourdhuiParis = new Date(maintenant).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  (plans ?? []).forEach((p: any) => {
+    const v = (vehicules ?? []).find((x: any) => x.id === p.vehicule_id);
+    if (!v) return;
+    const e = echeancePlan(p, v.km, aujourdhuiParis);
+    if (e.niveau !== 'rouge' && e.niveau !== 'orange') return;
+    liste.push({ cle: `entretien-km-${p.id}-${p.dernier_km ?? ''}-${p.derniere_date ?? ''}`, niveau: e.niveau === 'rouge' ? 'rouge' : 'orange', famille: 'flotte', quand: e.prochaineDate,
+      titre: `${plaque(v.immatriculation)} : ${libellePlan(p).toLowerCase()} ${e.niveau === 'rouge' ? 'à faire' : 'bientôt'}`, detail: `${voiture(v)} · ${phraseEcheance(e)}`,
+      actions: [{ type: 'lien', libelle: 'Noter comme fait', href: '/entretiens/plan' }] });
+  });
 
   // ——— Filtrage : rôle, reporté, ignoré
   const masque = new Map<string, any>((etats ?? []).map((e: any) => [e.cle, e]));

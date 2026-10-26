@@ -261,3 +261,18 @@ export async function demarragesTraccar(minutesAvant = 3): Promise<{ id: string;
   const imeiDe = new Map(appareils.map((x) => [x.id, String(x.uniqueId)]));
   return evts.filter((e) => imeiDe.has(e.deviceId)).map((e) => ({ id: `d${e.id}`, imei: imeiDe.get(e.deviceId)!, le: e.eventTime }));
 }
+
+// Kilomètres parcourus par boîtier entre deux jours (inclus, heure de Paris), pour le coût au kilomètre
+export async function kmPeriodeTraccar(du: string, au: string): Promise<Map<string, number>> {
+  const res = new Map<string, number>();
+  if (!traccarConfigure()) return res;
+  const { appareils } = await photo();
+  if (!appareils.length) return res;
+  const de = minuitParisDe(du); const fin = new Date(minuitParisDe(au).getTime() + 24 * 3600_000);
+  const q = new URLSearchParams({ from: de.toISOString(), to: (fin.getTime() > Date.now() ? new Date() : fin).toISOString() });
+  appareils.forEach((x) => q.append('deviceId', String(x.id)));
+  const resumes: any[] = (await appel(`/api/reports/summary?${q}`).catch(() => [])) ?? [];
+  const imeiDe = new Map(appareils.map((x) => [x.id, String(x.uniqueId)]));
+  for (const r of resumes) { const imei = imeiDe.get(r.deviceId); if (imei && r.distance != null) res.set(imei, Math.round(Number(r.distance) / 1000)); }
+  return res;
+}

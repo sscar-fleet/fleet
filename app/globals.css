@@ -941,3 +941,10 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
   .repartition-ligne .barre { display: none; }
 }
 @media (max-width: 760px) { .compteurs.deux { grid-template-columns: 1fr 1fr; } .compteurs.deux .compteur b { font-size: 22px; } }
+/* Sinistres */
+.etapes-sinistre { display: flex; flex-wrap: wrap; gap: 6px; }
+.etapes-sinistre span { padding: 6px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--panneau2); color: var(--gris); border: 1px solid var(--bord); }
+.etapes-sinistre span.fait { color: var(--vert); border-color: var(--vert); }
+.etapes-sinistre span.actuel { background: var(--turquoise); color: var(--sur-turquoise); border-color: var(--turquoise); }
+.case-doc { background: none; border: 0; color: var(--texte); font-size: 15px; cursor: pointer; padding: 2px 0; text-align: left; }
+.carte-lien:hover { border-color: var(--turquoise); }

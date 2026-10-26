@@ -27,7 +27,7 @@ export default function Amendes() {
       <Text style={{ color: c.gris, fontSize: 14 }}>{formatImmat(a.vehicules?.immatriculation) || 'Véhicule ?'} · {jour(a.date_infraction)} {heure(a.date_infraction)}{a.lieu ? ' · ' + a.lieu : ''}</Text>
       <Ligne style={{ marginTop: 4 }}>
         <Etiquette titre={statutAmende[a.statut] ?? a.statut} couleur={couleur(a.statut)} />
-        <Etiquette titre={a.clients ? nomClient(a.clients) : 'Conducteur non retrouvé'} couleur={a.clients ? c.texte2 : c.rouge} icone={a.clients ? 'client' : 'alerte'} />
+        {(() => { const p = a.clients ?? a.chauffeurs; return <Etiquette titre={p ? nomClient(p) : 'Conducteur non retrouvé'} couleur={p ? c.texte2 : c.rouge} icone={p ? 'client' : 'alerte'} />; })()}
       </Ligne>
     </Carte>
   );

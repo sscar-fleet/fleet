@@ -102,7 +102,10 @@ export const tarifDepot = proteger(async (fd: FormData) => {
 function champsChauffeur(fd: FormData) {
   const nomComplet = texte(fd.get('nom')) ?? '';
   const prenom = texte(fd.get('prenom'));
-  return { prenom, nom: nomComplet, telephone: texte(fd.get('telephone')) ? tel(texte(fd.get('telephone'))) : null, ville: texte(fd.get('ville')), depot_id: id(fd.get('depot_id')), note: texte(fd.get('note')), permis_valide_le: texte(fd.get('permis_valide_le')) };
+  const base = { prenom, nom: nomComplet, telephone: texte(fd.get('telephone')) ? tel(texte(fd.get('telephone'))) : null, ville: texte(fd.get('ville')), depot_id: id(fd.get('depot_id')), note: texte(fd.get('note')), permis_valide_le: texte(fd.get('permis_valide_le')) };
+  // Identité pour la désignation des amendes : seulement si le formulaire la contient (fiche complète)
+  if (!fd.has('numero_permis')) return base;
+  return { ...base, date_naissance: texte(fd.get('date_naissance')), lieu_naissance: texte(fd.get('lieu_naissance')), adresse: texte(fd.get('adresse')), numero_permis: texte(fd.get('numero_permis')), date_permis: texte(fd.get('date_permis')) };
 }
 export const ajouterChauffeur = proteger(async (fd: FormData) => {
   const { supabase, profil } = await utilisateurCourant();
@@ -312,4 +315,12 @@ export const effacerExemple = proteger(async () => {
   await supabase.from('donneurs_ordre').delete().like('nom', '%(exemple)');
   if (ids.length) verifier((await supabase.from('depots').delete().in('id', ids)).error);
   return 'Exemple effacé';
+});
+
+// Amende : choisir à la main le chauffeur (quand le planning ne l'a pas trouvé)
+export const chauffeurAmende = proteger(async (amendeId: string, fd: FormData) => {
+  const { supabase } = await utilisateurCourant();
+  const chauffeur_id = id(fd.get('chauffeur_id'));
+  verifier((await supabase.from('amendes').update({ chauffeur_id, statut: chauffeur_id ? 'a_designer' : 'infos_manquantes' }).eq('id', amendeId)).error);
+  return chauffeur_id ? 'Chauffeur associé' : 'Chauffeur retiré';
 });

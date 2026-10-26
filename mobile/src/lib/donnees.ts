@@ -97,11 +97,14 @@ export async function photosDepart(locationId: string): Promise<Record<string, s
 }
 
 export type AmendeLigne = { id: string; date_infraction: string; type: string | null; montant: number | null; statut: string; lieu: string | null;
-  vehicules: { immatriculation: string } | null; clients: { nom: string; prenom: string | null } | null };
+  vehicules: { immatriculation: string } | null; clients: { nom: string; prenom: string | null } | null; chauffeurs?: { nom: string; prenom: string | null } | null };
 export function chargerAmendes() {
   return avecCache('amendes', async () => {
-    const { data, error } = await supabase.from('amendes').select('id, date_infraction, type, montant, statut, lieu, vehicules(immatriculation), clients(nom, prenom)')
+    // Version transport : le chauffeur retrouvé par le planning (base pas encore à jour : on relit sans lui)
+    let { data, error } = await supabase.from('amendes').select('id, date_infraction, type, montant, statut, lieu, vehicules(immatriculation), clients(nom, prenom), chauffeurs(nom, prenom)')
       .order('date_infraction', { ascending: false }).limit(100);
+    if (error) ({ data, error } = await supabase.from('amendes').select('id, date_infraction, type, montant, statut, lieu, vehicules(immatriculation), clients(nom, prenom)')
+      .order('date_infraction', { ascending: false }).limit(100) as any);
     if (error) throw error;
     return (data ?? []) as unknown as AmendeLigne[];
   });

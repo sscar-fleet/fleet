@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-type Ico = 'tournees' | 'chauffeurs' | 'prets' | 'fps' | 'accueil' | 'planning' | 'locations' | 'vehicules' | 'clients' | 'carte' | 'amendes' | 'entretiens' | 'pilotage' | 'devis' | 'reglages' | 'plus' | 'replier';
+type Ico = 'tournees' | 'chauffeurs' | 'prets' | 'fps' | 'accueil' | 'planning' | 'locations' | 'vehicules' | 'clients' | 'carte' | 'amendes' | 'sinistres' | 'couts' | 'entretiens' | 'pilotage' | 'devis' | 'reglages' | 'plus' | 'replier';
 function Icone({ nom }: { nom: Ico }) {
   const p = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
@@ -17,6 +17,8 @@ function Icone({ nom }: { nom: Ico }) {
       {nom === 'clients' && <><circle cx="9" cy="8.5" r="3.5" {...p} /><path d="M2.5 20c.9-3.4 3.4-5.2 6.5-5.2s5.6 1.8 6.5 5.2M16 5.5a3.2 3.2 0 0 1 0 6.2M18 14.8c1.8.6 3 2.3 3.5 5" {...p} /></>}
       {nom === 'carte' && <><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z" {...p} /><path d="M9 4v14M15 6v14" {...p} /></>}
       {nom === 'fps' && <><rect x="4" y="3" width="16" height="18" rx="2" {...p} /><path d="M9 16V8h3.5a2.5 2.5 0 0 1 0 5H9" {...p} /></>}
+      {nom === 'sinistres' && <><path d="M12 3l9 16H3z" {...p} /><path d="M12 10v4M12 17v.5" {...p} /></>}
+      {nom === 'couts' && <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" {...p} /></>}
       {nom === 'amendes' && <><path d="M6 3h9l4 4v14H6z" {...p} /><path d="M14.5 3v4.5H19M9 12h7M9 16h5" {...p} /></>}
       {nom === 'prets' && <path d="M7 7h11l-3-3M17 17H6l3 3" {...p} />}
       {nom === 'entretiens' && <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" {...p} />}
@@ -33,12 +35,12 @@ type Groupe = { titre: string; liens: [string, string, Ico][] };
 // Version transport : planning des tournées et chauffeurs à la place des locations et des clients
 const GROUPES_TRANSPORT: Groupe[] = [
   { titre: 'Au quotidien', liens: [['/', 'Accueil', 'accueil'], ['/tournees', 'Planning', 'tournees'], ['/chauffeurs', 'Chauffeurs', 'chauffeurs'], ['/vehicules', 'Camions', 'vehicules']] },
-  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens']] },
-  { titre: 'Gestion', liens: [['/pilotage', 'Pilotage', 'pilotage'], ['/tournees/reglages', 'Réglages transport', 'reglages'], ['/parametres', 'Réglages', 'reglages']] },
+  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/sinistres', 'Sinistres', 'sinistres'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens']] },
+  { titre: 'Gestion', liens: [['/tournees/couts', 'Coût par camion', 'couts'], ['/pilotage', 'Pilotage', 'pilotage'], ['/tournees/reglages', 'Réglages transport', 'reglages'], ['/parametres', 'Réglages', 'reglages']] },
 ];
 const GROUPES: Groupe[] = [
   { titre: 'Au quotidien', liens: [['/', 'Accueil', 'accueil'], ['/planning', 'Planning', 'planning'], ['/locations', 'Locations', 'locations'], ['/vehicules', 'Véhicules', 'vehicules'], ['/clients', 'Clients', 'clients']] },
-  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens'], ['/prets', 'Prêts confrères', 'prets']] },
+  { titre: 'Suivi', liens: [['/carte', 'Suivi GPS', 'carte'], ['/amendes', 'Amendes', 'amendes'], ['/sinistres', 'Sinistres', 'sinistres'], ['/fps', 'FPS', 'fps'], ['/entretiens', 'Maintenance', 'entretiens'], ['/prets', 'Prêts confrères', 'prets']] },
   { titre: 'Gestion', liens: [['/pilotage', 'Pilotage', 'pilotage'], ['/devis', 'Devis', 'devis'], ['/parametres', 'Réglages', 'reglages']] },
 ];
 

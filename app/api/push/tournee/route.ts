@@ -129,7 +129,7 @@ async function tournee(request: Request) {
       const { notifications } = await calculerNotifications(db, u, { parAgence: true }).catch(() => ({ notifications: [] as any[] }));
       // Rouge : toujours (si la famille est gardée) ; orange : seulement pour les familles qu'on choisit soi-même
       const nouvelles = notifications.filter((n: any) => !envoye.has(`${u.id}|${n.cle}`) && !jamaisEnPush(n.cle) && veut(u, n.cle)
-        && (n.niveau === 'rouge' || (n.niveau === 'orange' && ['argent', 'papiers', 'atelier'].includes(familleDeCle(n.cle)))));
+        && (n.niveau === 'rouge' || (n.niveau === 'orange' && ['argent', 'papiers', 'atelier', 'sinistres'].includes(familleDeCle(n.cle)))));
       if (nouvelles.length > MAX_PAR_TOURNEE) {
         pour(u, `groupe-${jour}-${nouvelles.map((n: any) => n.cle).sort().join(',').slice(0, 300)}`, { title: `${nouvelles.length} urgences à traiter`, body: nouvelles.slice(0, 3).map((n: any) => n.titre).join(' · '), data: { href: '/notifications' } });
         nouvelles.forEach((n: any) => { envoye.add(`${u.id}|${n.cle}`); notes.push({ utilisateur_id: u.id, agence_id: u.agence_id, cle: n.cle }); });
