@@ -5,6 +5,7 @@ import { reglagesCatalogue } from '@/lib/photoModele';
 import ImportFlotte from './ImportFlotte';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // l'écriture d'une grosse flotte (actions de cette page)
 export const metadata = { title: 'Importer ma flotte' };
 
 // Une seule porte pour mettre toute sa flotte dans Fleet : on dépose tout en vrac, Fleet AI trie, on vérifie, on importe.

@@ -49,6 +49,8 @@ export async function POST(request: Request) {
       piece = { genre: 'texte', contenu: String(corps?.texte ?? ''), nom };
     }
     const brut = await extraire(piece, contexte);
+    // Données personnelles : la photo ou le PDF ne reste stocké que si c'est une carte grise rangée dans la fiche du véhicule
+    if (document && brut?.type_document !== 'carte_grise') await c.supabase.storage.from('documents').remove([document]).catch(() => null);
     const lot = nettoyerLot(brut, nom, document);
     const total = lot.vehicules.length + lot.clients.length + lot.locations.length + lot.chauffeurs.length;
     if (!total) await trace(c.supabase, u, false, { nom, erreur: 'rien trouvé' });

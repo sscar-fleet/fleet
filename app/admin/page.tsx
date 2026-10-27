@@ -96,8 +96,8 @@ export default async function Admin() {
                 const reste = c.vehicules.filter((v: any) => !deja.has(v.imei)).length;
                 return (
                   <div key={c.client.id} className="ligne" style={{ gap: 10, flexWrap: 'wrap', background: 'var(--panneau2)', borderRadius: 10, padding: '8px 12px' }}>
-                    <span>Client SS CAR SYSTEM reconnu par {c.par} : <b>{c.client.nom}</b> · {c.vehicules.length} véhicule{c.vehicules.length > 1 ? 's' : ''} équipé{c.vehicules.length > 1 ? 's' : ''}{reste < c.vehicules.length ? ` (${c.vehicules.length - reste} déjà relié${c.vehicules.length - reste > 1 ? 's' : ''})` : ''}</span>
-                    {reste > 0 && <Formulaire action={rattacherSscs.bind(null, a.id, c.client.id)} succes="Véhicules et boîtiers rattachés" confirmer={`Rattacher à ${a.nom} les ${reste} véhicule(s) équipés de ${c.client.nom} (création des fiches et des boîtiers, suivi GPS activé) ?`}>
+                    <span>Client SS CAR SYSTEM reconnu par {c.par} : <b>{c.client.nom}</b> <span className="gris">({[c.client.email, c.client.telephone].filter(Boolean).join(' · ') || '—'})</span> · {c.vehicules.length} véhicule{c.vehicules.length > 1 ? 's' : ''} équipé{c.vehicules.length > 1 ? 's' : ''}{reste < c.vehicules.length ? ` (${c.vehicules.length - reste} déjà relié${c.vehicules.length - reste > 1 ? 's' : ''})` : ''}</span>
+                    {reste > 0 && <Formulaire action={rattacherSscs.bind(null, a.id, c.client.id)} succes="Véhicules et boîtiers rattachés" confirmer={`Rattacher à ${a.nom} les ${reste} véhicule(s) équipés du client SS CAR SYSTEM « ${c.client.nom} » (${[c.client.email, c.client.telephone].filter(Boolean).join(' · ') || 'sans e-mail ni téléphone'}) ? Ils auront la position et la coupure moteur de ces véhicules : vérifiez que c'est bien la même entreprise.`}>
                       <Envoyer className="bouton petit principal">Rattacher les {reste} boîtier{reste > 1 ? 's' : ''}</Envoyer>
                     </Formulaire>}
                   </div>

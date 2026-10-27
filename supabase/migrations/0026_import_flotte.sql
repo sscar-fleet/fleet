@@ -27,4 +27,16 @@ do $$ begin
   alter table vehicules add constraint vehicules_visuel_valide check (visuel in ('auto', 'photo', 'icone'));
 exception when duplicate_object then null; end $$;
 
+-- Sécurité des boîtiers : un loueur ne peut plus ajouter lui-même un boîtier (IMEI) à son agence.
+-- Seul le serveur de Fleet le fait, après avoir vérifié que le boîtier lui appartient (sous-compte de suivi,
+-- ou client SS CAR SYSTEM reconnu). Le loueur garde la lecture et la mise à jour du recalage km et de l'état moteur.
+drop policy if exists traceurs_agence on traceurs;
+drop policy if exists traceurs_lecture on traceurs;
+create policy traceurs_lecture on traceurs for select using (agence_id = agence_courante());
+drop policy if exists traceurs_maj on traceurs;
+create policy traceurs_maj on traceurs for update using (agence_id = agence_courante()) with check (agence_id = agence_courante());
+revoke insert, update, delete on traceurs from anon, authenticated;
+grant select on traceurs to authenticated;
+grant update (km_compteur_ref, km_traceur_ref, ref_le, moteur_coupe) on traceurs to authenticated;
+
 notify pgrst, 'reload schema';

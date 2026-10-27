@@ -15,6 +15,17 @@ export type Bilan = {
 };
 
 const vide = (v: unknown) => v === null || v === undefined || v === '';
+// La base renvoie 1 000 lignes au plus par demande : on lit par pages
+async function toutLire(requete: (de: number, a: number) => any): Promise<any[]> {
+  const tout: any[] = [];
+  for (let de = 0; de < 20_000; de += 1000) {
+    const { data, error } = await requete(de, de + 999);
+    if (error || !data?.length) break;
+    tout.push(...data);
+    if (data.length < 1000) break;
+  }
+  return tout;
+}
 
 export async function importerFlotte(json: string, sources: { total: number; ratees: number }): Promise<{ bilan?: Bilan; erreur?: string }> {
   try {
@@ -33,9 +44,8 @@ export async function importerFlotte(json: string, sources: { total: number; rat
     const aujourdhui = maintenant.slice(0, 10);
 
     // 1. Véhicules : nouveaux créés, existants complétés (jamais écrasés)
-    const { data: existants } = await supabase.from('vehicules')
-      .select('*');
-    const parPlaque = new Map<string, any>((existants ?? []).map((v: any) => [v.immatriculation, v]));
+    const existants = await toutLire((de, a) => supabase.from('vehicules').select('*').order('id').range(de, a));
+    const parPlaque = new Map<string, any>(existants.map((v: any) => [v.immatriculation, v]));
     const nouveaux: any[] = [];
     for (const v of lot.vehicules.slice(0, LIMITES.vehicules)) {
       if (!v.immatriculation) { bilan.sansPlaque++; continue; }
@@ -46,7 +56,8 @@ export async function importerFlotte(json: string, sources: { total: number; rat
       const e = parPlaque.get(v.immatriculation);
       const choix = v.visuel !== 'auto' ? { visuel: v.visuel } : {};
       if (e) {
-        if (choix.visuel && e.visuel !== choix.visuel) await supabase.from('vehicules').update(choix).eq('id', e.id);
+        // Le choix du visuel ne remplace qu'un réglage resté « auto » (rien n'est écrasé)
+        if (choix.visuel && e.visuel === 'auto') await supabase.from('vehicules').update(choix).eq('id', e.id);
         // Base pas encore à jour (mise à jour 0026) : pas de colonne annee sur les fiches existantes
         const maj = Object.fromEntries(Object.entries(champs).filter(([k, val]) => !vide(val) && vide(e[k]) && k in e));
         if (Object.keys(maj).length) {
@@ -70,8 +81,7 @@ export async function importerFlotte(json: string, sources: { total: number; rat
     // 2. Clients (location) : retrouvés par téléphone, e-mail ou nom ; sinon créés
     const clientsFleet: any[] = [];
     if (!transport && (lot.clients.length || lot.locations.length)) {
-      const { data } = await supabase.from('clients').select('id, nom, prenom, telephone, email, date_naissance, numero_permis, adresse').limit(5000);
-      clientsFleet.push(...(data ?? []));
+      clientsFleet.push(...await toutLire((de, a) => supabase.from('clients').select('id, nom, prenom, telephone, email, date_naissance, numero_permis, adresse').order('id').range(de, a)));
     }
     // Même règle que l'aperçu : deux téléphones différents = deux personnes, même avec le même nom
     const trouver = (c: { nom: string | null; prenom: string | null; telephone: string | null; email?: string | null }) =>
@@ -114,9 +124,19 @@ export async function importerFlotte(json: string, sources: { total: number; rat
         if (etat === 'terminee') continue;
         if (etat === 'incomplete') { bilan.aReprendre.push(`Location ${nom} : ${!l.fin ? 'date de retour manquante' : 'véhicule ou client manquant'}`); continue; }
         const v = parPlaque.get(l.immatriculation!);
-        const c = trouver({ nom: l.client_nom, prenom: l.client_prenom, telephone: l.client_telephone });
-        if (!v?.id || !c?.id) { bilan.aReprendre.push(`Location ${nom} : véhicule ou client non créé`); continue; }
-        const debutLocal = l.debut && l.debut <= l.fin! ? l.debut : (etat === 'en_cours' ? `${aujourdhui}T08:00` : null);
+        if (!v?.id) { bilan.aReprendre.push(`Location ${nom} : véhicule non créé`); continue; }
+        if (['sorti', 'hors_service'].includes(v.statut)) { bilan.aReprendre.push(`Location ${nom} : ce véhicule est sorti de la flotte ou hors service`); continue; }
+        let c = trouver({ nom: l.client_nom, prenom: l.client_prenom, telephone: l.client_telephone });
+        if (!c?.id) {
+          // Client saisi ou corrigé dans l'aperçu, absent de la liste des clients : créé ici
+          const { data: nouveau, error } = await supabase.from('clients').insert({ agence_id: agence, nom: l.client_nom, prenom: l.client_prenom, telephone: l.client_telephone })
+            .select('id, nom, prenom, telephone, email').single();
+          if (error || !nouveau) { bilan.aReprendre.push(`Location ${nom} : client non créé`); continue; }
+          clientsFleet.push(nouveau); c = nouveau; bilan.clients++;
+        }
+        // Départ inconnu d'une location en cours : ce matin 8 h, ou maintenant si l'import est fait plus tôt
+        const huitHeures = `${aujourdhui}T08:00`;
+        const debutLocal = l.debut && l.debut <= l.fin! ? l.debut : (etat === 'en_cours' ? (maintenant < huitHeures ? maintenant : huitHeures) : null);
         const debut = depuisParis(debutLocal), fin = depuisParis(l.fin);
         if (!debut || !fin || new Date(fin) <= new Date(debut)) { bilan.aReprendre.push(`Location ${nom} : dates incohérentes`); continue; }
         const { data: deja } = await supabase.from('locations').select('id, numero').eq('vehicule_id', v.id)

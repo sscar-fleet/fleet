@@ -12,6 +12,7 @@ import { chercherPhotoModele } from '@/lib/photoModele';
 import { imeiDeLAgence } from '@/lib/telematique';
 import { commandeMoteur } from '@/lib/sourceGps';
 import { inscrireTraccar } from '@/lib/traccar';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const rafraichir = () => revalidatePath('/', 'layout');
 
@@ -1046,7 +1047,8 @@ async function _relierTraceur(vehicule_id: string, formData: FormData) {
   let traceur_id = existe?.id;
   if (traceur_id) verifier((await supabase.from('traceurs').update(ref).eq('id', traceur_id)).error);
   else {
-    const { data, error } = await supabase.from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld', ...ref }).select('id').single();
+    // Ajout du boîtier par le serveur seulement (le loueur n'a pas le droit d'ajouter un IMEI lui-même) : il vient d'être vérifié ci-dessus
+    const { data, error } = await supabaseAdmin().from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld', ...ref }).select('id').single();
     verifier(error, 'Boîtier');
     traceur_id = data!.id;
   }
@@ -1082,7 +1084,7 @@ async function _importerVehicules(formData: FormData) {
       const { data: t0 } = await supabase.from('traceurs').select('id').eq('imei', imei).maybeSingle();
       let traceur_id = t0?.id as string | undefined;
       if (!traceur_id) {
-        const { data, error } = await supabase.from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld' }).select('id').single();
+        const { data, error } = await supabaseAdmin().from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld' }).select('id').single();
         verifier(error, 'Boîtier'); traceur_id = data!.id;
       }
       await supabase.from('vehicules').update({ traceur_id: null }).eq('traceur_id', traceur_id).neq('id', vehicule_id);

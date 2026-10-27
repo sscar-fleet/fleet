@@ -108,10 +108,10 @@ export default function ImportFlotte({ agenceId, transport, existantes, catalogu
       const tout = s.texte ?? (s.fichier ? await s.fichier.text() : '');
       // Long texte : découpé par lignes en morceaux lisibles d'un coup
       const morceaux: string[] = []; let cur = '';
-      for (const ligne of tout.split('\n')) { if ((cur + ligne).length > 14_000 && cur) { morceaux.push(cur); cur = ''; } cur += ligne + '\n'; }
+      for (const ligne of tout.split('\n')) { if ((cur + ligne).length > 5_000 && cur) { morceaux.push(cur); cur = ''; } cur += ligne + '\n'; }
       if (cur.trim()) morceaux.push(cur);
       let l = lotVide();
-      for (const m of morceaux.slice(0, 8)) l = fusionner(l, (await demander({ texte: m, nom: s.nom })).lot);
+      for (const m of morceaux.slice(0, 12)) l = fusionner(l, (await demander({ texte: m, nom: s.nom })).lot);
       return { lot: l };
     }
     if (s.genre === 'image') {
@@ -131,15 +131,15 @@ export default function ImportFlotte({ agenceId, transport, existantes, catalogu
     for (const f of feuilles.slice(0, 6)) {
       const nom = feuilles.length > 1 ? `${s.nom} · ${f.nom}` : s.nom;
       const pleines = f.lignes.filter((x) => x.some((c) => String(c ?? '').trim()));
-      if (pleines.length <= 40) { l = fusionner(l, (await demander({ texte: tableEnTexte(f.lignes), nom })).lot); continue; }
+      if (pleines.length <= 25) { l = fusionner(l, (await demander({ texte: tableEnTexte(f.lignes), nom })).lot); continue; }
       const { colonnes } = await demander({ mode: 'colonnes', echantillon: echantillon(f.lignes), nom }) as { colonnes: Colonnes };
       let issu = nettoyerLot(appliquerColonnes(f.lignes, colonnes), nom);
       const total = issu.vehicules.length + issu.clients.length + issu.locations.length + issu.chauffeurs.length;
       if (!total) {
-        // Tableau trop désordonné pour des colonnes : lu par morceaux de 50 lignes
+        // Tableau trop désordonné pour des colonnes : lu par morceaux de 25 lignes
         issu = lotVide();
-        for (let i = 0; i < Math.min(pleines.length, 400); i += 50) issu = fusionner(issu, (await demander({ texte: tableEnTexte(pleines.slice(i, i + 50)), nom })).lot);
-        if (pleines.length > 400) notes.push(`${f.nom} : seules les 400 premières lignes ont été lues`);
+        for (let i = 0; i < Math.min(pleines.length, 300); i += 25) issu = fusionner(issu, (await demander({ texte: tableEnTexte(pleines.slice(i, i + 25)), nom })).lot);
+        if (pleines.length > 300) notes.push(`${f.nom} : seules les 300 premières lignes ont été lues`);
       }
       l = fusionner(l, issu);
     }
@@ -162,6 +162,11 @@ export default function ImportFlotte({ agenceId, transport, existantes, catalogu
       }).finally(() => { enCours.current.delete(s.id); setSources((x) => [...x]); });
     }
   }, [sources]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Aperçus des photos libérés en quittant la page
+  const vues = useRef<string[]>([]);
+  useEffect(() => { vues.current = sources.map((s) => s.vue).filter(Boolean) as string[]; }, [sources]);
+  useEffect(() => () => vues.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
   // Coller (Ctrl+V / appui long) une capture, un fichier ou du texte n'importe où sur la page
   useEffect(() => {
@@ -204,10 +209,13 @@ export default function ImportFlotte({ agenceId, transport, existantes, catalogu
 
   async function importer() {
     setEnvoi(true); setErreur('');
-    const r = await importerFlotte(JSON.stringify(lot), { total: sources.length, ratees: sources.filter((s) => s.etat === 'echec').length });
-    setEnvoi(false);
-    if (r.erreur) { setErreur(r.erreur); return; }
-    setBilan(r.bilan!); window.scrollTo({ top: 0, behavior: 'smooth' }); router.refresh();
+    try {
+      const r = await importerFlotte(JSON.stringify(lot), { total: sources.length, ratees: sources.filter((s) => s.etat === 'echec').length });
+      if (r.erreur) { setErreur(r.erreur); return; }
+      setBilan(r.bilan!); window.scrollTo({ top: 0, behavior: 'smooth' }); router.refresh();
+    } catch {
+      setErreur('Import interrompu (connexion ou flotte très grande). Relancez : ce qui est déjà entré ne sera pas créé en double.');
+    } finally { setEnvoi(false); }
   }
 
   async function rattacher() {

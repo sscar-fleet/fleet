@@ -13,22 +13,27 @@ export type Contexte = { metier: 'location' | 'transport'; aujourdhui: string; j
 async function appeler(contenu: any[], maxTokens: number): Promise<string> {
   const cle = process.env.ANTHROPIC_API_KEY;
   if (!cle) throw new Error('La lecture automatique n’est pas encore activée.');
+  // Une seule échéance pour tout l'appel (la fonction serveur est coupée à 60 s) : le modèle de secours
+  // n'est tenté que si le premier refuse tout de suite (modèle inconnu, surcharge), jamais après une attente
+  const fin = Date.now() + 52_000;
   let derniere = '';
   for (const modele of [MODELE(), MODELE_SECOURS()]) {
+    const reste = fin - Date.now();
+    if (reste < 8_000) break;
     try {
       const r = await fetch(`${URL_IA}/v1/messages`, {
-        method: 'POST', signal: AbortSignal.timeout(50_000),
+        method: 'POST', signal: AbortSignal.timeout(reste),
         headers: { 'x-api-key': cle, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({ model: modele, max_tokens: maxTokens, messages: [{ role: 'user', content: contenu }] }),
       });
-      if (!r.ok) { derniere = `HTTP ${r.status}`; if (r.status === 400 || r.status === 404 || r.status >= 500 || r.status === 529) continue; break; }
+      if (!r.ok) { derniere = `HTTP ${r.status}`; if (r.status === 400 || r.status === 404 || r.status === 429 || r.status >= 500) continue; break; }
       const rep = await r.json();
-      const t: string = (rep?.content ?? []).filter((c: any) => c.type === 'text').map((c: any) => c.text).join('');
       if (rep?.stop_reason === 'max_tokens') throw new Error('trop long');
-      return t;
+      return (rep?.content ?? []).filter((c: any) => c.type === 'text').map((c: any) => c.text).join('');
     } catch (e: any) {
-      if (e?.message === 'trop long') throw new Error('Ce document contient trop de lignes d’un coup : découpez-le en deux.');
-      derniere = e?.name === 'TimeoutError' ? 'délai dépassé' : (e?.message ?? 'erreur');
+      if (e?.message === 'trop long') throw new Error('Ce document contient trop de lignes d’un coup : découpez-le en plusieurs morceaux.');
+      if (e?.name === 'TimeoutError' || e?.name === 'AbortError') { derniere = 'délai dépassé'; break; }
+      derniere = e?.message ?? 'erreur';
     }
   }
   throw new Error(derniere === 'délai dépassé' ? 'La lecture a pris trop de temps : envoyez ce document en plus petits morceaux.' : 'Lecture impossible pour le moment. Réessayez dans un instant.');
@@ -69,18 +74,18 @@ export async function extraire(p: Piece, c: Contexte): Promise<any> {
   const contenu: any[] = [];
   if (p.genre === 'image' || p.genre === 'pdf') {
     const [entete, donnees] = p.contenu.split(',');
-    if (!donnees || donnees.length > 14_000_000) throw new Error('Fichier trop lourd (14 Mo au plus).');
+    if (!donnees || donnees.length * 0.75 > 14_000_000) throw new Error('Fichier trop lourd (14 Mo au plus).');
     const type = entete.slice(5, entete.indexOf(';'));
     contenu.push(p.genre === 'pdf'
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: donnees } }
       : { type: 'image', source: { type: 'base64', media_type: type, data: donnees } });
     contenu.push({ type: 'text', text: `Fichier : « ${p.nom} ».\n${consignes(c)}` });
   } else {
-    const texte = p.contenu.slice(0, 24_000);
+    const texte = p.contenu.slice(0, 9_000);
     if (!texte.trim()) throw new Error('Rien à lire.');
     contenu.push({ type: 'text', text: `Document « ${p.nom} » :\n"""\n${texte}\n"""\n\n${consignes(c)}` });
   }
-  return json(await appeler(contenu, 12_000));
+  return json(await appeler(contenu, 8_000));
 }
 
 // Tableur : on montre l'en-tête et quelques lignes ; l'IA dit à quoi correspond chaque colonne, le navigateur fait le reste

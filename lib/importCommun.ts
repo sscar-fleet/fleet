@@ -81,7 +81,9 @@ export function dateHeureNette(v: unknown): { date: string; heure: string | null
   if (m && dateValide(+m[1], +m[2], +m[3])) return { date: `${m[1]}-${pad(m[2])}-${pad(m[3])}`, heure: heureLue(t.slice(m[0].length)) };
   m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/.exec(t);
   if (m) {
-    const a = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    // Année sur deux chiffres : 85 = 1985 (date de naissance), 26 = 2026
+    const deux = Number(m[3]) % 100, siecle = deux > (new Date().getFullYear() % 100) + 5 ? 1900 : 2000;
+    const a = m[3].length === 2 ? siecle + deux : Number(m[3]);
     if (dateValide(a, +m[2], +m[1])) return { date: `${a}-${pad(m[2])}-${pad(m[1])}`, heure: heureLue(t.slice(m[0].length)) };
   }
   return null;
@@ -248,7 +250,12 @@ export function fusionner(base: Lot, ajout: Lot): Lot {
     if (i >= 0) r.clients[i] = completer(r.clients[i], c); else r.clients.push(c);
   }
   for (const l of ajout.locations) {
-    const i = r.locations.findIndex((x) => x.cle === l.cle || (!!l.immatriculation && x.immatriculation === l.immatriculation && (!x.debut || !l.debut || x.debut.slice(0, 10) === l.debut.slice(0, 10))));
+    // Même location citée deux fois : même véhicule et même retour, ou mêmes dates (une location en cours et la réservation
+    // suivante du même véhicule restent bien deux locations)
+    const memeLocation = (x: LocationImport) => !!l.immatriculation && x.immatriculation === l.immatriculation && (
+      (!!x.fin && !!l.fin && x.fin.slice(0, 10) === l.fin.slice(0, 10))
+      || (!!x.debut && !!l.debut && x.debut.slice(0, 10) === l.debut.slice(0, 10) && (!x.fin || !l.fin)));
+    const i = r.locations.findIndex((x) => x.cle === l.cle || memeLocation(x));
     if (i >= 0) r.locations[i] = completer(r.locations[i], l); else r.locations.push(l);
     // Le client et le véhicule d'une location apparaissent aussi dans leur liste
     if (l.client_nom) {

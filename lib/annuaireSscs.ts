@@ -90,7 +90,10 @@ const annuaire = unstable_cache(chargerAnnuaire, ['annuaire-sscs-v1'], { revalid
 
 const chiffres = (t?: string | null) => String(t ?? '').replace(/\D/g, '').replace(/^33/, '0');
 const cle = (s?: string | null) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const MOTS_VIDES = /(sarl|sas|sasu|eurl|location|locations|auto|autos|automobile|automobiles|transport|transports|services|garage|car|cars|rent|paris)/g;
+// Mots trop courants pour reconnaître une entreprise par son nom (retirés avant de comparer, mot entier seulement)
+const MOTS_VIDES = /\b(sarl|sas|sasu|eurl|sa|location|locations|loc|auto|autos|automobile|automobiles|transport|transports|services?|garage|car|cars|rent|rental|paris|vtc|express|logistique|groupe|france|idf)\b/g;
+const nomEntreprise = (s?: string | null) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ').replace(MOTS_VIDES, ' ').replace(/\s+/g, '');
 
 // Côté loueur : seulement par l'adresse e-mail de connexion, vérifiée
 export async function equipementsDeLAgence(supabase: any): Promise<{ client: ClientSscs; vehicules: EquipementSscs[]; dejaRelies: number } | null> {
@@ -100,7 +103,9 @@ export async function equipementsDeLAgence(supabase: any): Promise<{ client: Cli
   if (!email || !auth.user.email_confirmed_at) return null;
   let a: Annuaire;
   try { a = await annuaire(); } catch { return null; }
-  const client = a.clients.find((c) => c.email === email && (a.parClient[c.id]?.length ?? 0) > 0);
+  // Une seule fiche client SS CAR SYSTEM avec cette adresse : sinon (adresse partagée), c'est SS CAR FLEET qui tranche dans l'admin
+  const memes = a.clients.filter((c) => c.email === email);
+  const client = memes.length === 1 && (a.parClient[memes[0].id]?.length ?? 0) > 0 ? memes[0] : null;
   if (!client) return null;
   const tous = a.parClient[client.id];
   const { data: traceurs } = await supabase.from('traceurs').select('imei, vehicules(id)');
@@ -116,15 +121,16 @@ export async function candidatsSscs(agence: { nom?: string | null; email?: strin
   let a: Annuaire;
   try { a = await annuaire(); } catch { return []; }
   const email = agence.email?.toLowerCase() ?? null, tel = chiffres(agence.telephone);
-  const noms = [agence.nom, agence.gerant].map((n) => cle(n).replace(MOTS_VIDES, '')).filter((n) => n.length >= 4);
+  const noms = [agence.nom, agence.gerant].map(nomEntreprise).filter((n) => n.length >= 4);
   const sortie: { client: ClientSscs; vehicules: EquipementSscs[]; par: string }[] = [];
   for (const c of a.clients) {
     const vehicules = a.parClient[c.id] ?? [];
     if (!vehicules.length) continue;
-    const nc = cle(c.nom).replace(MOTS_VIDES, '');
+    const nc = nomEntreprise(c.nom);
+    // Nom : identique (hors mots courants), ou l'un contient l'autre seulement s'il est long (8 lettres et plus)
     const par = email && c.email === email ? 'e-mail'
       : tel.length >= 9 && chiffres(c.telephone) === tel ? 'téléphone'
-      : nc.length >= 4 && noms.some((n) => n === nc || (n.length >= 5 && nc.includes(n)) || (nc.length >= 5 && n.includes(nc))) ? 'nom' : null;
+      : nc.length >= 4 && noms.some((n) => n === nc || (n.length >= 8 && nc.includes(n)) || (nc.length >= 8 && n.includes(nc))) ? 'nom' : null;
     if (par) sortie.push({ client: c, vehicules, par });
   }
   const rang: Record<string, number> = { 'e-mail': 0, 'téléphone': 1, nom: 2 };
@@ -143,16 +149,18 @@ export async function clientSscs(id: string): Promise<{ client: ClientSscs; vehi
 export async function rattacherEquipements(agenceId: string, client: ClientSscs, vehicules: EquipementSscs[], auteur: string | null):
   Promise<{ ajoutes: number; relies: number; erreur?: string }> {
   const db = supabaseAdmin();
-  const { data: tel } = await db.from('telematique').select('agence_id').eq('agence_id', agenceId).maybeSingle();
-  if (!tel) {
-    const { error } = await db.from('telematique').insert({ agence_id: agenceId, fournisseur: 'seeworld', compte_externe_id: null });
-    if (error) return { ajoutes: 0, relies: 0, erreur: `Activation du suivi GPS impossible : ${error.message}` };
-  }
+  let suiviActif = !!(await db.from('telematique').select('agence_id').eq('agence_id', agenceId).maybeSingle()).data;
   let ajoutes = 0, relies = 0; const refus: string[] = [];
   const aujourdhui = new Date().toISOString().slice(0, 10);
   for (const e of vehicules) {
     const { data: t0 } = await db.from('traceurs').select('id, agence_id').eq('imei', e.imei).maybeSingle();
     if (t0 && t0.agence_id !== agenceId) { refus.push(`${e.immatriculation} (boîtier déjà sur un autre compte)`); continue; }
+    // Suivi GPS activé seulement au premier boîtier réellement rattaché
+    if (!suiviActif) {
+      const { error } = await db.from('telematique').insert({ agence_id: agenceId, fournisseur: 'seeworld', compte_externe_id: null });
+      if (error && !/duplicate|existe/i.test(error.message)) return { ajoutes, relies, erreur: `Activation du suivi GPS impossible : ${error.message}` };
+      suiviActif = true;
+    }
     let traceur_id = t0?.id as string | undefined;
     if (!traceur_id) {
       const { data, error } = await db.from('traceurs').insert({ agence_id: agenceId, imei: e.imei, modele: e.modeleTraceur, sim: e.sim, fournisseur: 'seeworld' }).select('id').single();
