@@ -960,3 +960,88 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
 .choix-metier input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--turquoise); flex: none; }
 .choix-metier span { display: grid; gap: 3px; color: var(--texte); }
 .choix-metier small { color: var(--gris); font-size: 13px; }
+
+/* Photo « catalogue » du modèle (profil détouré) */
+.vignette.visuel-catalogue { object-fit: contain; background: none; width: 64px; }
+.visuel-catalogue.grand { width: 100%; max-width: 520px; height: auto; max-height: 240px; object-fit: contain; display: block; margin: 0 auto; }
+
+/* ---------- Importer ma flotte ---------- */
+.imp { display: grid; gap: 14px; padding-bottom: 90px; }
+.imp h2 { margin: 0 0 6px; font-size: 20px; }
+.imp h3 { margin: 0 0 10px; font-size: 16px; }
+.imp p { margin: 0; }
+.imp-zone { border: 2px dashed var(--bord); text-align: center; padding: 26px 18px; display: grid; gap: 14px; justify-items: center; transition: border-color .15s, background .15s; }
+.imp-zone.survol { border-color: var(--turquoise); background: color-mix(in srgb, var(--turquoise) 8%, var(--panneau)); }
+.imp-zone > p { max-width: 640px; }
+.imp-boutons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.imp-boutons .bouton { cursor: pointer; padding: 12px 18px; font-size: 15px; }
+.imp-texte { width: 100%; max-width: 720px; display: grid; gap: 8px; }
+.imp-texte textarea { width: 100%; resize: vertical; font-size: 15px; }
+.imp-texte-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.imp-astuce { font-size: 13px; }
+button.lien { background: none; border: 0; padding: 0; color: var(--turquoise); text-decoration: underline; cursor: pointer; font: inherit; }
+.imp-sources ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.imp-source { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; background: var(--panneau2); }
+.imp-source img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; flex: none; }
+.imp-icone { width: 44px; height: 44px; display: grid; place-items: center; font-size: 22px; flex: none; }
+.imp-source-texte { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.imp-source-texte b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-source.etat-echec .imp-source-texte .gris { color: var(--orange); }
+.imp-ok { color: var(--vert); font-weight: 800; font-size: 18px; }
+.imp-roue { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--bord); border-top-color: var(--turquoise); animation: imp-tourne .8s linear infinite; flex: none; }
+@keyframes imp-tourne { to { transform: rotate(360deg); } }
+.imp-resume { display: flex; flex-wrap: wrap; gap: 8px; }
+.imp-resume > span { background: var(--panneau); border: 1px solid var(--bord); border-radius: 999px; padding: 6px 12px; font-size: 14px; }
+.imp-resume b { color: var(--turquoise); }
+.imp-resume .imp-a-completer { border-color: var(--orange); color: var(--orange); }
+.imp-bloc { display: grid; gap: 8px; }
+.imp-bloc summary { cursor: pointer; list-style: none; }
+.imp-ligne { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--bord); flex-wrap: wrap; }
+.imp-ligne.manque { background: color-mix(in srgb, var(--orange) 6%, transparent); border-radius: 8px; padding: 8px; }
+.imp-ligne.imp-passee { opacity: .5; }
+.imp-champs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 420px; align-items: center; }
+.imp-champs input, .imp-champs select { flex: 1 1 120px; min-width: 0; padding: 7px 9px; font-size: 14px; }
+.imp-champs input.court { flex: 0 1 80px; }
+.imp-plaque-champ { font-weight: 700; letter-spacing: .5px; text-transform: uppercase; flex: 0 1 130px !important; }
+.imp-date { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gris); flex: 1 1 200px; }
+.imp-date input { flex: 1; }
+.imp-etat { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.imp-badge { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--panneau2); color: var(--gris); white-space: nowrap; }
+.imp-badge.ok { color: var(--vert); background: color-mix(in srgb, var(--vert) 12%, transparent); }
+.imp-badge.manque { color: var(--orange); background: color-mix(in srgb, var(--orange) 12%, transparent); }
+.imp-badge.info { color: var(--bleu); background: color-mix(in srgb, var(--bleu) 12%, transparent); }
+.imp-retirer { background: none; border: 0; color: var(--gris); font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 6px; }
+.imp-retirer:hover { color: var(--rouge); }
+.imp-visuel { width: 84px; height: 44px; display: grid; place-items: center; background: none; border: 0; padding: 0; cursor: pointer; flex: none; }
+.imp-visuel:disabled { cursor: default; }
+.imp-visuel img { max-width: 84px; max-height: 44px; object-fit: contain; background: none; }
+.imp-note { font-size: 13px; }
+.imp-remarques ul, .imp-reprendre ul { margin: 6px 0 0; padding-left: 18px; color: var(--texte2); font-size: 14px; }
+.imp-barre { position: sticky; bottom: 0; z-index: 5; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; padding: 12px 14px; border-radius: 14px 14px 0 0; background: var(--panneau); border: 1px solid var(--bord); box-shadow: var(--ombre); }
+.imp-barre > .gris { flex: 1 1 220px; font-size: 13px; }
+/* La bulle Fleet AI se cache sur l'écran d'import : la barre du bas garde toute la place pour « Tout importer » */
+body:has(.imp-barre) .ia-bulle-flottante { display: none; }
+.imp-court { display: none; }
+.imp-barre .principal { padding: 12px 18px; font-size: 15px; }
+.imp-sscs { display: grid; gap: 12px; border-color: var(--turquoise); background: color-mix(in srgb, var(--turquoise) 7%, var(--panneau)); }
+.imp-sscs p { margin-top: 4px; }
+.imp-sscs .bouton { justify-self: start; padding: 12px 18px; }
+.imp-sscs.ok { gap: 4px; }
+.imp-plaques { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.imp-plaque { font-size: 12px; font-weight: 700; letter-spacing: .4px; padding: 3px 8px; border-radius: 6px; background: var(--panneau); border: 1px solid var(--bord); }
+.imp-fini { text-align: center; display: grid; gap: 12px; justify-items: center; padding: 30px 18px; }
+.imp-coche { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; font-weight: 800; background: var(--turquoise); color: var(--sur-turquoise); }
+.imp-bilan { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; font-size: 16px; }
+.imp-reprendre { text-align: left; max-width: 640px; width: 100%; }
+.imp-suite { gap: 8px; flex-wrap: wrap; justify-content: center; }
+.imp-entree { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; border-color: var(--turquoise); }
+.imp-entree > div { flex: 1 1 280px; }
+.imp-entree p { margin: 4px 0 0; }
+@media (max-width: 760px) {
+  .imp-champs { flex-basis: 100%; }
+  .imp-etat { width: 100%; justify-content: flex-start; }
+  .imp-barre { bottom: calc(62px + env(safe-area-inset-bottom)); margin: 0 -8px; padding: 10px; border-radius: 14px; gap: 8px; }
+  .imp-barre > .gris { flex-basis: 100%; }
+  .imp-barre .principal { flex: 1 1 auto; }
+  .imp-long { display: none; } .imp-court { display: inline; }
+}

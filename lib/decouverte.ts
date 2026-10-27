@@ -8,7 +8,7 @@ export type Jour = { n: number; titre: string; badge: string; missions: Mission[
 export const JOURS: Jour[] = [
   { n: 1, titre: 'Votre agence en place', badge: 'Agence prête', missions: [
     { cle: 'agence', titre: 'Renseigner l’agence', pourquoi: 'Vos contrats et factures sortent à votre nom, avec votre signature.', lien: '/parametres?guide=agence', bouton: 'Réglages', minutes: 0 },
-    { cle: 'flotte', titre: 'Ajouter vos véhicules', pourquoi: 'Importez-les depuis vos traceurs ou photographiez la carte grise : Fleet remplit tout.', lien: '/vehicules?guide=flotte', bouton: 'Ajouter', minutes: 5 },
+    { cle: 'flotte', titre: 'Importer votre flotte', pourquoi: 'Votre Excel, des photos de cartes grises ou quelques lignes dictées : Fleet AI remplit tout.', lien: '/import?guide=flotte', bouton: 'Importer', minutes: 5 },
     { cle: 'client', titre: 'Créer un client avec son permis', pourquoi: 'Une photo du permis, et la fiche se remplit toute seule.', lien: '/clients?guide=client', bouton: 'Essayer', minutes: 4 },
   ] },
   { n: 2, titre: 'Votre première location', badge: 'Première clé remise', missions: [

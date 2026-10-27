@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const config = {
+  // Import de la flotte : l'aperçu validé peut contenir plusieurs centaines de lignes (Vercel accepte 4,5 Mo au plus)
+  experimental: { serverActions: { bodySizeLimit: '4mb' } },
   // Adresses courtes ou mal tapées qui mènent toutes à l'appli
   async redirects() {
     return ['/appli', '/application', '/mobile', '/telephone', '/apps'].map((source) => ({ source, destination: '/app', permanent: false }));

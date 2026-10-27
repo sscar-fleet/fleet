@@ -57,6 +57,9 @@ export default async function AccueilTransport({ supabase, prenom, regles }: { s
   return (
     <>
       <div className="titre"><h1>Bonjour {prenom} <span className="gris" style={{ fontSize: 16, fontWeight: 500 }}>· {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Paris' })}</span></h1></div>
+      {!(vehicules ?? []).length && !(chauffeurs ?? []).length && (
+        <section className="carte imp-entree"><div><b style={{ fontSize: 18 }}>Mettez vos camions et vos chauffeurs dans Fleet en 2 minutes</b><p className="gris">Déposez votre Excel, des photos de cartes grises, ou dictez quelques lignes : Fleet AI remplit tout.</p></div><a className="bouton principal" href="/import">Importer ma flotte</a></section>
+      )}
       <section className="compteurs deux">
         <div className="compteur"><span>Tournées aujourd&apos;hui</span><b>{(tournees ?? []).length}</b><small className="gris">{faites} faite{faites > 1 ? 's' : ''}</small></div>
         <div className="compteur"><span>Pas encore partis</span><b style={{ color: pasPartis.length ? 'var(--orange)' : 'var(--vert)' }}>{pasPartis.length}</b></div>

@@ -35,6 +35,11 @@ async function lireZip(tampon: ArrayBuffer): Promise<Map<string, () => Promise<s
 const colonne = (ref: string) => { let n = 0; for (const ch of ref.replace(/\d+/g, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; };
 
 async function lireXlsx(tampon: ArrayBuffer): Promise<string[][]> {
+  return (await lireFeuilles(tampon))[0]?.lignes ?? [];
+}
+
+// Toutes les feuilles d'un classeur Excel, avec leur nom (une feuille « Véhicules », une « Clients »…)
+async function lireFeuilles(tampon: ArrayBuffer): Promise<{ nom: string; lignes: string[][] }[]> {
   const zip = await lireZip(tampon);
   const xml = (t: string) => new DOMParser().parseFromString(t, 'application/xml');
   const partages: string[] = [];
@@ -42,7 +47,15 @@ async function lireXlsx(tampon: ArrayBuffer): Promise<string[][]> {
   if (ss) xml(await ss()).querySelectorAll('si').forEach((si) => partages.push(Array.from(si.getElementsByTagName('t')).map((t) => t.textContent ?? '').join('')));
   const feuilles = Array.from(zip.keys()).filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).sort((a, b) => Number(a.match(/\d+/)![0]) - Number(b.match(/\d+/)![0]));
   if (!feuilles.length) throw new Error('Aucune feuille trouvée dans ce fichier.');
-  const doc = xml(await zip.get(feuilles[0])!());
+  const noms: string[] = [];
+  const wb = zip.get('xl/workbook.xml');
+  if (wb) xml(await wb()).querySelectorAll('sheet').forEach((f) => noms.push(f.getAttribute('name') ?? ''));
+  const sortie: { nom: string; lignes: string[][] }[] = [];
+  for (const [k, f] of feuilles.entries()) sortie.push({ nom: noms[k] || `Feuille ${k + 1}`, lignes: lireFeuille(xml(await zip.get(f)!()), partages) });
+  return sortie;
+}
+
+function lireFeuille(doc: Document, partages: string[]): string[][] {
   const lignes: string[][] = [];
   doc.querySelectorAll('sheetData > row').forEach((r) => {
     const ligne: string[] = [];
@@ -74,6 +87,13 @@ function lireTexte(texte: string): string[][] {
   });
 }
 
+export async function lireClasseur(source: File): Promise<{ nom: string; lignes: string[][] }[]> {
+  const nom = source.name.toLowerCase();
+  if (nom.endsWith('.xls')) throw new Error('Ancien format Excel (.xls) : ouvrez-le dans Excel et enregistrez-le en .xlsx, ou copiez-collez les lignes.');
+  if (nom.endsWith('.xlsx') || nom.endsWith('.xlsm')) return lireFeuilles(await source.arrayBuffer());
+  return [{ nom: source.name, lignes: lireTexte(await source.text()) }];
+}
+
 export async function lireTableur(source: File | string): Promise<string[][]> {
   if (typeof source === 'string') return lireTexte(source);
   const nom = source.name.toLowerCase();
@@ -81,24 +101,3 @@ export async function lireTableur(source: File | string): Promise<string[][]> {
   if (nom.endsWith('.xlsx')) return lireXlsx(await source.arrayBuffer());
   return lireTexte(await source.text());
 }
-
-// Colonnes reconnues dans l'en-tête
-export type Champ = 'immatriculation' | 'marque' | 'modele' | 'km' | 'prix_jour' | 'carburant' | 'assurance_echeance' | 'ct_echeance' | 'ignorer';
-export const CHAMPS: Record<Exclude<Champ, 'ignorer'>, string> = {
-  immatriculation: 'Immatriculation', marque: 'Marque', modele: 'Modèle', km: 'Kilométrage', prix_jour: 'Prix / jour',
-  carburant: 'Carburant', assurance_echeance: 'Fin d’assurance', ct_echeance: 'Contrôle technique',
-};
-const sansAccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-export function devinerChamp(entete: string): Champ {
-  const e = sansAccent(entete);
-  if (/immat|plaque|matricul/.test(e)) return 'immatriculation';
-  if (/assur/.test(e)) return 'assurance_echeance';
-  if (/^ct\b|controle|technique/.test(e)) return 'ct_echeance';
-  if (/marque|constructeur|brand/.test(e)) return 'marque';
-  if (/modele|model|vehicule/.test(e)) return 'modele';
-  if (/\bkm\b|kilom|compteur/.test(e)) return 'km';
-  if (/prix|tarif|jour/.test(e)) return 'prix_jour';
-  if (/carbu|energie|motoris/.test(e)) return 'carburant';
-  return 'ignorer';
-}
-export const ressemblePlaque = (s: string) => /^[A-Z]{2}[\s-]?\d{3}[\s-]?[A-Z]{2}$/i.test(s.trim()) || /^\d{1,4}[\s-]?[A-Z]{1,3}[\s-]?\d{2,3}$/i.test(s.trim());

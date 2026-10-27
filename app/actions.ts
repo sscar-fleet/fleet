@@ -12,6 +12,7 @@ import { chercherPhotoModele } from '@/lib/photoModele';
 import { imeiDeLAgence } from '@/lib/telematique';
 import { commandeMoteur } from '@/lib/sourceGps';
 import { inscrireTraccar } from '@/lib/traccar';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
 const rafraichir = () => revalidatePath('/', 'layout');
 
@@ -171,6 +172,13 @@ async function _photoModele(id: string) {
   const photo = await chercherPhotoModele(v?.marque, v?.modele);
   if (!photo) throw new Error('Aucune photo trouvée pour ce modèle. Vérifiez la marque et le modèle, ou ajoutez votre propre photo.');
   verifier((await supabase.from('vehicules').update({ photo_modele: photo }).eq('id', id)).error);
+  rafraichir();
+}
+
+async function _choisirVisuel(id: string, visuel: string) {
+  champAutorise(visuel, ['auto', 'photo', 'icone']);
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ visuel }).eq('id', id)).error, 'Visuel');
   rafraichir();
 }
 
@@ -1039,7 +1047,8 @@ async function _relierTraceur(vehicule_id: string, formData: FormData) {
   let traceur_id = existe?.id;
   if (traceur_id) verifier((await supabase.from('traceurs').update(ref).eq('id', traceur_id)).error);
   else {
-    const { data, error } = await supabase.from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld', ...ref }).select('id').single();
+    // Ajout du boîtier par le serveur seulement (le loueur n'a pas le droit d'ajouter un IMEI lui-même) : il vient d'être vérifié ci-dessus
+    const { data, error } = await supabaseAdmin().from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld', ...ref }).select('id').single();
     verifier(error, 'Boîtier');
     traceur_id = data!.id;
   }
@@ -1075,7 +1084,7 @@ async function _importerVehicules(formData: FormData) {
       const { data: t0 } = await supabase.from('traceurs').select('id').eq('imei', imei).maybeSingle();
       let traceur_id = t0?.id as string | undefined;
       if (!traceur_id) {
-        const { data, error } = await supabase.from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld' }).select('id').single();
+        const { data, error } = await supabaseAdmin().from('traceurs').insert({ agence_id: profil.agence_id, imei, fournisseur: 'seeworld' }).select('id').single();
         verifier(error, 'Boîtier'); traceur_id = data!.id;
       }
       await supabase.from('vehicules').update({ traceur_id: null }).eq('traceur_id', traceur_id).neq('id', vehicule_id);
@@ -1124,60 +1133,6 @@ async function _reporterKm(vehicule_id: string, kmCompteur: number) {
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('vehicules').update({ km: Math.round(kmCompteur) }).eq('id', vehicule_id)).error);
   rafraichir();
-}
-
-// Import de la flotte depuis un tableur (Excel, CSV, lignes collées) : les plaques déjà présentes sont ignorées
-function dateTableur(v: string): string | null {
-  const t = (v ?? '').trim();
-  if (!t) return null;
-  if (/^\d{5}(\.\d+)?$/.test(t)) { const d = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(t)) * 864e5); return d.toISOString().slice(0, 10); }
-  let m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(t);
-  if (m) { const a = m[3].length === 2 ? `20${m[3]}` : m[3]; return `${a}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; }
-  m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
-}
-function carburantTableur(v: string): string | null {
-  const t = (v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  if (/elec|ev\b/.test(t)) return 'electrique';
-  if (/hybr/.test(t)) return 'hybride';
-  if (/gpl/.test(t)) return 'gpl';
-  if (/dies|gazo|gasoil|tdi|hdi|dci/.test(t)) return 'diesel';
-  if (/ess|sp9|sans plomb|tsi|tce|puretech/.test(t)) return 'essence';
-  return null;
-}
-const nombreTableur = (v: string) => { const n = Number(String(v ?? '').replace(/[^\d,.-]/g, '').replace(',', '.')); return Number.isFinite(n) && String(v ?? '').trim() ? n : null; };
-
-export async function importerTableur(json: string): Promise<{ erreur?: string; crees?: number }> {
-  try {
-    const { supabase, profil } = await utilisateurCourant();
-    const lignes: Record<string, string>[] = JSON.parse(json);
-    if (!Array.isArray(lignes) || !lignes.length) return { erreur: 'Aucune ligne à importer.' };
-    const vus = new Set<string>();
-    const fiches = lignes.slice(0, 500).flatMap((l) => {
-      const im = immat(l.immatriculation ?? '');
-      if (im.length < 4 || im.length > 12 || vus.has(im)) return [];
-      vus.add(im);
-      let marque = texte(l.marque ?? '') ?? null, modele = texte(l.modele ?? '') ?? null;
-      if (marque && !modele && marque.includes(' ')) { const [m, ...r] = marque.split(/\s+/); marque = m; modele = r.join(' '); }
-      return [{
-        agence_id: profil.agence_id, immatriculation: im, marque, modele,
-        km: nombreTableur(l.km) != null ? Math.round(nombreTableur(l.km)!) : null,
-        prix_jour: nombreTableur(l.prix_jour), carburant: carburantTableur(l.carburant ?? ''),
-        assurance_echeance: dateTableur(l.assurance_echeance ?? ''), ct_echeance: dateTableur(l.ct_echeance ?? ''),
-        date_entree: new Date().toISOString().slice(0, 10),
-      }];
-    });
-    if (!fiches.length) return { erreur: 'Aucune immatriculation valable dans ces lignes.' };
-    const { data, error } = await supabase.from('vehicules').upsert(fiches, { onConflict: 'agence_id,immatriculation', ignoreDuplicates: true }).select('id');
-    verifier(error, 'Import');
-    const crees = data?.length ?? 0;
-    if (crees) await journal(null, null, 'Flotte importée depuis un tableur', `${crees} véhicule${crees > 1 ? 's' : ''}`);
-    rafraichir();
-    return { crees };
-  } catch (e: any) {
-    if (typeof e?.digest === 'string' && e.digest.startsWith('NEXT_')) throw e;
-    return { erreur: e?.message || 'Import impossible.' };
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1248,6 +1203,7 @@ export const relierTraceur = proteger(_relierTraceur);
 export const delierTraceur = proteger(_delierTraceur);
 export const passerDirect = proteger(_passerDirect);
 export const importerVehicules = proteger(_importerVehicules);
+export const choisirVisuel = proteger(_choisirVisuel);
 export const statutAmendes = proteger(_statutAmendes);
 
 // Modification directe dans les tableaux (liste blanche de champs)
