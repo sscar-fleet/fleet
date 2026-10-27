@@ -19,4 +19,12 @@ create policy imports_flotte_lecture on imports_flotte for select using (agence_
 drop policy if exists imports_flotte_ajout on imports_flotte;
 create policy imports_flotte_ajout on imports_flotte for insert with check (agence_id = agence_courante());
 
+-- Visuel de chaque véhicule : photo exacte du modèle (de profil, détourée) ou icône classique (logo de la marque).
+-- auto = photo, sauf pour un véhicule de plus de 15 ans qui garde l'icône. L'année sert aussi à choisir la bonne génération.
+alter table vehicules add column if not exists annee int check (annee between 1950 and 2100);
+alter table vehicules add column if not exists visuel text not null default 'auto';
+do $$ begin
+  alter table vehicules add constraint vehicules_visuel_valide check (visuel in ('auto', 'photo', 'icone'));
+exception when duplicate_object then null; end $$;
+
 notify pgrst, 'reload schema';

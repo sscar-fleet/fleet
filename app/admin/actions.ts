@@ -17,3 +17,16 @@ export async function noteAgence(agence: string, statut: string, fd: FormData): 
   if (error) return { erreur: error.message };
   revalidatePath('/admin');
 }
+
+// Client SS CAR SYSTEM reconnu : ses véhicules équipés sont créés dans l'agence et reliés à leurs boîtiers
+export async function rattacherSscs(agence: string, clientId: string, _fd?: FormData): Promise<{ erreur?: string } | void> {
+  const supabase = supabaseServeur();
+  const { data: admin } = await supabase.rpc('est_admin');
+  if (!admin) return { erreur: 'Réservé à SS CAR FLEET.' };
+  const { clientSscs, rattacherEquipements } = await import('@/lib/annuaireSscs');
+  const trouve = await clientSscs(clientId);
+  if (!trouve || !trouve.vehicules.length) return { erreur: 'Aucun véhicule équipé pour ce client SS CAR SYSTEM.' };
+  const r = await rattacherEquipements(agence, trouve.client, trouve.vehicules, null);
+  revalidatePath('/admin');
+  if (r.erreur) return { erreur: r.erreur };
+}

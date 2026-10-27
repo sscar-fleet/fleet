@@ -7,19 +7,20 @@ import Cadre from '../_c/Cadre';
 import Formulaire from '../_c/Formulaire';
 import Scanner from '../_c/Scanner';
 import ApercuModele from '../_c/ApercuModele';
-import LogoMarque, { BadgeSport } from '../_c/LogoMarque';
+import { BadgeSport } from '../_c/LogoMarque';
+import VisuelVehicule from '../_c/VisuelVehicule';
+import { visuelVehicule } from '@/lib/photoModele';
 import Envoyer from '../_c/Envoyer';
 import ImportTraceurs from '../_c/ImportTraceurs';
 import ChampEnLigne from '../_c/ChampEnLigne';
 import { boitiersAImporter } from '@/lib/telematique';
-import ImportTableur from '../_c/ImportTableur';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Vehicules({ searchParams }: { searchParams: { statut?: string; q?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const { data: tous } = await supabase.from('vehicules')
-    .select('id, immatriculation, marque, modele, statut, km, prix_jour, assurance_echeance, ct_echeance, photo_path').order('immatriculation');
+    .select('*').order('immatriculation'); // « * » : annee et visuel arrivent avec la mise à jour 0026 sans casser la page avant
   const q = (searchParams.q ?? '').toLowerCase().trim();
   const vehicules = (tous ?? []).filter((v: any) =>
     (searchParams.statut ? v.statut === searchParams.statut : v.statut !== 'sorti') &&
@@ -30,10 +31,12 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
 
   return (
     <Cadre titre={`Véhicules (${(tous ?? []).filter((v: any) => v.statut !== 'sorti').length})`} tables={['vehicules']}
-      actions={<><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a><OuvrirFormulaire>+ Ajouter un véhicule</OuvrirFormulaire></>}>
+      actions={<><a className="bouton" href="/import">Importer</a><a className="bouton" href="/vehicules/sortis">Sortis et vendus</a><a className="bouton" href="/export/vehicules">Exporter</a><OuvrirFormulaire>+ Ajouter un véhicule</OuvrirFormulaire></>}>
       {aImporter.erreur && <p className="gris" style={{ fontSize: 13 }}>Import depuis les traceurs indisponible pour le moment : {aImporter.erreur}</p>}
       <ImportTraceurs fiches={aImporter.fiches} ouvert={!tous?.length || aImporter.fiches.filter((f) => f.existe !== 'relie').length >= 3} />
-      <ImportTableur existantes={(tous ?? []).map((v: any) => v.immatriculation)} ouvert={!tous?.length && !aImporter.fiches.length} />
+      {!(tous ?? []).length
+        ? <section className="carte imp-entree formulaire-haut"><div><b style={{ fontSize: 17 }}>Importez toute votre flotte d’un coup</b><p className="gris">Excel, photos de cartes grises ou de contrats, PDF, ou quelques lignes dictées : Fleet AI remplit les fiches, les clients et les locations en cours.</p></div><a className="bouton principal" href="/import">Importer ma flotte</a></section>
+        : null}
       <details className="formulaire carte formulaire-haut" open={false}>
         <summary>Nouveau véhicule</summary>
         <Formulaire action={ajouterVehicule} className="grille" succes="Véhicule ajouté">
@@ -80,7 +83,7 @@ export default async function Vehicules({ searchParams }: { searchParams: { stat
               const pire = a === 'depasse' || c === 'depasse' ? 'depasse' : a || c;
               return (
                 <tr key={v.id}>
-                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <LogoMarque marque={v.marque} modele={v.modele} />}<b>{plaque(v.immatriculation)}</b></a></td>
+                  <td><a className="bloc ligne" href={`/vehicules/${v.id}`} style={{ flexWrap: 'nowrap' }}>{photos[v.photo_path] ? <img className="vignette" src={photos[v.photo_path]} alt="" /> : <VisuelVehicule src={visuelVehicule(v)} marque={v.marque} modele={v.modele} />}<b>{plaque(v.immatriculation)}</b></a></td>
                   <td><a className="bloc" href={`/vehicules/${v.id}`}>{[v.marque, v.modele].filter(Boolean).join(' ') || '—'}<BadgeSport marque={v.marque} modele={v.modele} petit /></a></td>
                   <td><span className={`pastille ${v.statut}`}>{statutVehicule[v.statut]}</span>{v.financement === 'pret' ? <span className="pastille" style={{ marginLeft: 6 }} title={v.pret_par ? `Prêté par ${v.pret_par}` : 'Prêté par un confrère'}>Prêt</span> : null}</td>
                   <td className="masque-mobile"><ChampEnLigne table="vehicules" id={v.id} champ="km" valeur={v.km} affichage={km(v.km)} suffixe=" km" /></td>

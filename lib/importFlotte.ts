@@ -42,7 +42,7 @@ const json = (t: string) => {
 
 const FORMAT = `{
  "type_document": "carte_grise|contrat|liste|autre",
- "vehicules": [{"immatriculation": "AB123CD", "marque": "Renault", "modele": "Clio 5", "carburant": "essence|diesel|hybride|electrique|gpl|null", "km": 42000, "prix_jour": 45, "statut": "disponible|loue|garage|vendu|null", "garage": "nom du garage ou null", "retour_garage": "AAAA-MM-JJ ou null", "assurance_echeance": "AAAA-MM-JJ ou null", "ct_echeance": "AAAA-MM-JJ ou null", "note": "court, ou null"}],
+ "vehicules": [{"immatriculation": "AB123CD", "marque": "Renault", "modele": "Clio 5 (version exacte si elle est écrite : RS3, GTI, AMG…)", "annee": "année de première mise en circulation (carte grise champ B) ou null", "carburant": "essence|diesel|hybride|electrique|gpl|null", "km": 42000, "prix_jour": 45, "statut": "disponible|loue|garage|vendu|null", "garage": "nom du garage ou null", "retour_garage": "AAAA-MM-JJ ou null", "assurance_echeance": "AAAA-MM-JJ ou null", "ct_echeance": "AAAA-MM-JJ ou null", "note": "court, ou null"}],
  "clients": [{"nom": "Dupont", "prenom": "Jean", "telephone": "0612345678", "email": null, "date_naissance": "AAAA-MM-JJ ou null", "numero_permis": null, "adresse": null}],
  "locations": [{"immatriculation": "AB123CD", "client_nom": "Dupont", "client_prenom": "Jean", "client_telephone": null, "debut": "AAAA-MM-JJTHH:MM ou null", "fin": "AAAA-MM-JJTHH:MM ou null", "prix_total": null, "caution": null}],
  "chauffeurs": [{"nom": "Martin", "prenom": "Karim", "telephone": null}],
@@ -58,7 +58,7 @@ Extrais uniquement ce qui y figure vraiment, sans rien inventer ni compléter de
 - leur situation actuelle : "loue" s'il est chez un client, "garage" s'il est en réparation / à l'atelier / chez le carrossier / immobilisé (avec le garage et la date de retour prévue si elles sont données), "disponible" s'il est libre, "vendu" s'il est vendu ou rendu ;
 - les clients (nom, prénom, téléphone, e-mail, date de naissance, numéro de permis) ;
 - les locations en cours ou à venir : quel véhicule, quel client, départ et retour. "jusqu'à vendredi" = le prochain vendredi par rapport à aujourd'hui ; une date sans heure : départ 09:00, retour 18:00 ; ignore les locations déjà terminées ;
-${c.metier === 'transport' ? '- les chauffeurs (nom, prénom, téléphone) : ce sont des salariés, pas des clients ;\n' : ''}- une carte grise : immatriculation = champ A, marque = D.1, modèle = D.3, carburant = P.3, et aucun client ;
+${c.metier === 'transport' ? '- les chauffeurs (nom, prénom, téléphone) : ce sont des salariés, pas des clients ;\n' : ''}- une carte grise : immatriculation = champ A, marque = D.1, modèle = nom commercial D.3, année = champ B, carburant = P.3, et aucun client ;
 - un contrat de location : le véhicule, le client (nom, prénom, téléphone, permis, naissance) et la location (départ, retour, prix, caution).
 Immatriculation sans espaces ni tirets. Téléphone tel qu'écrit. Mets null pour ce qui est absent ou illisible.
 ${c.plaques.length ? `Véhicules déjà dans le logiciel (garde la même plaque si tu reconnais l'un d'eux) : ${c.plaques.slice(0, 300).join(', ')}.\n` : ''}Réponds uniquement avec ce JSON, sans texte autour (listes vides si rien) :
@@ -91,6 +91,7 @@ Chaque ligne commence par son numéro (L0 = première ligne du fichier) ; chaque
 ${echantillon}
 """
 Dis à quoi correspond chaque colonne utile. Champs possibles : ${CHAMPS_COLONNE.join(', ')}.
+- annee : année de mise en circulation ou date de première immatriculation.
 - marque_modele : une seule colonne avec marque et modèle ensemble ; client_nom_complet / chauffeur_nom_complet : prénom et nom dans la même case.
 - debut / fin : départ et retour d'une location en cours ; retour_garage : date de sortie de garage prévue.
 - statut : colonne qui dit si le véhicule est loué, disponible, au garage, vendu… Donne la traduction de chaque valeur rencontrée vers "disponible", "loue", "garage" ou "vendu".

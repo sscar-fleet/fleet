@@ -34,30 +34,35 @@ export async function importerFlotte(json: string, sources: { total: number; rat
 
     // 1. Véhicules : nouveaux créés, existants complétés (jamais écrasés)
     const { data: existants } = await supabase.from('vehicules')
-      .select('id, immatriculation, marque, modele, carburant, km, prix_jour, assurance_echeance, ct_echeance, carte_grise_path, statut');
+      .select('*');
     const parPlaque = new Map<string, any>((existants ?? []).map((v: any) => [v.immatriculation, v]));
     const nouveaux: any[] = [];
     for (const v of lot.vehicules.slice(0, LIMITES.vehicules)) {
       if (!v.immatriculation) { bilan.sansPlaque++; continue; }
       const champs = {
-        marque: v.marque, modele: v.modele, carburant: v.carburant, km: v.km, prix_jour: v.prix_jour,
+        marque: v.marque, modele: v.modele, carburant: v.carburant, km: v.km, prix_jour: v.prix_jour, annee: v.annee,
         assurance_echeance: v.assurance_echeance, ct_echeance: v.ct_echeance, carte_grise_path: cartes.get(v.immatriculation) ?? null,
       };
       const e = parPlaque.get(v.immatriculation);
+      const choix = v.visuel !== 'auto' ? { visuel: v.visuel } : {};
       if (e) {
-        const maj = Object.fromEntries(Object.entries(champs).filter(([k, val]) => !vide(val) && vide(e[k])));
+        if (choix.visuel && e.visuel !== choix.visuel) await supabase.from('vehicules').update(choix).eq('id', e.id);
+        // Base pas encore à jour (mise à jour 0026) : pas de colonne annee sur les fiches existantes
+        const maj = Object.fromEntries(Object.entries(champs).filter(([k, val]) => !vide(val) && vide(e[k]) && k in e));
         if (Object.keys(maj).length) {
           const { error } = await supabase.from('vehicules').update(maj).eq('id', e.id);
           if (error) bilan.aReprendre.push(`${v.immatriculation} : ${error.message}`);
           else { bilan.completes++; if (maj.carte_grise_path) bilan.cartesGrises++; Object.assign(e, maj); }
         }
       } else if (!nouveaux.some((n) => n.immatriculation === v.immatriculation)) {
-        nouveaux.push({ agence_id: agence, immatriculation: v.immatriculation, ...champs, date_entree: aujourdhui });
+        nouveaux.push({ agence_id: agence, immatriculation: v.immatriculation, ...champs, ...choix, date_entree: aujourdhui });
       }
     }
     if (nouveaux.length) {
-      const { data, error } = await supabase.from('vehicules').upsert(nouveaux, { onConflict: 'agence_id,immatriculation', ignoreDuplicates: true })
+      const inserer = (lignes: any[]) => supabase.from('vehicules').upsert(lignes, { onConflict: 'agence_id,immatriculation', ignoreDuplicates: true })
         .select('id, immatriculation, km, statut, carte_grise_path');
+      let { data, error } = await inserer(nouveaux);
+      if (error && /annee|visuel/.test(error.message)) ({ data, error } = await inserer(nouveaux.map(({ annee, visuel, ...reste }) => reste)));
       if (error) return { erreur: `Import des véhicules impossible : ${error.message}` };
       for (const v of data ?? []) { parPlaque.set(v.immatriculation, v); bilan.vehicules++; if (v.carte_grise_path) bilan.cartesGrises++; }
     }
@@ -68,9 +73,13 @@ export async function importerFlotte(json: string, sources: { total: number; rat
       const { data } = await supabase.from('clients').select('id, nom, prenom, telephone, email, date_naissance, numero_permis, adresse').limit(5000);
       clientsFleet.push(...(data ?? []));
     }
+    // Même règle que l'aperçu : deux téléphones différents = deux personnes, même avec le même nom
     const trouver = (c: { nom: string | null; prenom: string | null; telephone: string | null; email?: string | null }) =>
-      clientsFleet.find((x) => (c.email && x.email && x.email.toLowerCase() === c.email) || memePersonne(x, c as any)
-        || (chiffresTel(c.telephone).length >= 9 && chiffresTel(x.telephone) === chiffresTel(c.telephone)));
+      clientsFleet.find((x) => {
+        const a = chiffresTel(x.telephone), b = chiffresTel(c.telephone);
+        if (a.length >= 9 && b.length >= 9) return a === b;
+        return (!!c.email && !!x.email && x.email.toLowerCase() === c.email) || memePersonne(x, c as any);
+      });
     if (!transport) {
       const aCreer: any[] = [];
       for (const c of lot.clients.slice(0, LIMITES.clients)) {
@@ -186,4 +195,5 @@ export async function ajouterEquipementsSscs(): Promise<{ ajoutes?: number; reli
     return { erreur: e?.message || 'Rattachement impossible.' };
   }
 }
+
 

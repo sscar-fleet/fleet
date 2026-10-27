@@ -161,10 +161,10 @@ export default async function Accueil() {
       {profil.role === 'gerant' && totalFlotte === 0 && (
         <section className="carte demo-vide">
           <h2 style={{ marginTop: 0 }}>Votre agence est encore vide</h2>
-          <p className="gris">Pour voir tout de suite comment Fleet travaille pour vous, remplissez-la avec une petite flotte d&apos;exemple : 4 voitures, 3 clients, une location en cours et une réservation. Vous l&apos;effacez d&apos;un clic quand vous voulez.</p>
+          <p className="gris">Mettez toute votre flotte dans Fleet en 2 minutes : déposez votre Excel, des photos de cartes grises ou de contrats, ou dictez quelques lignes. Fleet AI remplit les véhicules, les clients et les locations en cours. Vous préférez d&apos;abord essayer ? Prenez une flotte d&apos;exemple, effaçable d&apos;un clic.</p>
           <div className="ligne" style={{ gap: 10, flexWrap: 'wrap' }}>
-            <Formulaire action={A.remplirExemples} succes="Flotte d’exemple ajoutée"><Envoyer className="bouton principal">Voir avec une flotte d&apos;exemple</Envoyer></Formulaire>
-            <a className="bouton" href="/vehicules">Ajouter mon premier véhicule</a>
+            <a className="bouton principal" href="/import">Importer ma flotte</a>
+            <Formulaire action={A.remplirExemples} succes="Flotte d’exemple ajoutée"><Envoyer className="bouton">Voir avec une flotte d&apos;exemple</Envoyer></Formulaire>
           </div>
         </section>
       )}

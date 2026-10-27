@@ -7,6 +7,7 @@ export type StatutImport = 'disponible' | 'loue' | 'garage';
 export type VehiculeImport = {
   cle: string; immatriculation: string | null; marque: string | null; modele: string | null;
   carburant: string | null; km: number | null; prix_jour: number | null; statut: StatutImport | null;
+  annee: number | null; visuel: 'auto' | 'photo' | 'icone';
   garage: string | null; retour_garage: string | null; assurance_echeance: string | null; ct_echeance: string | null;
   note: string | null; carte_grise: string | null; sources: string[];
 };
@@ -51,8 +52,12 @@ export function nombreNet(v: unknown, max = 9_999_999): number | null {
   if (typeof v === 'number') return Number.isFinite(v) && v >= 0 && v <= max ? v : null;
   const s = String(v).replace(/\s| |€|km|eur/gi, '').replace(/[^\d,.-]/g, '');
   if (!s) return null;
-  // 12.500,50 ou 12,500.50 : le dernier séparateur est la virgule décimale
-  const n = Number(/,\d{1,2}$/.test(s) ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, ''));
+  // 42.000 ou 12.500,50 (milliers à la française), 12,500.50 (à l'anglaise), 45,5 (virgule décimale)
+  let t = s;
+  const m = /^(\d{1,3}(?:[.,]\d{3})+)([.,]\d{1,2})?$/.exec(t);
+  if (m) t = m[1].replace(/[.,]/g, '') + (m[2] ? '.' + m[2].slice(1) : '');
+  else t = t.replace(',', '.');
+  const n = Number(t);
   return Number.isFinite(n) && n >= 0 && n <= max ? n : null;
 }
 
@@ -155,10 +160,14 @@ export function nettoyerLot(brut: any, source: string, document?: string | null)
     let marque = chaine(v?.marque, 40), modele = chaine(v?.modele, 60);
     if (marque && !modele && marque.includes(' ')) { const mm = devinerMarqueModele(marque); if (mm.marque) { marque = mm.marque; modele = mm.modele || null; } }
     if (!marque && modele) { const mm = devinerMarqueModele(modele); if (mm.marque) { marque = mm.marque; modele = mm.modele || modele; } }
+    // Carte grise en capitales (« MASTER ») : remis en forme, sans toucher aux versions (RS3, GTI, AMG)
+    if (modele && modele === modele.toUpperCase()) modele = modele.split(' ').map((m) => (/^[A-Z]{4,}$/.test(m) ? m[0] + m.slice(1).toLowerCase() : m)).join(' ');
     const s = statutNet(v?.statut);
     if (s === 'vendu') { if (immatriculation) vendus.push(immatriculation); continue; }
     const fiche: VehiculeImport = {
       cle: immatriculation ?? cleTemp('v'), immatriculation, marque: marque ? nomPropre(marque) : null, modele,
+      annee: (() => { const a = nombreNet(v?.annee, 2100) ?? (dateNette(v?.annee) ? Number(dateNette(v?.annee)!.slice(0, 4)) : null); return a && a >= 1950 ? Math.round(a) : null; })(),
+      visuel: v?.visuel === 'photo' || v?.visuel === 'icone' ? v.visuel : 'auto',
       carburant: carburantNet(v?.carburant), km: (() => { const n = nombreNet(v?.km, 2_000_000); return n == null ? null : Math.round(n); })(),
       prix_jour: nombreNet(v?.prix_jour, 5000), statut: s,
       garage: chaine(v?.garage, 80), retour_garage: dateNette(v?.retour_garage),
@@ -221,8 +230,11 @@ const memeNom = (a: { nom: string; prenom: string | null }, b: { nom: string; pr
 
 export function fusionner(base: Lot, ajout: Lot): Lot {
   const r: Lot = { vehicules: [...base.vehicules], clients: [...base.clients], locations: [...base.locations], chauffeurs: [...base.chauffeurs], remarques: [...base.remarques] };
+  const memeSansPlaque = (a: VehiculeImport, b: VehiculeImport) => !a.immatriculation && !b.immatriculation
+    && cleNom(a.marque) === cleNom(b.marque) && cleNom(a.modele) === cleNom(b.modele) && (a.km ?? null) === (b.km ?? null);
   for (const v of ajout.vehicules) {
-    const i = v.immatriculation ? r.vehicules.findIndex((x) => x.immatriculation === v.immatriculation) : -1;
+    // Même plaque = même véhicule ; sans plaque, le même véhicule cité dans deux sources n'apparaît qu'une fois
+    const i = v.immatriculation ? r.vehicules.findIndex((x) => x.immatriculation === v.immatriculation) : r.vehicules.findIndex((x) => memeSansPlaque(x, v));
     if (i >= 0) r.vehicules[i] = completer(r.vehicules[i], v); else r.vehicules.push(v);
   }
   const trouverClient = (c: { nom: string; prenom: string | null; telephone: string | null; email: string | null }) => r.clients.findIndex((x) => {
@@ -244,7 +256,7 @@ export function fusionner(base: Lot, ajout: Lot): Lot {
       if (trouverClient(c) < 0) r.clients.push({ cle: cleClient(c), ...c, date_naissance: null, numero_permis: null, adresse: null, sources: l.sources });
     }
     if (l.immatriculation && !r.vehicules.some((x) => x.immatriculation === l.immatriculation)) {
-      r.vehicules.push({ cle: l.immatriculation, immatriculation: l.immatriculation, marque: null, modele: null, carburant: null, km: null, prix_jour: null,
+      r.vehicules.push({ cle: l.immatriculation, immatriculation: l.immatriculation, marque: null, modele: null, carburant: null, km: null, prix_jour: null, annee: null, visuel: 'auto',
         statut: null, garage: null, retour_garage: null, assurance_echeance: null, ct_echeance: null, note: null, carte_grise: null, sources: l.sources });
     }
   }
@@ -297,7 +309,7 @@ export function statutAffiche(v: VehiculeImport, locations: LocationImport[], ma
 // Tableur : l'IA reconnaît les colonnes sur quelques lignes, le navigateur applique à toutes
 // ---------------------------------------------------------------------------
 export const CHAMPS_COLONNE = [
-  'immatriculation', 'marque', 'modele', 'marque_modele', 'carburant', 'km', 'prix_jour', 'statut', 'garage', 'retour_garage',
+  'immatriculation', 'marque', 'modele', 'marque_modele', 'annee', 'carburant', 'km', 'prix_jour', 'statut', 'garage', 'retour_garage',
   'assurance_echeance', 'ct_echeance', 'note',
   'client_nom', 'client_prenom', 'client_nom_complet', 'client_telephone', 'client_email', 'client_naissance', 'client_permis', 'client_adresse',
   'debut', 'fin', 'prix_total', 'caution',
@@ -336,7 +348,7 @@ export function appliquerColonnes(lignes: string[][], c: Colonnes): any {
       continue;
     }
     if (val.immatriculation || val.marque || val.modele) {
-      sortie.vehicules.push({ immatriculation: val.immatriculation, marque: val.marque, modele: val.modele, carburant: val.carburant, km: val.km, prix_jour: val.prix_jour,
+      sortie.vehicules.push({ immatriculation: val.immatriculation, marque: val.marque, modele: val.modele, annee: val.annee, carburant: val.carburant, km: val.km, prix_jour: val.prix_jour,
         statut, garage: val.garage, retour_garage: val.retour_garage, assurance_echeance: val.assurance_echeance, ct_echeance: val.ct_echeance, note: val.note });
     }
     if (val.client_nom) {

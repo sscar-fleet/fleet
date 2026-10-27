@@ -1,5 +1,7 @@
 import Historique, { CHAMPS_HISTORIQUE } from '../../_c/Historique';
 import LogoMarque, { BadgeSport } from '@/app/_c/LogoMarque';
+import VisuelVehicule from '@/app/_c/VisuelVehicule';
+import { visuelVehicule, catalogueActif } from '@/lib/photoModele';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
@@ -103,8 +105,15 @@ export default async function FicheVehicule({ params }: { params: { id: string }
           <section className="carte photo-vehicule">
             {liens[v.photo_path]
               ? <img src={liens[v.photo_path]} alt={`${v.marque ?? ''} ${v.modele ?? ''}`} />
-              : <div className="logo-fiche"><LogoMarque marque={v.marque} modele={v.modele} className="logo-marque grand" /></div>}
-            <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : 'Logo de la marque · ajoutez votre propre photo dans Papiers si vous le souhaitez'}</span>
+              : <div className="logo-fiche"><VisuelVehicule grand src={visuelVehicule(v)} marque={v.marque} modele={v.modele} /></div>}
+            {!liens[v.photo_path] && catalogueActif() && (
+              <div className="ligne choix-visuel" style={{ gap: 6 }}>
+                {([['photo', 'Photo du modèle'], ['icone', 'Icône']] as const).map(([k, lib]) => (
+                  <Formulaire key={k} action={A.choisirVisuel.bind(null, v.id, k)}><Envoyer className={`bouton petit ${(visuelVehicule(v) ? 'photo' : 'icone') === k ? 'principal' : ''}`}>{lib}</Envoyer></Formulaire>
+                ))}
+              </div>
+            )}
+            <span className="gris" style={{ fontSize: 13 }}>{liens[v.photo_path] ? 'Photo du véhicule' : visuelVehicule(v) ? 'Photo du modèle · ajoutez votre propre photo dans Papiers si vous le souhaitez' : 'Logo de la marque · ajoutez votre propre photo dans Papiers si vous le souhaitez'}</span>
           </section>
           {v.statut !== 'sorti' && <SuiviGps v={v} traceur={traceur} suivi={suivi} alertes={traceur ? (await alertesAgence(supabase, suivi, 72)).filter((a) => a.vehicule_id === v.id) : []} />}
       <section className="chiffres">
