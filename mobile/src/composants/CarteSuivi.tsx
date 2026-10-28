@@ -14,14 +14,15 @@ export type CarteSuiviRef = { cadrer: () => void; viser: (id: string) => void };
 export type CarteSuiviProps = {
   points: PointCarte[]; choisi: string | null; trace?: [number, number][] | null; sombre: boolean; satellite: boolean; marges: { haut: number; bas: number };
   onChoisir: (id: string) => void; onFond: () => void;
+  etiquettes?: boolean; // modèle et plaque à côté de chaque voiture (carte en grand) ; sinon seulement en zoomant
 };
 
-const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuivi({ points, choisi, trace, sombre, satellite, marges, onChoisir, onFond }, ref) {
+const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuivi({ points, choisi, trace, sombre, satellite, marges, onChoisir, onFond, etiquettes = false }, ref) {
   const web = useRef<RefWeb>(null);
   const [prete, setPrete] = useState(false);
   const envoyer = (m: object) => web.current?.injectJavaScript(`window.recevoir && window.recevoir(${JSON.stringify(JSON.stringify(m))}); true;`);
   useImperativeHandle(ref, () => ({ cadrer: () => envoyer({ type: 'cadrer' }), viser: (id) => envoyer({ type: 'viser', id }) }));
-  useEffect(() => { if (prete) envoyer({ type: 'maj', points, choisi, sombre, satellite, marges, trace: trace ?? null }); }, [prete, points, choisi, trace, sombre, satellite, marges.haut, marges.bas]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (prete) envoyer({ type: 'maj', points, choisi, sombre, satellite, marges, trace: trace ?? null, etiquettes }); }, [prete, points, choisi, trace, sombre, satellite, marges.haut, marges.bas, etiquettes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b0f12' }}>

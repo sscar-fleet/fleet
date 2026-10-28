@@ -44,6 +44,9 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
 .r.photo .ph.ok~.om,.r.photo .om.vu{opacity:1}
 .r.icone .ic{opacity:1}
 .r.icone .ph,.r.icone .om{opacity:0!important}
+/* Étiquettes (modèle, plaque, état) : seulement en grand ou en zoomant, et toujours pour la voiture choisie */
+body.sobre .r .et{display:none}
+body.sobre .r.ch .et{display:flex}
 .r.photo .pt,.r.icone .pt{display:none}
 .r.photo .lg,.r.icone .lg{display:none}
 .r.photo .et{top:12px;left:-40px}
@@ -56,7 +59,7 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
 (function(){
   var CLAIR='https://tiles.openfreemap.org/styles/liberty', NUIT='https://tiles.openfreemap.org/styles/fiord';
   var SAT={version:8,sources:{s:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Esri, Maxar'},n:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19}},layers:[{id:'s',type:'raster',source:'s'},{id:'n',type:'raster',source:'n'}]};
-  var etat={points:[],choisi:null,sombre:true,satellite:false,marges:{haut:0,bas:0},trace:null}, traceCle='', reperes={}, carte=null, fond=null, cadre=false, clicRepere=false;
+  var etat={points:[],choisi:null,sombre:true,satellite:false,marges:{haut:0,bas:0},trace:null,etiquettes:false}, traceCle='', reperes={}, carte=null, fond=null, cadre=false, clicRepere=false;
   function envoyer(m){ var s=JSON.stringify(m); if(window.ReactNativeWebView) window.ReactNativeWebView.postMessage(s); else if(window.parent!==window) window.parent.postMessage({carteSuivi:m},'*'); }
   function styleVoulu(){ return etat.satellite?SAT:(etat.sombre?NUIT:CLAIR); }
   function cleStyle(){ return etat.satellite?'sat':(etat.sombre?'nuit':'clair'); }
@@ -135,6 +138,7 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
     if(!cadre&&etat.points.length){ cadre=true; setTimeout(function(){ carte.resize(); cadrer(); },350); }
     animer();
   }
+  function sobre(){ document.body.classList.toggle('sobre', !etat.etiquettes && !(carte && carte.getZoom()>=15)); }
   // Une seule boucle pour toute la carte : chaque repère glisse vers sa position estimée (lissage ≈ 0,35 s), arrêtée quand plus rien ne bouge
   var boucle=null, dernier=0, glisseLe=0;
   function animer(){ if(!boucle){ dernier=performance.now(); boucle=requestAnimationFrame(pas); } }
@@ -169,7 +173,7 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
     if(typeof m==='string'){ try{ m=JSON.parse(m); }catch(e){ return; } }
     if(!m||!m.type) return;
     if(m.type==='maj'){
-      var avant=etat.choisi; etat.points=m.points||[]; etat.choisi=m.choisi||null; etat.sombre=!!m.sombre; etat.satellite=!!m.satellite; etat.marges=m.marges||etat.marges; etat.trace=m.trace||null;
+      var avant=etat.choisi; etat.points=m.points||[]; etat.choisi=m.choisi||null; etat.sombre=!!m.sombre; etat.satellite=!!m.satellite; etat.marges=m.marges||etat.marges; etat.trace=m.trace||null; etat.etiquettes=!!m.etiquettes; sobre();
       if(carte&&fond!==cleStyle()){ fond=cleStyle(); traceCle=''; carte.setStyle(styleVoulu()); }
       dessiner();
       if(etat.choisi&&etat.choisi!==avant&&!etat.trace) viser(etat.choisi);
@@ -185,6 +189,7 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
     carte=new maplibregl.Map({container:'c',style:styleVoulu(),center:[2.3522,48.8566],zoom:11,attributionControl:{compact:true},dragRotate:false,pitchWithRotate:false,touchPitch:false});
     carte.touchZoomRotate.disableRotation();
     carte.on('click',function(){ if(!clicRepere) envoyer({type:'fond'}); });
+    carte.on('zoomend',sobre);
     carte.on('dragstart',function(e){ if(e&&e.originalEvent) glisseLe=Date.now(); });
     carte.on('load',function(){ carte.resize(); dessiner(); tracer(); });
     [300,1000,2500].forEach(function(ms){ setTimeout(function(){ carte.resize(); },ms); }); // iPhone : la carte se cale sur la vraie taille de son cadre

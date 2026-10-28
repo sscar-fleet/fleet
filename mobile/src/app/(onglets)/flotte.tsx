@@ -202,7 +202,7 @@ export default function EspaceSuivi() {
       {/* Carte en grand */}
       {plein && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b0f12' }}>
-          <CarteSuivi ref={grande} points={points} choisi={null} sombre={sombre} satellite={satellite} marges={{ haut: sa.top + 70, bas: 40 }} onChoisir={choisir} onFond={() => {}} />
+          <CarteSuivi ref={grande} etiquettes points={points} choisi={null} sombre={sombre} satellite={satellite} marges={{ haut: sa.top + 70, bas: 40 }} onChoisir={choisir} onFond={() => {}} />
           <View pointerEvents="box-none" style={{ position: 'absolute', top: sa.top + 10, left: 12, right: 12, flexDirection: 'row', justifyContent: 'space-between' }}>
             <Pressable onPress={() => { vibrer(); setPlein(false); }} style={[boutonCarte, { height: 46 }]} accessibilityLabel="Réduire la carte">
               <Icone nom="reduire" couleur="#fff" taille={18} />
