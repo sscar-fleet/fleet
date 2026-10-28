@@ -21,7 +21,7 @@ async function demander(marque: string, modele: string, annee: string): Promise<
   // Le modèle complet d'abord (« rs3 », « clio-5 »), puis le premier mot seulement (« clio »)
   const essais = Array.from(new Set([modele.replace(/-/g, ' '), modele.split('-')[0]]));
   for (const mo of essais) {
-    const q = new URLSearchParams({ make: marque.replace(/-/g, ' '), model: mo, year: annee, view: 'left', format: 'png', size: 'medium', trim: '1', framing: 'consistent' });
+    const q = new URLSearchParams({ make: marque.replace(/-/g, ' '), model: mo, year: annee, view: 'left', format: 'png', size: 'medium', framing: 'consistent' });
     const r = await fetch(`${URL_API()}/api/v1/images/car?${q}`, {
       headers: { Authorization: `Bearer ${process.env.CAR_IMAGE_API_KEY}` }, signal: AbortSignal.timeout(25_000), cache: 'no-store',
     });
