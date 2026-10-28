@@ -3,6 +3,7 @@ import { plaque } from '@/lib/format';
 import { suiviAgence, kmEstime } from '@/lib/telematique';
 import Cadre from '../_c/Cadre';
 import SuiviFlotte, { type LigneSuivi } from '../_c/SuiviFlotte';
+import { pourCarte } from '@/lib/photoModele';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export default async function CarteFlotte({ searchParams }: { searchParams: { vehicule?: string } }) {
   const { supabase } = await utilisateurCourant();
   const [{ data: vehicules }, { data: locations }, suivi] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, km, traceurs(*)').neq('statut', 'sorti').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, annee, couleur, visuel, statut, km, traceurs(*)').neq('statut', 'sorti').order('immatriculation'),
     supabase.from('locations').select('id, vehicule_id, fin_prevue, clients(nom, prenom)').eq('statut', 'en_cours'),
     suiviAgence(supabase),
   ]);
@@ -20,7 +21,7 @@ export default async function CarteFlotte({ searchParams }: { searchParams: { ve
     const etat: LigneSuivi['etat'] = !t ? 'sans' : !e ? 'hors_ligne' : t.moteur_coupe ? 'coupe' : !e.enLigne ? 'hors_ligne' : e.enMouvement ? 'roule' : 'arret';
     return { id: v.id, immat: plaque(v.immatriculation), marque: v.marque, modele: v.modele, etat, vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null,
       lat: e?.lat ?? null, lng: e?.lng ?? null, le: e?.le ?? null, km: kmEstime(t, e) ?? v.km, statut: v.statut,
-      client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null };
+      client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null, ...pourCarte(v, e?.cap) };
   });
   const sans = lignes.filter((l) => l.etat === 'sans').length;
 

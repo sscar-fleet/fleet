@@ -20,7 +20,7 @@ async function chercher(langue: string, q: string, marque: string) {
 }
 
 // Photos « catalogue » (Car Image API) : voir lib/visuel.ts et app/api/visuel
-import { urlCatalogue, visuelRetenu } from './visuel';
+import { urlCatalogue, visuelRetenu, teinteHex, gabarit } from './visuel';
 export const catalogueActif = () => !!process.env.CAR_IMAGE_API_KEY;
 export const reglagesCatalogue = () => (catalogueActif() ? { actif: true as const } : null);
 export const photoCatalogue = (marque?: string | null, modele?: string | null, annee?: number | null) => urlCatalogue(reglagesCatalogue(), marque, modele, annee);
@@ -35,3 +35,7 @@ export async function chercherPhotoModele(marque?: string | null, modele?: strin
     return null;
   }
 }
+
+// Ce qu'il faut à la carte pour dessiner une voiture : la même photo que la liste (zéro image en plus), sa teinte, son gabarit, son cap
+export const pourCarte = (v: { marque?: string | null; modele?: string | null; annee?: number | null; visuel?: string | null; couleur?: string | null }, cap?: number | null) =>
+  ({ photo: visuelVehicule(v), teinte: teinteHex(v.couleur), gabarit: gabarit(v.marque, v.modele), cap: cap ?? null });

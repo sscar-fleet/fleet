@@ -3,6 +3,7 @@ import { utilisateurCourant } from '@/lib/agence';
 import { debutJour, heure, date, echeance, JOUR, plaque } from '@/lib/format';
 import Cadre from './_c/Cadre';
 import SuiviFlotte, { type LigneSuivi } from './_c/SuiviFlotte';
+import { pourCarte } from '@/lib/photoModele';
 import { suiviAgence, kmEstime, alertesAgence, depuis } from '@/lib/telematique';
 import { etatDecouverte } from '@/lib/decouverte';
 import ParcoursDecouverte from './_c/ParcoursDecouverte';
@@ -47,7 +48,7 @@ export default async function Accueil() {
   let lignesGps: LigneSuivi[] = [];
   if (suivi.actif) {
     const [{ data: vt }, { data: enCours }] = await Promise.all([
-      supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, km, traceurs(*)').neq('statut', 'sorti').not('traceur_id', 'is', null),
+      supabase.from('vehicules').select('id, immatriculation, marque, modele, annee, couleur, visuel, statut, km, traceurs(*)').neq('statut', 'sorti').not('traceur_id', 'is', null),
       supabase.from('locations').select('id, vehicule_id, fin_prevue, clients(nom, prenom)').eq('statut', 'en_cours'),
     ]);
     lignesGps = (vt ?? []).map((v: any): LigneSuivi => {
@@ -56,7 +57,7 @@ export default async function Accueil() {
       return { id: v.id, immat: plaque(v.immatriculation), marque: v.marque, modele: v.modele, statut: v.statut,
         etat: !e ? 'hors_ligne' : t.moteur_coupe ? 'coupe' : !e.enLigne ? 'hors_ligne' : e.enMouvement ? 'roule' : 'arret',
         vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null, lat: e?.lat ?? null, lng: e?.lng ?? null, le: e?.le ?? null, km: kmEstime(t, e) ?? v.km,
-        client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null };
+        client: loc ? [loc.clients?.prenom, loc.clients?.nom].filter(Boolean).join(' ') : null, retour: loc?.fin_prevue ?? null, location_id: loc?.id ?? null, ...pourCarte(v, e?.cap) };
     });
   }
   // Alertes envoyées par les boîtiers sur 48 h (vibration, remorquage, débranchement…)

@@ -564,11 +564,11 @@ input[name="immatriculation"] { text-transform: uppercase; }
 .suivi-fiche .g span { display: block; color: var(--gris); font-size: 11.5px; }
 .suivi-fiche .g b { font-size: 13.5px; }
 .suivi-fiche .a { display: flex; gap: 6px; flex-wrap: wrap; }
-.suivi-repere span { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
-.suivi-repere span i { position: absolute; inset: -9px; border-radius: 50%; border: 2px solid #3b82f6; animation: pouls-bleu 1.8s infinite; }
+.suivi-repere .pt { position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+.suivi-repere .pt i { position: absolute; inset: -9px; border-radius: 50%; border: 2px solid #3b82f6; animation: pouls-bleu 1.8s infinite; }
 @keyframes pouls-bleu { from { transform: scale(.6); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
 .suivi-repere b { position: absolute; left: 13px; top: -10px; white-space: nowrap; background: #0b0f12; color: #fff; font: 700 11.5px/1 system-ui, sans-serif; padding: 4px 6px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.35); letter-spacing: .02em; }
-.suivi-repere.choisi span { width: 24px; height: 24px; left: -12px; top: -12px; }
+.suivi-repere.choisi .pt { width: 24px; height: 24px; left: -12px; top: -12px; }
 .suivi-repere em { position: absolute; right: 13px; top: -14px; width: 28px; height: 28px; display: grid; place-items: center; }
 /* Leaflet impose « width: auto » aux images des repères (.leaflet-container .leaflet-marker-pane img) : on reprend la main */
 .leaflet-container .leaflet-marker-pane .suivi-repere em img { width: 28px !important; height: 28px !important; max-width: 28px !important; max-height: 28px !important; object-fit: contain; filter: drop-shadow(0 1px 2px rgba(0,0,0,.5)); }
@@ -1056,3 +1056,21 @@ body:has(.imp-barre) .ia-bulle-flottante { display: none; }
   .ia-bulle-flottante .ia-orbe.petit { width: 40px; height: 40px; font-size: 16px; }
   main.page { padding-bottom: 150px; }
 }
+
+/* Carte du suivi façon appli SS CAR SYSTEM : photo du modèle à l'arrêt, icône vue de dessus en route */
+.suivi-repere .v { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.leaflet-container .leaflet-marker-pane .suivi-repere .ph { position: absolute; left: -32px; top: -26px; width: 64px !important; height: 34px !important; max-width: none !important; object-fit: contain; opacity: 0; transition: opacity .25s; filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); pointer-events: none; }
+.leaflet-container .leaflet-marker-pane .suivi-repere .ph.ok { opacity: 1; }
+.suivi-repere .om { position: absolute; left: -24px; top: 4px; width: 48px; height: 9px; border-radius: 50%; background: rgba(0,0,0,.4); filter: blur(3px); opacity: 0; transition: opacity .25s; }
+.suivi-repere.photo .om.vu { opacity: 1; }
+.suivi-repere .ic { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; transition: transform .8s ease-out; opacity: 0; }
+.suivi-repere .ic svg { width: 44px; height: 44px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
+.suivi-repere.icone .ic { opacity: 1; }
+.leaflet-container .leaflet-marker-pane .suivi-repere.icone .ph, .suivi-repere.icone .om { opacity: 0 !important; }
+.suivi-repere.photo > span.pt, .suivi-repere.icone > span.pt, .suivi-repere > em { display: none; }
+.suivi-repere.photo b { top: 12px; left: auto; right: auto; transform: translateX(-50%); }
+.suivi-repere.icone b { left: 20px; top: -10px; }
+.suivi-repere b i { font-style: normal; font-weight: 500; opacity: .75; }
+.suivi-repere.choisi.photo .ph { transform: scale(1.2); transform-origin: 50% 80%; }
+.sobre .suivi-repere b { display: none; }
+.sobre .suivi-repere.choisi b { display: block; }

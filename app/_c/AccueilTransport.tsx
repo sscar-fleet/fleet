@@ -4,6 +4,7 @@ import { euros, plaque } from '@/lib/format';
 import { suiviAgence, kmEstime } from '@/lib/telematique';
 import { lundiDe, semaineDe, heureCourte, nomChauffeur, tarifDe } from '@/lib/transport';
 import SuiviFlotte, { type LigneSuivi } from './SuiviFlotte';
+import { pourCarte } from '@/lib/photoModele';
 import { reglesDe } from '@/lib/planning';
 
 const minutes = (h: string) => { const [a, b] = String(h).split(':').map(Number); return (a || 0) * 60 + (b || 0); };
@@ -16,7 +17,7 @@ export default async function AccueilTransport({ supabase, prenom, regles }: { s
   const [{ data: tournees }, { data: chauffeurs }, { data: vehicules }, { data: donneurs }, { data: tarifs }, { data: semaineT }, suivi] = await Promise.all([
     supabase.from('tournees').select('*').eq('jour', aujourdhui).neq('statut', 'annulee').order('debut'),
     supabase.from('chauffeurs').select('id, prenom, nom, telephone, ville').eq('actif', true),
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, km, traceurs(*)').neq('statut', 'sorti'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, annee, couleur, visuel, statut, km, traceurs(*)').neq('statut', 'sorti'),
     supabase.from('donneurs_ordre').select('*'),
     supabase.from('tarifs_tournee').select('*'),
     supabase.from('tournees').select('id, jour, chauffeur_id, vehicule_id, statut').gte('jour', aujourdhui).lte('jour', semaine[6]).neq('statut', 'annulee'),
@@ -51,7 +52,7 @@ export default async function AccueilTransport({ supabase, prenom, regles }: { s
     const enCours = lignes.find((l: any) => l.v?.id === v.id && l.enCours) ?? lignes.find((l: any) => l.v?.id === v.id && !l.passee);
     return { id: v.id, immat: plaque(v.immatriculation), marque: v.marque, modele: v.modele, statut: v.statut, etat: etat === 'sans' ? 'hors_ligne' : etat,
       vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null, lat: e?.lat ?? null, lng: e?.lng ?? null, le: e?.le ?? null, km: kmEstime(v.traceurs, e) ?? v.km,
-      client: enCours ? nomChauffeur(ch(enCours.t.chauffeur_id)) || null : null, retour: null, location_id: null };
+      client: enCours ? nomChauffeur(ch(enCours.t.chauffeur_id)) || null : null, retour: null, location_id: null, ...pourCarte(v, e?.cap) };
   }) : [];
 
   return (
