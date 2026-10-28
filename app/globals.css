@@ -962,7 +962,7 @@ html.dans-panneau main.page { margin: 0 !important; padding-top: 12px; max-width
 .choix-metier small { color: var(--gris); font-size: 13px; }
 
 /* Photo « catalogue » du modèle (profil détouré) */
-.vignette.visuel-catalogue { object-fit: contain; background: none; width: 64px; }
+.vignette.visuel-catalogue { object-fit: contain; background: none; border-radius: 0; width: 88px; height: 40px; flex: none; }
 .visuel-catalogue.grand { width: 100%; max-width: 520px; height: auto; max-height: 240px; object-fit: contain; display: block; margin: 0 auto; }
 
 /* ---------- Importer ma flotte ---------- */
