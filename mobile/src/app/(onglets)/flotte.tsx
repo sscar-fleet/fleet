@@ -16,6 +16,7 @@ import CarteSuivi, { type CarteSuiviRef, type PointCarte } from '@/composants/Ca
 import Fenetre from '@/composants/Fenetre';
 import { useToast } from '@/composants/Toast';
 import { badgeSport, logoMarque } from '@/lib/logoMarque';
+import { urlVisuel, teinte, gabarit } from '@/lib/visuel';
 import { chargerVehicules, chargerLocations, type VehiculeLigne, type LocationLigne } from '@/lib/donnees';
 import { useDonnees } from '@/lib/useDonnees';
 import { useCouleurs } from '@/lib/theme';
@@ -84,7 +85,8 @@ export default function EspaceSuivi() {
     logo: logoMarque(s.v.marque, s.v.modele), badge: badgeSport(s.v.marque, s.v.modele),
     mot: enRetard(s) ? `retard ${duree(s.loc!.fin_prevue)}` : motCarte(s.e!), motCouleur: enRetard(s) ? '#fbbf24' : s.e!.etat === 'roule' ? '#93c5fd' : s.e!.etat === 'coupe' ? '#fca5a5' : s.e!.etat === 'hors_ligne' ? '#94a3b8' : '#fcd34d',
     retard: enRetard(s),
-  })), [JSON.stringify(visibles.map((s) => [s.v.id, s.e?.lat, s.e?.lng, s.e?.etat, s.e?.vitesse, s.e?.contact, enRetard(s)])), sombre]); // eslint-disable-line react-hooks/exhaustive-deps
+    photo: urlVisuel(s.v), teinte: teinte(s.v), gabarit: gabarit(s.v), cap: s.e!.cap ?? null, vitesse: s.e!.vitesse, le: s.e!.le, enLigne: s.e!.etat !== 'hors_ligne',
+  })), [JSON.stringify(visibles.map((s) => [s.v.id, s.e?.lat, s.e?.lng, s.e?.etat, s.e?.vitesse, s.e?.cap, s.e?.le, s.e?.contact, enRetard(s), s.v.couleur, s.v.visuel, s.v.annee])), sombre]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Couleur d'une voiture : rouge si problème, orange si retard, bleu si elle roule, turquoise si louée, vert si libre
   function couleurPoint(s: Suivi) {

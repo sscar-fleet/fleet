@@ -8,7 +8,7 @@ import type { Couleurs } from './theme';
 
 export type EtatGps = {
   vehicule_id: string; imei: string; etat: 'roule' | 'arret' | 'coupe' | 'hors_ligne'; moteur_coupe: boolean;
-  lat: number | null; lng: number | null; vitesse: number; contact: boolean | null; le: string | null; km_estime: number | null; alerte: string | null;
+  lat: number | null; lng: number | null; vitesse: number; cap?: number | null; contact: boolean | null; le: string | null; km_estime: number | null; alerte: string | null;
   coupure?: boolean; direct?: boolean; // coupure = false pour les boîtiers sans relais
   adresse?: string | null; contact_depuis?: string | null; arret_depuis?: string | null;
   tension?: number | null; satellites?: number | null; km_jour?: number | null; minutes_route?: number | null;
@@ -25,12 +25,18 @@ function gpsDemo(): Gps {
       contact: etat === 'roule', le: il(min), km_estime: km, alerte: null, coupure: true, direct: true, tension: 12.4, satellites: 9, ...plus,
       ...(c ? { contact: false, contact_depuis: il(0) } : {}) };
   };
+  // Aperçu : les voitures qui roulent avancent vraiment, dans le sens de leur cap
+  const avance = (lat: number, lng: number, cap: number, kmh: number) => {
+    const d = ((Date.now() / 1000) % 240) * kmh / 3.6, r = (cap * Math.PI) / 180;
+    return [lat + (d * Math.cos(r)) / 111320, lng + (d * Math.sin(r)) / (111320 * Math.cos((lat * Math.PI) / 180))] as const;
+  };
+  const p3 = avance(48.8848, 2.2966, 245, 47), p7 = avance(48.8635, 2.3790, 160, 31);
   const l = [
     e('v1', 'arret', 48.8566, 2.3522, 0, 42350, 4, { contact: false, contact_depuis: il(130), arret_depuis: il(130), adresse: 'Rue de Rivoli, Paris 4e', km_jour: 0 }),
     e('v2', 'arret', 48.8411, 2.3003, 0, 61210, 1, { contact: true, contact_depuis: il(22), arret_depuis: il(4), adresse: 'Rue de Vaugirard, Paris 15e', km_jour: 18, minutes_route: 35 }),
-    e('v3', 'roule', 48.8848, 2.2966, 47, 23262, 0.3, { contact: true, contact_depuis: il(48), adresse: 'Boulevard Bineau, Neuilly-sur-Seine', km_jour: 86, minutes_route: 130 }),
+    e('v3', 'roule', p3[0], p3[1], 47, 23262, 0, { cap: 245, contact: true, contact_depuis: il(48), adresse: 'Boulevard Bineau, Neuilly-sur-Seine', km_jour: 86, minutes_route: 130 }),
     e('v4', 'arret', 48.8352, 2.2412, 0, 88190, 26, { contact: false, contact_depuis: il(300), arret_depuis: il(300), adresse: 'Rue du Château, Boulogne-Billancourt', km_jour: 41 }),
-    e('v7', 'roule', 48.8635, 2.3790, 31, 30212, 0.2, { contact: true, contact_depuis: il(25), adresse: 'Boulevard Voltaire, Paris 11e', km_jour: 112, minutes_route: 150 }),
+    e('v7', 'roule', p7[0], p7[1], 31, 30212, 0, { cap: 160, contact: true, contact_depuis: il(25), adresse: 'Boulevard Voltaire, Paris 11e', km_jour: 112, minutes_route: 150 }),
     e('v6', 'hors_ligne', 48.8462, 2.2870, 0, 18400, 190, { contact: false, adresse: 'Rue Lecourbe, Paris 15e', tension: null, satellites: null }),
   ];
   return { actif: true, demo: true, raison: null, parVehicule: Object.fromEntries(l.map((x) => [x.vehicule_id, x])) };
@@ -99,7 +105,7 @@ export function useGps() {
   }, [lancer]);
   useFocusEffect(useCallback(() => {
     actif.current = true; lancer();
-    const t = setInterval(() => actif.current && lancer(), 30000);
+    const t = setInterval(() => actif.current && lancer(), DEMO ? 5000 : 30000);
     return () => { actif.current = false; clearInterval(t); };
   }, [lancer]));
   return { gps, rafraichirGps: lancer };

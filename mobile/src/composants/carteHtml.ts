@@ -7,6 +7,10 @@ export type PointCarte = {
   id: string; lat: number; lng: number; couleur: string; plaque: string; roule: boolean;
   logo?: string | null; badge?: { texte: string; fond: string; encre: string } | null;
   mot?: string | null; motCouleur?: string | null; retard?: boolean;
+  // Repère façon appli SS CAR SYSTEM : photo du modèle à l'arrêt (même adresse que la liste : zéro image en plus),
+  // icône vue de dessus qui tourne dans le sens de la marche quand la voiture roule
+  photo?: string | null; teinte?: string; gabarit?: 'citadine' | 'berline' | 'suv' | 'utilitaire' | 'moto';
+  cap?: number | null; vitesse?: number; le?: string | null; enLigne?: boolean;
 };
 
 export const CARTE_HTML = `<!doctype html><html><head>
@@ -31,6 +35,20 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
 .r.ch .et{background:#19f7d6;color:#00140f;font-size:14px;padding:6px 9px;top:-14px;left:17px}
 .r.ch .lg{width:36px;height:36px;top:-18px;right:17px}
 .maplibregl-ctrl-attrib{font-size:9px!important}
+.v{position:absolute;left:0;top:0;width:0;height:0}
+.v .ph{position:absolute;left:-32px;top:-26px;width:64px;height:34px;object-fit:contain;opacity:0;transition:opacity .25s;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));pointer-events:none}
+.v .ph.ok{opacity:1}
+.v .om{position:absolute;left:-24px;top:4px;width:48px;height:9px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px);opacity:0;transition:opacity .25s}
+.v .ic{position:absolute;left:-22px;top:-22px;width:44px;height:44px;transition:transform .8s ease-out;opacity:0}
+.v .ic svg{width:44px;height:44px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+.r.photo .ph.ok~.om,.r.photo .om.vu{opacity:1}
+.r.icone .ic{opacity:1}
+.r.photo .pt,.r.icone .pt{display:none}
+.r.photo .lg,.r.icone .lg{display:none}
+.r.photo .et{top:12px;left:-40px}
+.r.icone .et{left:20px;top:-12px}
+.r.ch.photo .ph{transform:scale(1.25);transform-origin:50% 80%}
+.r.ch.photo .et{top:16px}
 </style></head><body><div id="c"></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
@@ -42,11 +60,24 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
   function styleVoulu(){ return etat.satellite?SAT:(etat.sombre?NUIT:CLAIR); }
   function cleStyle(){ return etat.satellite?'sat':(etat.sombre?'nuit':'clair'); }
   function esc(t){ return String(t||'').replace(/[<>&"]/g,''); }
-  function html(p,ch){
+  function esc2(t){ return String(t||'').replace(/[<>&"']/g,''); }
+  function etiquette(p){
     var b=p.badge?'<span class="bs" style="background:'+p.badge.fond+';color:'+p.badge.encre+'">'+esc(p.badge.texte)+'</span>':'';
-    var lg=p.logo?'<span class="lg"><img src="'+esc(p.logo)+'" onerror="this.parentNode.remove()"></span>':'';
     var mot=p.mot?'<i style="color:'+(p.motCouleur||'#cbd5e1')+'">'+esc(p.mot)+'</i>':'';
-    return lg+'<span class="pt" style="background:'+p.couleur+'">'+(p.roule?'<i></i>':'')+'</span><span class="et">'+esc(p.plaque)+b+mot+'</span>';
+    return esc(p.plaque)+b+mot;
+  }
+  // Icône vue de dessus, dessin maison, avant vers le haut, dans la couleur du véhicule
+  var GAB={citadine:[13,28],berline:[14,34],suv:[16,34],utilitaire:[17,38],moto:[7,26]};
+  function dessus(g,t){
+    t=t||'#3b3f45'; var d=GAB[g]||GAB.citadine, w=d[0], h=d[1], x=22-w/2, y=22-h/2, r=g==='moto'?3.5:4.5;
+    var clair=/^#(f|e|d|c)/i.test(t), vitre=clair?'#2b3440':'#0d1318', trait=clair?'rgba(0,0,0,.35)':'rgba(255,255,255,.35)';
+    if(g==='moto') return '<svg viewBox="0 0 44 44"><rect x="'+(22-2.5)+'" y="'+y+'" width="5" height="'+h+'" rx="2.5" fill="#111"/><rect x="'+x+'" y="'+(y+7)+'" width="'+w+'" height="'+(h-12)+'" rx="3.5" fill="'+t+'" stroke="'+trait+'" stroke-width="1"/><rect x="'+(22-6)+'" y="'+(y+6)+'" width="12" height="2.2" rx="1.1" fill="#111"/><circle cx="22" cy="'+(y+1.5)+'" r="1.6" fill="#fff8d6"/></svg>';
+    var s='<svg viewBox="0 0 44 44"><rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+r+'" fill="'+t+'" stroke="'+trait+'" stroke-width="1"/>';
+    if(g==='utilitaire'){ s+='<rect x="'+(x+1.6)+'" y="'+(y+3.2)+'" width="'+(w-3.2)+'" height="'+(h*0.16)+'" rx="2" fill="'+vitre+'"/><rect x="'+(x+1.4)+'" y="'+(y+h*0.26)+'" width="'+(w-2.8)+'" height="'+(h*0.68)+'" rx="2" fill="'+t+'" stroke="'+trait+'" stroke-width=".8"/>'; }
+    else { s+='<rect x="'+(x+1.8)+'" y="'+(y+h*0.22)+'" width="'+(w-3.6)+'" height="'+(h*0.19)+'" rx="2.4" fill="'+vitre+'"/><rect x="'+(x+2.2)+'" y="'+(y+h*0.44)+'" width="'+(w-4.4)+'" height="'+(h*0.27)+'" rx="2" fill="'+t+'" stroke="'+trait+'" stroke-width=".7"/><rect x="'+(x+2)+'" y="'+(y+h*0.74)+'" width="'+(w-4)+'" height="'+(h*0.13)+'" rx="2" fill="'+vitre+'"/>'; }
+    s+='<rect x="'+(x+1.2)+'" y="'+(y+.8)+'" width="3.2" height="1.8" rx=".9" fill="#fff8d6"/><rect x="'+(x+w-4.4)+'" y="'+(y+.8)+'" width="3.2" height="1.8" rx=".9" fill="#fff8d6"/>';
+    s+='<rect x="'+(x+1.2)+'" y="'+(y+h-2.4)+'" width="3" height="1.6" rx=".8" fill="#ff4d4d"/><rect x="'+(x+w-4.2)+'" y="'+(y+h-2.4)+'" width="3" height="1.6" rx=".8" fill="#ff4d4d"/></svg>';
+    return s;
   }
   function marges(){ return {top:etat.marges.haut+50,bottom:etat.marges.bas+40,left:60,right:140}; }
   function cadrer(){
@@ -56,21 +87,68 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
     carte.fitBounds(b,{padding:marges(),maxZoom:15,duration:500});
   }
   function viser(id){ var p=etat.points.filter(function(x){return x.id===id;})[0]; if(p&&carte) carte.easeTo({center:[p.lng,p.lat],zoom:Math.max(carte.getZoom(),15.5),padding:{top:etat.marges.haut,bottom:etat.marges.bas,left:0,right:0},duration:450}); }
+  // --- Repères : un seul par voiture, réutilisé d'une mise à jour à l'autre (jamais supprimé puis recréé)
+  var rates={}; // photos qui n'ont pas pu se charger : on ne les redemande plus
+  var RAD=Math.PI/180;
+  function roule(p){ return p.enLigne!==false && (p.vitesse||0)>=5; }
+  function cible(r,maintenant){
+    var p=r.p; if(!roule(p)||(p.vitesse||0)<=8||p.cap==null) return [p.lng,p.lat];
+    var t0=p.le?Date.parse(p.le):r.recu; if(!isFinite(t0)) t0=r.recu;
+    var dt=Math.max(0,Math.min(6,(maintenant-t0)/1000)), d=(p.vitesse/3.6)*dt;
+    return [p.lng+(d*Math.sin(p.cap*RAD))/(111320*Math.cos(p.lat*RAD)), p.lat+(d*Math.cos(p.cap*RAD))/111320];
+  }
+  function mettreAJour(r,p,ch){
+    var el=r.el, ancienne=r.p; r.p=p; r.recu=Date.now();
+    var aPhoto=p.photo&&!rates[p.photo], mode=roule(p)||!aPhoto?'icone':'photo';
+    el.className='r '+mode+(ch?' ch':'')+(p.retard?' rt':'');
+    var et=etiquette(p); if(et!==r.etq){ r.etq=et; r.et.innerHTML=et; }
+    var svg=(p.gabarit||'citadine')+(p.teinte||''); if(svg!==r.svg){ r.svg=svg; r.ic.innerHTML=dessus(p.gabarit,p.teinte); }
+    if(p.cap!=null) { // rotation au plus court (pas de tour complet en passant de 359° à 1°)
+      var a=r.angle==null?p.cap:r.angle, diff=((p.cap-a+540)%360)-180; r.angle=a+diff; r.ic.style.transform='rotate('+r.angle+'deg)';
+    }
+    if(aPhoto&&r.img.getAttribute('data-src')!==p.photo){
+      r.img.className='ph'; r.img.setAttribute('data-src',p.photo);
+      r.img.onload=function(){ r.img.className='ph ok'; r.om.className='om vu'; };
+      r.img.onerror=function(){ rates[p.photo]=1; r.img.removeAttribute('src'); mettreAJour(r,r.p,r.p.id===etat.choisi); };
+      r.img.src=p.photo;
+      if(r.img.complete&&r.img.naturalWidth>0){ r.img.className='ph ok'; r.om.className='om vu'; } // déjà en cache
+    }
+    if(!ancienne) { r.aff=[p.lng,p.lat]; r.m.setLngLat(r.aff); }
+  }
   function dessiner(){
     if(!carte) return;
     var vus={};
     etat.points.forEach(function(p){
-      vus[p.id]=1; var ch=p.id===etat.choisi, cle=html(p,ch)+(ch?'1':'0')+(p.retard?'r':''), r=reperes[p.id];
-      if(r&&r.cle!==cle){ r.m.remove(); r=null; }
+      vus[p.id]=1; var ch=p.id===etat.choisi, r=reperes[p.id];
       if(!r){
-        var el=document.createElement('div'); el.className='r'+(ch?' ch':'')+(p.retard?' rt':''); el.innerHTML=html(p,ch);
+        var el=document.createElement('div');
+        el.innerHTML='<span class="v"><span class="om"></span><img class="ph" alt=""><span class="ic"></span></span><span class="lg"></span><span class="pt"></span><span class="et"></span>';
         el.addEventListener('click',function(e){ e.stopPropagation(); clicRepere=true; setTimeout(function(){clicRepere=false;},50); envoyer({type:'choisir',id:p.id}); });
-        r={m:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(carte),cle:cle};
+        r={el:el,img:el.querySelector('.ph'),om:el.querySelector('.om'),ic:el.querySelector('.ic'),et:el.querySelector('.et'),p:null,aff:null,angle:null};
+        r.m=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(carte);
         reperes[p.id]=r;
-      } else r.m.setLngLat([p.lng,p.lat]);
+      }
+      mettreAJour(r,p,ch);
     });
     Object.keys(reperes).forEach(function(id){ if(!vus[id]){ reperes[id].m.remove(); delete reperes[id]; } });
     if(!cadre&&etat.points.length){ cadre=true; setTimeout(function(){ carte.resize(); cadrer(); },350); }
+    animer();
+  }
+  // Une seule boucle pour toute la carte : chaque repère glisse vers sa position estimée (lissage ≈ 0,35 s), arrêtée quand plus rien ne bouge
+  var boucle=null, dernier=0, glisseLe=0;
+  function animer(){ if(!boucle){ dernier=performance.now(); boucle=requestAnimationFrame(pas); } }
+  function pas(t){
+    var dtf=Math.min(0.1,(t-dernier)/1000); dernier=t; var k=1-Math.exp(-dtf/0.35), bouge=false, maintenant=Date.now();
+    Object.keys(reperes).forEach(function(id){
+      var r=reperes[id], c=cible(r,maintenant); if(!r.aff) r.aff=c;
+      var dx=c[0]-r.aff[0], dy=c[1]-r.aff[1];
+      if(Math.abs(dx)>1e-7||Math.abs(dy)>1e-7){ r.aff=[r.aff[0]+dx*k,r.aff[1]+dy*k]; r.m.setLngLat(r.aff); bouge=true; }
+      if(roule(r.p)&&(r.p.vitesse||0)>8) bouge=true;
+    });
+    // Carte qui suit la voiture choisie quand elle roule, sauf si on vient de la faire glisser au doigt
+    var ch=etat.choisi&&reperes[etat.choisi];
+    if(ch&&roule(ch.p)&&ch.aff&&Date.now()-glisseLe>15000) carte.jumpTo({center:ch.aff});
+    boucle=bouge?requestAnimationFrame(pas):null;
   }
   // Trajet du jour : une ligne bleue sous les repères, remise après chaque changement de fond
   function tracer(){
@@ -106,7 +184,9 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
     carte=new maplibregl.Map({container:'c',style:styleVoulu(),center:[2.3522,48.8566],zoom:11,attributionControl:{compact:true},dragRotate:false,pitchWithRotate:false,touchPitch:false});
     carte.touchZoomRotate.disableRotation();
     carte.on('click',function(){ if(!clicRepere) envoyer({type:'fond'}); });
-    carte.on('load',function(){ dessiner(); tracer(); });
+    carte.on('dragstart',function(e){ if(e&&e.originalEvent) glisseLe=Date.now(); });
+    carte.on('load',function(){ carte.resize(); dessiner(); tracer(); });
+    [300,1000,2500].forEach(function(ms){ setTimeout(function(){ carte.resize(); },ms); }); // iPhone : la carte se cale sur la vraie taille de son cadre
     carte.on('style.load',function(){ tracer(); });
     window.addEventListener('resize',function(){ carte.resize(); });
     envoyer({type:'pret'});
