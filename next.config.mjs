@@ -10,7 +10,7 @@ const config = {
   async rewrites() {
     return {
       beforeFiles: [{ source: '/sscs', destination: '/sscs/index.html' }, { source: '/sscs/', destination: '/sscs/index.html' }],
-      fallback: [{ source: '/app/:chemin*', destination: '/app/index.html' }],
+      fallback: [{ source: '/app/:chemin*', destination: '/app/index.html' }, { source: '/apercu-appli/:chemin*', destination: '/apercu-appli/index.html' }],
     };
   },
 };
