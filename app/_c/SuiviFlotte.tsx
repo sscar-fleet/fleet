@@ -151,7 +151,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial, tr
     r.p = l; r.recu = Date.now();
     const aPhoto = !!l.photo && !rates.current[l.photo];
     const mode = roule(l) || !aPhoto ? 'icone' : 'photo';
-    r.el.classList.toggle('photo', mode === 'photo'); r.el.classList.toggle('icone', mode === 'icone'); r.el.classList.toggle('choisi', ch);
+    r.el.classList.toggle('m-photo', mode === 'photo'); r.el.classList.toggle('m-icone', mode === 'icone'); r.el.classList.toggle('choisi', ch);
     r.m.setZIndexOffset(ch ? 1000 : 0);
     const et = `${l.immat.replace(/</g, '')}${badgeSportHtml(l.marque, l.modele)}${l.modele ? ` <i>${l.modele.replace(/</g, '')}</i>` : ''}`;
     if (r.etq !== et) { r.etq = et; r.et.innerHTML = et; }

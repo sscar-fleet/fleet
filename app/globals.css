@@ -1062,15 +1062,15 @@ body:has(.imp-barre) .ia-bulle-flottante { display: none; }
 .leaflet-container .leaflet-marker-pane .suivi-repere .ph { position: absolute; left: -32px; top: -26px; width: 64px !important; height: 34px !important; max-width: none !important; object-fit: contain; opacity: 0; transition: opacity .25s; filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); pointer-events: none; }
 .leaflet-container .leaflet-marker-pane .suivi-repere .ph.ok { opacity: 1; }
 .suivi-repere .om { position: absolute; left: -24px; top: 4px; width: 48px; height: 9px; border-radius: 50%; background: rgba(0,0,0,.4); filter: blur(3px); opacity: 0; transition: opacity .25s; }
-.suivi-repere.photo .om.vu { opacity: 1; }
+.suivi-repere.m-photo .om.vu { opacity: 1; }
 .suivi-repere .ic { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; transition: transform .8s ease-out; opacity: 0; }
 .suivi-repere .ic svg { width: 44px; height: 44px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }
-.suivi-repere.icone .ic { opacity: 1; }
-.leaflet-container .leaflet-marker-pane .suivi-repere.icone .ph, .suivi-repere.icone .om { opacity: 0 !important; }
-.suivi-repere.photo > span.pt, .suivi-repere.icone > span.pt, .suivi-repere > em { display: none; }
-.suivi-repere.photo b { top: 12px; left: auto; right: auto; transform: translateX(-50%); }
-.suivi-repere.icone b { left: 20px; top: -10px; }
+.suivi-repere.m-icone .ic { opacity: 1; }
+.leaflet-container .leaflet-marker-pane .suivi-repere.m-icone .ph, .suivi-repere.m-icone .om { opacity: 0 !important; }
+.suivi-repere.m-photo > span.pt, .suivi-repere.m-icone > span.pt, .suivi-repere > em { display: none; }
+.suivi-repere.m-photo b { top: 12px; left: auto; right: auto; transform: translateX(-50%); }
+.suivi-repere.m-icone b { left: 20px; top: -10px; }
 .suivi-repere b i { font-style: normal; font-weight: 500; opacity: .75; }
-.suivi-repere.choisi.photo .ph { transform: scale(1.2); transform-origin: 50% 80%; }
+.suivi-repere.choisi.m-photo .ph { transform: scale(1.2); transform-origin: 50% 80%; }
 .sobre .suivi-repere b { display: none; }
 .sobre .suivi-repere.choisi b { display: block; }
