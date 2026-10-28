@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const h = e?.source === 'direct' ? histos.get(String(t.imei)) : undefined;
     const adresse = e?.lat != null && e?.lng != null ? await adresseDe(e.lat, e.lng) : null;
     return { vehicule_id: v.id, imei: t.imei, etat, moteur_coupe: !!t.moteur_coupe, lat: e?.lat ?? null, lng: e?.lng ?? null,
-      vitesse: e?.vitesse ?? 0, contact: e?.contact ?? null, le: e?.le ?? null, km_estime: kmEstime(t, e), alerte: e?.alerte ?? null,
+      vitesse: e?.vitesse ?? 0, cap: e?.cap ?? null, contact: e?.contact ?? null, le: e?.le ?? null, km_estime: kmEstime(t, e), alerte: e?.alerte ?? null,
       coupure: !sansCoupure(t.modele), direct: e?.source === 'direct', adresse,
       contact_depuis: h?.contactLe ?? null, arret_depuis: etat === 'roule' ? null : h?.arretLe ?? null,
       tension: e?.tension ?? null, satellites: e?.satellites ?? null, km_jour: h?.kmJour ?? null, minutes_route: h?.minutesRoute ?? null };

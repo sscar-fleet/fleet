@@ -58,8 +58,8 @@ async function demander(marque: string, modele: string, annee: string, couleur: 
 }
 
 export async function GET(request: Request) {
-  const c = await clientApi(request);
-  if (!c) return new Response(null, { status: 401 });
+  // Sans connexion (carte de l'appli, dans sa WebView) : seulement les images déjà gardées, jamais de demande au fournisseur
+  const connecte = !!(await clientApi(request));
   const cle = new URL(request.url).searchParams.get('v') ?? '';
   const m = /^([a-z0-9-]{1,40})_([a-z0-9-]{1,60})_(\d{4})(?:_([a-z-]{1,20}))?$/.exec(cle);
   const teinte = COULEURS.find((x) => x.id === (m?.[4] ?? COULEUR_DEFAUT));
@@ -70,6 +70,7 @@ export async function GET(request: Request) {
 
   const { data: garde } = await db.download(chemin);
   if (garde) return image(Buffer.from(await garde.arrayBuffer()));
+  if (!connecte) return absente();
   const { data: inconnu } = await db.download(`${DOSSIER}/${m[1]}_${m[2]}_${m[3]}.inconnu`);
   if (inconnu) return absente();
 

@@ -19,6 +19,7 @@ export type EtatTraceur = {
   lat: number | null;
   lng: number | null;
   vitesse: number;            // km/h
+  cap?: number | null;        // sens de la marche, en degrés (0 = nord)
   contact: boolean | null;    // moteur allumé (ACC)
   enLigne: boolean;
   enMouvement: boolean;
@@ -201,6 +202,7 @@ function etat(d: any): EtatTraceur {
     lat: isFinite(lat) && lat !== 0 ? lat : null,
     lng: isFinite(lng) && lng !== 0 ? lng : null,
     vitesse: Number(d.speed ?? 0) || 0,
+    cap: (() => { const c = Number(d.direction ?? d.dir ?? d.course); return isFinite(c) ? ((c % 360) + 360) % 360 : null; })(),
     contact: d.accStatus === 1 ? true : d.accStatus === 0 ? false : null,
     enLigne: Number(d.online) === 1,
     // « run » reste à 1 longtemps après l'arrêt : seule la vitesse dit vraiment si le véhicule roule

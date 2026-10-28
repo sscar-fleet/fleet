@@ -40,7 +40,7 @@ export async function etatsTraccar(): Promise<EtatTraceur[]> {
     return {
       imei: String(a.uniqueId), nom: a.name || null, carId: null,
       lat: p ? Number(p.latitude) || null : null, lng: p ? Number(p.longitude) || null : null,
-      vitesse, contact: typeof p?.attributes?.ignition === 'boolean' ? p.attributes.ignition : null,
+      vitesse, cap: p && isFinite(Number(p.course)) ? Number(p.course) : null, contact: typeof p?.attributes?.ignition === 'boolean' ? p.attributes.ignition : null,
       enLigne: a.status === 'online', enMouvement: vitesse > 3,
       le: p?.fixTime ?? null, signal: a.lastUpdate ?? null,
       kmTraceur: km ? Math.round(Number(km) / 1000) : null,
