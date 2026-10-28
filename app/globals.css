@@ -1049,3 +1049,10 @@ body:has(.imp-barre) .ia-bulle-flottante { display: none; }
   .imp-barre .principal { flex: 1 1 auto; }
   .imp-long { display: none; } .imp-court { display: inline; }
 }
+
+/* Téléphone : la bulle Fleet AI se pose au-dessus du menu du bas, en rond compact, sans jamais le recouvrir */
+@media (max-width: 760px) {
+  .ia-bulle-flottante { right: 14px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); padding: 6px; gap: 0; font-size: 0; }
+  .ia-bulle-flottante .ia-orbe.petit { width: 40px; height: 40px; font-size: 16px; }
+  main.page { padding-bottom: 150px; }
+}
