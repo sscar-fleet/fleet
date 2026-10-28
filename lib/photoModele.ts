@@ -19,17 +19,15 @@ async function chercher(langue: string, q: string, marque: string) {
   return null;
 }
 
-// Photos « catalogue » (IMAGIN.studio) : voir lib/visuel.ts
+// Photos « catalogue » (Car Image API) : voir lib/visuel.ts et app/api/visuel
 import { urlCatalogue, visuelRetenu } from './visuel';
-export const catalogueActif = () => !!process.env.IMAGIN_CLE;
-export const reglagesCatalogue = () => (process.env.IMAGIN_CLE ? { cle: process.env.IMAGIN_CLE, angle: process.env.IMAGIN_ANGLE || '29' } : null);
+export const catalogueActif = () => !!process.env.CAR_IMAGE_API_KEY;
+export const reglagesCatalogue = () => (catalogueActif() ? { actif: true as const } : null);
 export const photoCatalogue = (marque?: string | null, modele?: string | null, annee?: number | null) => urlCatalogue(reglagesCatalogue(), marque, modele, annee);
 export const visuelVehicule = (v: { marque?: string | null; modele?: string | null; annee?: number | null; visuel?: string | null }) => visuelRetenu(reglagesCatalogue(), v);
 
 export async function chercherPhotoModele(marque?: string | null, modele?: string | null) {
   if (!marque && !modele) return null;
-  const catalogue = photoCatalogue(marque, modele);
-  if (catalogue) return catalogue;
   const q = [marque, modele].filter(Boolean).join(' ');
   try {
     return (await chercher('fr', q, marque ?? '')) ?? (await chercher('en', q, marque ?? ''));

@@ -1,6 +1,6 @@
 'use client';
 // Photo « catalogue » du modèle (de profil, fond détouré, même angle pour toute la flotte) quand elle existe,
-// sinon le logo de la marque. La photo n'est proposée que si la clé IMAGIN_CLE est en place (voir lib/photoModele).
+// sinon le logo de la marque. La photo n’est proposée que si la clé CAR_IMAGE_API_KEY est en place (voir lib/visuel).
 import { useState } from 'react';
 import LogoMarque from './LogoMarque';
 

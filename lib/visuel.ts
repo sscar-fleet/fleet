@@ -1,19 +1,25 @@
 // Visuel d'un véhicule : photo « catalogue » du modèle exact (de profil, fond transparent, même angle pour toute la flotte)
 // ou icône classique (logo de la marque). Fonctions pures, utilisables dans le navigateur comme sur le serveur.
-// Les photos viennent d'IMAGIN.studio (service payant) : clé IMAGIN_CLE dans Vercel, IMAGIN_ANGLE pour l'angle de vue.
-export type ReglagesCatalogue = { cle: string; angle: string } | null;
-const sansAccent = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+// Les photos sont servies par Fleet lui-même (/api/visuel) : chaque modèle est demandé une seule fois au fournisseur
+// (Car Image API, clé CAR_IMAGE_API_KEY dans Vercel), gardé dans le stockage, puis réutilisé pour tous les loueurs.
+export type ReglagesCatalogue = { actif: true } | null;
+const sansAccent = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
-// La version compte : « RS3 Sportback » donne la famille rs3 (pas a3) ; l'année choisit la bonne génération
+// Sans année connue, on prend une voiture récente (la génération actuelle)
+export const anneeParDefaut = () => new Date().getFullYear() - 2;
+
+// Clé d'une image : marque, modèle (avec sa version : « rs3 » n'est pas « a3 ») et année
+export function cleVisuel(marque?: string | null, modele?: string | null, annee?: number | null) {
+  const m = sansAccent(marque ?? '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const mo = sansAccent(modele ?? '').replace(/\bclasse\s+([a-z])\b/, '$1-class').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  if (!m || !mo) return null;
+  const a = annee && annee >= 1990 && annee <= anneeParDefaut() + 3 ? annee : anneeParDefaut();
+  return { marque: m, modele: mo, annee: a, cle: `${m}_${mo}_${a}` };
+}
+
 export function urlCatalogue(r: ReglagesCatalogue, marque?: string | null, modele?: string | null, annee?: number | null) {
-  if (!r || !marque || !modele) return null;
-  const make = sansAccent(marque).replace(/\s+/g, '-');
-  const mots = sansAccent(modele).replace(/\bclasse\s+([a-z])\b/, '$1-class').split(/\s+/).filter(Boolean);
-  if (!make || !mots[0]) return null;
-  const q = new URLSearchParams({ customer: r.cle, make, modelFamily: mots[0], angle: r.angle, zoomType: 'fullscreen', width: '800' });
-  if (mots.length > 1) q.set('modelRange', mots.slice(1).join(' '));
-  if (annee && annee >= 1990) q.set('modelYear', String(annee));
-  return `https://cdn.imagin.studio/getImage?${q}`;
+  const k = r ? cleVisuel(marque, modele, annee) : null;
+  return k ? `/api/visuel?v=${encodeURIComponent(k.cle)}` : null;
 }
 
 // null = icône classique. Par défaut (auto), un véhicule de plus de 15 ans garde l'icône.
