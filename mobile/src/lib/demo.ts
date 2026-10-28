@@ -15,6 +15,8 @@ export const demoLocations = [
   { ...base, id: 'd2', numero: 13, debut: dans(190), fin_prevue: jours(2, 18), statut: 'reservee', caution_statut: 'prise', caution_montant: 500, prix_total: 100, vehicules: v('v2', 'EF456GH', 'Renault', 'Clio V', 'disponible', 61200, 50), clients: cl('c2', 'Inès', 'Moreau'), etats_des_lieux: [] },
   { ...base, id: 'r1', numero: 9, debut: jours(-3, 10), fin_prevue: dans(-80), statut: 'en_cours', caution_statut: 'prise', caution_montant: 800, prix_total: 160, km_depart: 22950, carburant_depart: 75, vehicules: v('v3', 'IJ789KL', 'Mercedes', 'Classe A', 'loue', 23000, 80), clients: cl('c3', 'Yanis', 'Laurent'), etats_des_lieux: [{ type: 'depart', statut: 'termine' }] },
   { ...base, id: 'r2', numero: 10, debut: jours(-1, 18), fin_prevue: dans(130), statut: 'en_cours', caution_statut: 'prise', caution_montant: 500, prix_total: 70, km_depart: 87900, carburant_depart: 100, vehicules: v('v4', 'MN012OP', 'Dacia', 'Sandero', 'loue', 88000, 35), clients: cl('c4', 'Sarah', 'Petit'), etats_des_lieux: [{ type: 'depart', statut: 'termine' }] },
+  { ...base, id: 'f1', numero: 8, debut: dans(-150), fin_prevue: jours(2, 18), statut: 'en_cours', caution_statut: 'prise', caution_montant: 600, prix_total: 150, km_depart: 30100, carburant_depart: 100, vehicules: v('v7', 'GH234JK', 'Volkswagen', 'Golf', 'loue', 30100, 55), clients: cl('c7', 'Mehdi', 'Rahmani'), etats_des_lieux: [{ type: 'depart', statut: 'termine' }] },
+  { ...base, id: 'f2', numero: 7, debut: jours(-4, 9), fin_prevue: dans(-200), fin_reelle: dans(-195), statut: 'terminee', caution_statut: 'rendue', caution_montant: 500, prix_total: 180, km_depart: 41900, carburant_depart: 100, vehicules: v('v1', 'AB123CD', 'Peugeot', '208', 'disponible', 42350, 45), clients: cl('c8', 'Nadia', 'Kaci'), etats_des_lieux: [{ type: 'depart', statut: 'termine' }, { type: 'retour', statut: 'termine' }] },
   { ...base, id: 'd3', numero: 14, debut: jours(1, 9), fin_prevue: jours(4, 9), statut: 'reservee', caution_statut: 'a_prendre', caution_montant: 1500, prix_total: 540, vehicules: v('v6', 'UV678WX', 'Audi', 'RS3', 'disponible', 18400, 180), clients: cl('c5', 'Lucas', 'Martin'), etats_des_lieux: [] },
 ];
 
@@ -32,7 +34,15 @@ export const demoVehicules = [
   { id: 'v4', immatriculation: 'MN012OP', marque: 'Dacia', modele: 'Sandero', statut: 'loue', km: 88000, prix_jour: 35, assurance_echeance: null, ct_echeance: null },
   { id: 'v5', immatriculation: 'QR345ST', marque: 'Toyota', modele: 'Yaris', statut: 'maintenance', km: 51000, prix_jour: 48, assurance_echeance: null, ct_echeance: null },
   { id: 'v6', immatriculation: 'UV678WX', marque: 'Audi', modele: 'RS3', statut: 'disponible', km: 18400, prix_jour: 180, assurance_echeance: ech(90), ct_echeance: ech(700) },
+  { id: 'v7', immatriculation: 'GH234JK', marque: 'Volkswagen', modele: 'Golf', statut: 'loue', km: 30100, prix_jour: 55, assurance_echeance: ech(140), ct_echeance: ech(400) },
 ];
+// Année et couleur de chaque voiture d'exemple (pour la photo du modèle)
+const VISUELS: Record<string, { annee: number; couleur: string }> = {
+  v1: { annee: 2023, couleur: 'bleu' }, v2: { annee: 2024, couleur: 'gris-fonce' }, v3: { annee: 2022, couleur: 'noir' }, v4: { annee: 2021, couleur: 'gris' },
+  v5: { annee: 2024, couleur: 'rouge' }, v6: { annee: 2023, couleur: 'noir' }, v7: { annee: 2022, couleur: 'gris-fonce' },
+};
+for (const x of demoVehicules) Object.assign(x, VISUELS[x.id]);
+for (const l of demoLocations) if (l.vehicules) Object.assign(l.vehicules, VISUELS[l.vehicules.id]);
 export const demoClients = [cl('c1', 'Karim', 'Benali', false), cl('c2', 'Inès', 'Moreau'), cl('c3', 'Yanis', 'Laurent'), cl('c4', 'Sarah', 'Petit'), cl('c5', 'Lucas', 'Martin'),
   { ...cl('c6', 'Kevin', 'Durand'), liste_noire: true }]
   .map((c) => ({ ...c, adresse: '8 bd Voltaire, 75011 Paris', date_permis: '2019-05-12' }));

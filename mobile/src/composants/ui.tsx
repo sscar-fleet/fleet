@@ -1,4 +1,5 @@
 // Briques d'écran : tout est gros, lisible et se touche au pouce
+import { FondDegrade } from './Ambiance';
 import { ActivityIndicator, Pressable, ScrollView, Text, View, RefreshControl, Platform, type ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -10,15 +11,16 @@ import Icone, { type NomIcone } from './Icone';
 const vibrer = (fort = false) => { (fort ? Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium) : Haptics.selectionAsync()).catch(() => {}); };
 const ombre = Platform.OS === 'web' ? ({ boxShadow: '0 -12px 24px rgba(0,0,0,.18)' } as object) : {};
 
-export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChargement = false, bas, haut, retour = false, fermer = false, actions }: {
+export function Ecran({ titre, sousTitre, surTitre, children, rafraichir, enChargement = false, bas, haut, retour = false, fermer = false, actions, ambiance = false }: {
   titre: string; sousTitre?: string; surTitre?: ReactNode; children: ReactNode; rafraichir?: () => void; enChargement?: boolean; bas?: ReactNode; haut?: ReactNode;
-  retour?: boolean; fermer?: boolean; actions?: ReactNode;
+  retour?: boolean; fermer?: boolean; actions?: ReactNode; ambiance?: boolean; // ambiance : fond dégradé de l'appli SS CAR SYSTEM
 }) {
   const c = useCouleurs();
   const marges = useSafeAreaInsets();
   const defil = useTirerPourActualiser(rafraichir, enChargement, c.accent, c.panneau, c.bord, marges.top);
   return (
     <View style={{ flex: 1, backgroundColor: c.fond }}>
+      {ambiance && <FondDegrade />}
       <ScrollView ref={defil} keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ padding: T.marge, paddingTop: marges.top + 10, paddingBottom: bas ? 130 + marges.bottom : 40, gap: 12, maxWidth: 720, width: '100%', alignSelf: 'center' }}
         refreshControl={rafraichir ? <RefreshControl refreshing={enChargement} onRefresh={rafraichir} tintColor={c.accent} /> : undefined}>

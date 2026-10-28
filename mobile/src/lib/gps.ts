@@ -30,6 +30,7 @@ function gpsDemo(): Gps {
     e('v2', 'arret', 48.8411, 2.3003, 0, 61210, 1, { contact: true, contact_depuis: il(22), arret_depuis: il(4), adresse: 'Rue de Vaugirard, Paris 15e', km_jour: 18, minutes_route: 35 }),
     e('v3', 'roule', 48.8848, 2.2966, 47, 23262, 0.3, { contact: true, contact_depuis: il(48), adresse: 'Boulevard Bineau, Neuilly-sur-Seine', km_jour: 86, minutes_route: 130 }),
     e('v4', 'arret', 48.8352, 2.2412, 0, 88190, 26, { contact: false, contact_depuis: il(300), arret_depuis: il(300), adresse: 'Rue du Château, Boulogne-Billancourt', km_jour: 41 }),
+    e('v7', 'roule', 48.8635, 2.3790, 31, 30212, 0.2, { contact: true, contact_depuis: il(25), adresse: 'Boulevard Voltaire, Paris 11e', km_jour: 112, minutes_route: 150 }),
     e('v6', 'hors_ligne', 48.8462, 2.2870, 0, 18400, 190, { contact: false, adresse: 'Rue Lecourbe, Paris 15e', tension: null, satellites: null }),
   ];
   return { actif: true, demo: true, raison: null, parVehicule: Object.fromEntries(l.map((x) => [x.vehicule_id, x])) };

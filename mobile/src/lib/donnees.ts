@@ -4,7 +4,7 @@ import { garder, relire } from './hors-ligne';
 import { DEMO, demoLocations, demoAmendes, demoVehicules, demoClients } from './demo';
 
 export type LocationLigne = {
-  id: string; numero: number | null; debut: string; fin_prevue: string; statut: string;
+  id: string; numero: number | null; debut: string; fin_prevue: string; statut: string; fin_reelle?: string | null;
   caution_statut: string; caution_montant: number | null; prix_total: number | null;
   km_depart: number | null; km_inclus: number | null; prix_km_sup: number | null; carburant_depart: number | null; signature_contrat_path: string | null;
   vehicules: { id: string; immatriculation: string; marque: string | null; modele: string | null; annee?: number | null; couleur?: string | null; visuel?: string | null; statut: string; km: number | null; prix_jour: number | null } | null;
@@ -31,8 +31,9 @@ export async function avecCache<T>(cle: string, lire: () => Promise<T>): Promise
 function demo(cle: string): unknown {
   const ls = demoLocations as unknown as LocationLigne[];
   if (cle === 'aujourdhui') return { departs: ls.filter((l) => l.statut === 'reservee' && l.debut <= finJour(0)), retours: ls.filter((l) => l.statut === 'en_cours' && l.fin_prevue <= finJour(0)),
-    demain: ls.filter((l) => l.statut === 'reservee' && l.debut > finJour(0) && l.debut <= finJour(1)), amendes: demoAmendes.filter((a) => a.statut !== 'designee').length };
-  if (cle === 'locations') return ls;
+    demain: ls.filter((l) => l.statut === 'reservee' && l.debut > finJour(0) && l.debut <= finJour(1)), amendes: demoAmendes.filter((a) => a.statut !== 'designee').length,
+    partis: ls.filter((l) => l.statut === 'en_cours' && l.debut >= debutJour()), rendus: ls.filter((l) => l.statut === 'terminee' && (l.fin_reelle ?? '') >= debutJour()) };
+  if (cle === 'locations') return ls.filter((l) => l.statut !== 'terminee');
   if (cle === 'amendes') return demoAmendes;
   if (cle === 'vehicules') return demoVehicules;
   if (cle === 'clients') return demoClients;
@@ -42,21 +43,26 @@ function demo(cle: string): unknown {
   return null;
 }
 
+const debutJour = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); };
 const finJour = (plus = 0) => { const d = new Date(); d.setDate(d.getDate() + plus); d.setHours(23, 59, 59, 999); return d.toISOString(); };
 
-export type Journee = { departs: LocationLigne[]; retours: LocationLigne[]; demain: LocationLigne[]; amendes: number };
+// partis / rendus : ce qui a déjà été fait aujourd'hui (affiché en grisé dans la journée)
+export type Journee = { departs: LocationLigne[]; retours: LocationLigne[]; demain: LocationLigne[]; amendes: number; partis?: LocationLigne[]; rendus?: LocationLigne[] };
 export function chargerAujourdhui() {
   return avecCache<Journee>('aujourdhui', async () => {
-    const [departs, retours, demain, amendes] = await Promise.all([
+    const [departs, retours, demain, amendes, partis, rendus] = await Promise.all([
       supabase.from('locations').select(CHAMPS).eq('statut', 'reservee').lte('debut', finJour(0)).order('debut'),
       supabase.from('locations').select(CHAMPS).eq('statut', 'en_cours').lte('fin_prevue', finJour(0)).order('fin_prevue'),
       supabase.from('locations').select(CHAMPS).eq('statut', 'reservee').gt('debut', finJour(0)).lte('debut', finJour(1)).order('debut'),
       supabase.from('amendes').select('id', { count: 'exact', head: true }).in('statut', ['a_designer', 'infos_manquantes']),
+      supabase.from('locations').select(CHAMPS).eq('statut', 'en_cours').gte('debut', debutJour()).order('debut'),
+      supabase.from('locations').select(CHAMPS + ', fin_reelle').eq('statut', 'terminee').gte('fin_reelle', debutJour()).order('fin_reelle'),
     ]);
     if (departs.error) throw departs.error;
     if (retours.error) throw retours.error;
     return { departs: (departs.data ?? []) as unknown as LocationLigne[], retours: (retours.data ?? []) as unknown as LocationLigne[],
-      demain: (demain.data ?? []) as unknown as LocationLigne[], amendes: amendes.count ?? 0 };
+      demain: (demain.data ?? []) as unknown as LocationLigne[], amendes: amendes.count ?? 0,
+      partis: (partis.data ?? []) as unknown as LocationLigne[], rendus: (rendus.data ?? []) as unknown as LocationLigne[] };
   });
 }
 

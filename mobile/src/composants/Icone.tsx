@@ -5,7 +5,7 @@ export type NomIcone =
   | 'jour' | 'locations' | 'flotte' | 'amendes' | 'plus' | 'tel' | 'message' | 'whatsapp' | 'mail' | 'photo' | 'carte' | 'itineraire'
   | 'moteur' | 'cle' | 'ok' | 'alerte' | 'ajout' | 'chevron' | 'retour' | 'horloge' | 'euro' | 'bouclier' | 'doc' | 'signature'
   | 'jauge' | 'carburant' | 'recherche' | 'actualiser' | 'client' | 'voiture' | 'calendrier' | 'cadenas' | 'envoyer' | 'nuage'
-  | 'fermer' | 'eclair' | 'outil' | 'depart' | 'arrivee' | 'prolonger' | 'degat' | 'carteId' | 'sync' | 'site' | 'sortie' | 'micro' | 'cloche' | 'ia';
+  | 'fermer' | 'eclair' | 'outil' | 'depart' | 'arrivee' | 'prolonger' | 'degat' | 'carteId' | 'sync' | 'site' | 'sortie' | 'micro' | 'cloche' | 'ia' | 'agrandir' | 'reduire' | 'globe';
 
 export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { nom: NomIcone; couleur: string; taille?: number; epaisseur?: number }) {
   const p = { stroke: couleur, strokeWidth: epaisseur, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
@@ -30,6 +30,9 @@ export default function Icone({ nom, couleur, taille = 24, epaisseur = 2 }: { no
       {nom === 'itineraire' && <><Path d="M12 2.5l8 19-8-4.5-8 4.5z" {...p} /></>}
       {nom === 'moteur' && <><Path d="M12 3v8" {...p} /><Path d="M7 6.3a7.5 7.5 0 1 0 10 0" {...p} /></>}
       {nom === 'cle' && <><Circle cx={8} cy={15} r={4} {...p} /><Path d="M11 12l8-8M16 7l2.5 2.5M14 9l2 2" {...p} /></>}
+      {nom === 'agrandir' && <Path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" {...p} />}
+      {nom === 'reduire' && <Path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" {...p} />}
+      {nom === 'globe' && <><Circle cx={12} cy={12} r={8.5} {...p} /><Path d="M3.5 12h17M12 3.5c2.5 2.6 3.5 5.4 3.5 8.5s-1 5.9-3.5 8.5c-2.5-2.6-3.5-5.4-3.5-8.5s1-5.9 3.5-8.5" {...p} /></>}
       {nom === 'ok' && <Path d="M4.5 12.5l5 5 10-11" {...p} />}
       {nom === 'alerte' && <><Path d="M12 3.5l9.5 16.5h-19z" {...p} /><Path d="M12 10v4.5" {...p} /><Circle cx={12} cy={17.3} r={1.1} {...plein} /></>}
       {nom === 'ajout' && <Path d="M12 5v14M5 12h14" {...p} />}
