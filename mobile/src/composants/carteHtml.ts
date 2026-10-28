@@ -35,12 +35,12 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
 .r.ch .et{background:#19f7d6;color:#00140f;font-size:14px;padding:6px 9px;top:-14px;left:17px}
 .r.ch .lg{width:36px;height:36px;top:-18px;right:17px}
 .maplibregl-ctrl-attrib{font-size:9px!important}
-.v{position:absolute;left:0;top:0;width:0;height:0}
-.v .ph{position:absolute;left:-32px;top:-26px;width:64px;height:34px;object-fit:contain;opacity:0;transition:opacity .25s;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));pointer-events:none}
+.v{position:absolute;left:0;top:0;width:0;height:0;transform:scale(var(--e,1));transition:transform .2s}
+.v .ph{position:absolute;left:-24px;top:-19px;width:48px;height:26px;object-fit:contain;opacity:0;transition:opacity .25s;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));pointer-events:none}
 .v .ph.ok{opacity:1}
-.v .om{position:absolute;left:-24px;top:4px;width:48px;height:9px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px);opacity:0;transition:opacity .25s}
-.v .ic{position:absolute;left:-22px;top:-22px;width:44px;height:44px;transition:transform .8s ease-out;opacity:0}
-.v .ic svg{width:44px;height:44px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
+.v .om{position:absolute;left:-18px;top:3px;width:36px;height:7px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px);opacity:0;transition:opacity .25s}
+.v .ic{position:absolute;left:-18px;top:-18px;width:36px;height:36px;transition:transform .8s ease-out;opacity:0}
+.v .ic svg{width:36px;height:36px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
 .r.photo .ph.ok~.om,.r.photo .om.vu{opacity:1}
 .r.icone .ic{opacity:1}
 .r.icone .ph,.r.icone .om{opacity:0!important}
@@ -49,9 +49,12 @@ body.sobre .r .et{display:none}
 body.sobre .r.ch .et{display:flex}
 .r.photo .pt,.r.icone .pt{display:none}
 .r.photo .lg,.r.icone .lg{display:none}
-.r.photo .et{top:12px;left:-40px}
+.r.photo .et{top:14px;left:-30px}
+.v .fl{position:absolute;left:-7px;top:-7px;width:14px;height:14px;opacity:0;transition:transform .8s ease-out,opacity .25s}
+.v .fl i{position:absolute;left:3px;top:-17px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid #3b82f6;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
+.r.photo.roule .fl{opacity:1}
 .r.icone .et{left:20px;top:-12px}
-.r.ch.photo .ph{transform:scale(1.25);transform-origin:50% 80%}
+.r.ch.photo .ph{transform:scale(1.2);transform-origin:50% 80%}
 .r.ch.photo .et{top:16px}
 </style></head><body><div id="c"></div>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -103,12 +106,12 @@ body.sobre .r.ch .et{display:flex}
   }
   function mettreAJour(r,p,ch){
     var el=r.el, ancienne=r.p; r.p=p; r.recu=Date.now();
-    var aPhoto=p.photo&&!rates[p.photo], mode=roule(p)||!aPhoto?'icone':'photo';
-    el.className='r '+mode+(ch?' ch':'')+(p.retard?' rt':'');
+    var aPhoto=p.photo&&!rates[p.photo], mode=aPhoto?'photo':'icone';
+    el.className='r '+mode+(roule(p)?' roule':'')+(ch?' ch':'')+(p.retard?' rt':'');
     var et=etiquette(p); if(et!==r.etq){ r.etq=et; r.et.innerHTML=et; }
     var svg=(p.gabarit||'citadine')+(p.teinte||''); if(svg!==r.svg){ r.svg=svg; r.ic.innerHTML=dessus(p.gabarit,p.teinte); }
     if(p.cap!=null) { // rotation au plus court (pas de tour complet en passant de 359° à 1°)
-      var a=r.angle==null?p.cap:r.angle, diff=((p.cap-a+540)%360)-180; r.angle=a+diff; r.ic.style.transform='rotate('+r.angle+'deg)';
+      var a=r.angle==null?p.cap:r.angle, diff=((p.cap-a+540)%360)-180; r.angle=a+diff; r.ic.style.transform='rotate('+r.angle+'deg)'; r.fl.style.transform='rotate('+r.angle+'deg)';
     }
     if(aPhoto&&r.img.getAttribute('data-src')!==p.photo){
       r.img.className='ph'; r.img.setAttribute('data-src',p.photo);
@@ -126,9 +129,9 @@ body.sobre .r.ch .et{display:flex}
       vus[p.id]=1; var ch=p.id===etat.choisi, r=reperes[p.id];
       if(!r){
         var el=document.createElement('div');
-        el.innerHTML='<span class="v"><span class="om"></span><img class="ph" alt=""><span class="ic"></span></span><span class="lg"></span><span class="pt"></span><span class="et"></span>';
+        el.innerHTML='<span class="v"><span class="om"></span><span class="fl"><i></i></span><img class="ph" alt=""><span class="ic"></span></span><span class="lg"></span><span class="pt"></span><span class="et"></span>';
         el.addEventListener('click',function(e){ e.stopPropagation(); clicRepere=true; setTimeout(function(){clicRepere=false;},50); envoyer({type:'choisir',id:p.id}); });
-        r={el:el,img:el.querySelector('.ph'),om:el.querySelector('.om'),ic:el.querySelector('.ic'),et:el.querySelector('.et'),p:null,aff:null,angle:null};
+        r={el:el,img:el.querySelector('.ph'),om:el.querySelector('.om'),ic:el.querySelector('.ic'),fl:el.querySelector('.fl'),et:el.querySelector('.et'),p:null,aff:null,angle:null};
         r.m=new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(carte);
         reperes[p.id]=r;
       }
@@ -138,7 +141,12 @@ body.sobre .r.ch .et{display:flex}
     if(!cadre&&etat.points.length){ cadre=true; setTimeout(function(){ carte.resize(); cadrer(); },350); }
     animer();
   }
-  function sobre(){ document.body.classList.toggle('sobre', !etat.etiquettes && !(carte && carte.getZoom()>=15)); }
+  function sobre(){
+    var z=carte?carte.getZoom():12;
+    document.body.classList.toggle('sobre', !etat.etiquettes && !(z>=15));
+    // Les voitures rapetissent quand on dézoome, pour que la carte reste lisible
+    document.body.style.setProperty('--e', z>=15?1:z>=13.5?0.85:z>=12?0.7:z>=10.5?0.55:0.45);
+  }
   // Une seule boucle pour toute la carte : chaque repère glisse vers sa position estimée (lissage ≈ 0,35 s), arrêtée quand plus rien ne bouge
   var boucle=null, dernier=0, glisseLe=0;
   function animer(){ if(!boucle){ dernier=performance.now(); boucle=requestAnimationFrame(pas); } }
@@ -189,7 +197,7 @@ body.sobre .r.ch .et{display:flex}
     carte=new maplibregl.Map({container:'c',style:styleVoulu(),center:[2.3522,48.8566],zoom:11,attributionControl:{compact:true},dragRotate:false,pitchWithRotate:false,touchPitch:false});
     carte.touchZoomRotate.disableRotation();
     carte.on('click',function(){ if(!clicRepere) envoyer({type:'fond'}); });
-    carte.on('zoomend',sobre);
+    carte.on('zoomend',sobre); carte.on('zoom',sobre);
     carte.on('dragstart',function(e){ if(e&&e.originalEvent) glisseLe=Date.now(); });
     carte.on('load',function(){ carte.resize(); dessiner(); tracer(); });
     [300,1000,2500].forEach(function(ms){ setTimeout(function(){ carte.resize(); },ms); }); // iPhone : la carte se cale sur la vraie taille de son cadre
