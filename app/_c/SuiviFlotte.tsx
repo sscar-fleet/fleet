@@ -108,7 +108,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial, tr
         await ajouterFond(L, carte.current);
         calque.current = L.layerGroup().addTo(carte.current);
         carte.current.on('dragstart', () => { etatCarte.current.glisseLe = Date.now(); });
-        carte.current.on('zoomend', () => sobre());
+        carte.current.on('zoomend', () => sobre()); carte.current.on('zoom', () => sobre());
       }
       sobre();
       const vus: Record<string, 1> = {};
@@ -119,11 +119,11 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial, tr
         let r = reperes.current[l.id];
         if (!r) {
           const icone = L.divIcon({ className: 'suivi-repere', iconSize: [0, 0],
-            html: '<span class="v"><span class="om"></span><img class="ph" alt=""><span class="ic"></span></span><em></em><span class="pt"></span><b></b>' });
+            html: '<span class="v"><span class="om"></span><span class="fl"><i></i></span><img class="ph" alt=""><span class="ic"></span></span><em></em><span class="pt"></span><b></b>' });
           const m = L.marker([l.lat, l.lng], { icon: icone }).addTo(calque.current);
           m.on('click', () => setChoisi(l.id));
           const el = m.getElement() as HTMLElement;
-          r = { m, el, img: el.querySelector('.ph'), om: el.querySelector('.om'), ic: el.querySelector('.ic'), et: el.querySelector('b'), lg: el.querySelector('em'), aff: [l.lat, l.lng], angle: null, p: null, recu: 0 };
+          r = { m, el, img: el.querySelector('.ph'), om: el.querySelector('.om'), ic: el.querySelector('.ic'), fl: el.querySelector('.fl'), et: el.querySelector('b'), lg: el.querySelector('em'), aff: [l.lat, l.lng], angle: null, p: null, recu: 0 };
           reperes.current[l.id] = r;
         }
         mettreAJour(r, l, choisi === l.id);
@@ -145,19 +145,24 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial, tr
   useEffect(() => () => { if (etatCarte.current.boucle) cancelAnimationFrame(etatCarte.current.boucle); carte.current?.remove(); carte.current = null; reperes.current = {}; }, []);
 
   // Étiquettes (plaque, modèle) : seulement quand la carte est en grand ou qu'on zoome, et toujours pour la voiture choisie
-  function sobre() { boite.current?.classList.toggle('sobre', !etiquettes && !(carte.current && carte.current.getZoom() >= 15)); }
+  function sobre() {
+    const z = carte.current ? carte.current.getZoom() : 12;
+    boite.current?.classList.toggle('sobre', !etiquettes && !(z >= 15));
+    // Les voitures rapetissent quand on dézoome, pour que la carte reste lisible
+    boite.current?.style.setProperty('--e', String(z >= 15 ? 1 : z >= 13.5 ? 0.85 : z >= 12 ? 0.7 : z >= 10.5 ? 0.55 : 0.45));
+  }
   const roule = (l: LigneSuivi) => l.etat === 'roule' && l.vitesse >= 5;
   function mettreAJour(r: any, l: LigneSuivi, ch: boolean) {
     r.p = l; r.recu = Date.now();
     const aPhoto = !!l.photo && !rates.current[l.photo];
-    const mode = roule(l) || !aPhoto ? 'icone' : 'photo';
-    r.el.classList.toggle('m-photo', mode === 'photo'); r.el.classList.toggle('m-icone', mode === 'icone'); r.el.classList.toggle('choisi', ch);
+    const mode = aPhoto ? 'photo' : 'icone'; // la photo pour toutes les voitures ; l'icône vue de dessus seulement si la photo manque
+    r.el.classList.toggle('m-photo', mode === 'photo'); r.el.classList.toggle('m-icone', mode === 'icone'); r.el.classList.toggle('m-roule', roule(l)); r.el.classList.toggle('choisi', ch);
     r.m.setZIndexOffset(ch ? 1000 : 0);
     const et = `${l.immat.replace(/</g, '')}${badgeSportHtml(l.marque, l.modele)}${l.modele ? ` <i>${l.modele.replace(/</g, '')}</i>` : ''}`;
     if (r.etq !== et) { r.etq = et; r.et.innerHTML = et; }
     const svg = `${l.gabarit ?? 'citadine'}${l.teinte ?? ''}`;
     if (r.svg !== svg) { r.svg = svg; r.ic.innerHTML = dessusSvg(l.gabarit ?? 'citadine', l.teinte); }
-    if (l.cap != null) { const a = r.angle ?? l.cap; r.angle = a + ((((l.cap - a) % 360) + 540) % 360) - 180; r.ic.style.transform = `rotate(${r.angle}deg)`; }
+    if (l.cap != null) { const a = r.angle ?? l.cap; r.angle = a + ((((l.cap - a) % 360) + 540) % 360) - 180; r.ic.style.transform = `rotate(${r.angle}deg)`; r.fl.style.transform = `rotate(${r.angle}deg)`; }
     if (aPhoto && r.img.getAttribute('data-src') !== l.photo) {
       const src = l.photo!;
       r.img.className = 'ph'; r.img.setAttribute('data-src', src);
