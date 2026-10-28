@@ -106,8 +106,8 @@ function Aujourdhui() {
   function Tuile({ t, fait }: { t: Tache; fait: boolean }) {
     const retard = !fait && auj && enRetard(t.quand);
     const coul = fait ? c.gris : retard ? c.rouge : t.genre === 'depart' ? c.accent : c.bleu;
-    const quoi = fait ? (t.genre === 'depart' ? 'Parti' : 'Rendu') : retard ? (t.genre === 'depart' ? 'Départ en retard' : 'Retour en retard') : t.genre === 'depart' ? 'Départ' : 'Retour';
-    const quand = retard ? `+ ${duree(Date.now() - new Date(t.quand).getTime())}` : heure(t.quand);
+    const quoi = fait ? (t.genre === 'depart' ? 'Parti' : 'Rendu') : retard ? (t.genre === 'depart' ? 'Départ en retard' : 'En retard') : t.genre === 'depart' ? 'Départ' : 'Retour';
+    const quand = retard ? `+${duree(Date.now() - new Date(t.quand).getTime())}` : heure(t.quand);
     return (
       <Pressable onPress={() => ouvrir(t.l.id)} accessibilityLabel={`${quoi} ${heure(t.quand)}, ${nomClient(t.l.clients)}`}
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingLeft: 14, paddingRight: 10, borderRadius: 14,
