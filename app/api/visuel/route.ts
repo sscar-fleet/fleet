@@ -9,7 +9,7 @@ export const maxDuration = 30;
 // gardée dans le stockage de Fleet, puis servie à tous les loueurs : une image consommée par modèle et par année, jamais par affichage.
 // Un modèle inconnu du fournisseur est noté pour ne pas être redemandé ; la page affiche alors le logo de la marque.
 const URL_API = () => (process.env.CAR_IMAGE_URL || 'https://carimage.dev').replace(/\/$/, '');
-const DOSSIER = 'catalogue/v3'; // v3 : image recadrée au ras de la voiture, dans la couleur du véhicule
+const DOSSIER = 'catalogue/v4'; // v4 : trois quarts avant, recadrée au ras de la voiture, dans la couleur du véhicule
 const enCours = new Map<string, Promise<Buffer | null>>();
 const diags = new Map<string, string>();
 
@@ -22,7 +22,7 @@ async function demander(marque: string, modele: string, annee: string, couleur: 
   // Le modèle complet d'abord (« rs3 », « clio-5 »), puis le premier mot seulement (« clio »)
   const essais = Array.from(new Set([modele.replace(/-/g, ' '), modele.split('-')[0]]));
   for (const mo of essais) {
-    const q = new URLSearchParams({ make: marque.replace(/-/g, ' '), model: mo, year: annee, color: couleur, view: 'left', format: 'png', size: 'medium', trim: '1' });
+    const q = new URLSearchParams({ make: marque.replace(/-/g, ' '), model: mo, year: annee, color: couleur, view: 'front-3-4', format: 'png', size: 'medium', trim: '1' });
     const r = await fetch(`${URL_API()}/api/v1/images/car?${q}`, {
       headers: { Authorization: `Bearer ${process.env.CAR_IMAGE_API_KEY}` }, signal: AbortSignal.timeout(25_000), cache: 'no-store',
     });
