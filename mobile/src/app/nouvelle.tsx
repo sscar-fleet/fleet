@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, Carte, GrosBouton, Ligne, Texte, Titre, Vide, Chargement, Etapes, Etiquette, Rangee } from '@/composants/ui';
 import { Champ, Puce, Puces, Recherche } from '@/composants/champs';
-import LogoMarque from '@/composants/LogoMarque';
+import VisuelVehicule from '@/composants/VisuelVehicule';
 import Plaque from '@/composants/Plaque';
 import Calendrier from '@/composants/Calendrier';
 import Fenetre from '@/composants/Fenetre';
@@ -260,7 +260,7 @@ export default function NouvelleLocation() {
         {libres.map((v) => (
           <Carte key={v.id} accent={vehicule?.id === v.id ? c.accent : undefined} onPress={() => { setVehicule(v); setEtape(2); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <LogoMarque marque={v.marque} modele={v.modele} />
+              <VisuelVehicule v={v} taille={44} />
               <View style={{ flex: 1, gap: 5 }}><Text style={{ color: c.texte, fontSize: 17, fontWeight: '800' }}>{nomVehicule(v)}</Text><Plaque immat={plaque(v.immatriculation)} taille={0.7} />
                 {papiersAlerte(v).map((t) => <Text key={t} style={{ color: c.orange, fontSize: 13, fontWeight: '700' }}>{t}</Text>)}</View>
               {v.prix_jour ? <View style={{ alignItems: 'flex-end' }}><Text style={{ color: c.texte, fontWeight: '800', fontSize: 17 }}>{euros(Number(v.prix_jour) * jours)}</Text><Text style={{ color: c.gris, fontSize: 12 }}>{euros(v.prix_jour)}/j</Text></View> : null}
@@ -272,7 +272,7 @@ export default function NouvelleLocation() {
           <Titre>Pas disponibles</Titre>
           {prises.map((v) => (
             <View key={v.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: 0.5, paddingVertical: 6 }}>
-              <LogoMarque marque={v.marque} modele={v.modele} taille={36} />
+              <VisuelVehicule v={v} taille={36} />
               <View style={{ flex: 1 }}><Text style={{ color: c.texte, fontWeight: '700' }}>{nomVehicule(v)} · {plaque(v.immatriculation)}</Text><Text style={{ color: c.gris, fontSize: 13 }}>{indispo(v)}</Text></View>
             </View>
           ))}

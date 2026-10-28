@@ -2,13 +2,14 @@
 // pour la liste, et une fiche claire quand on touche une voiture, sur la carte ou dans la liste.
 // Règle d'ergonomie : sur la carte et dans la liste, une seule info par voiture (son état, moteur compris,
 // et sa location) ; tout le détail (adresse, depuis quand, compteur, boîtier, trajet) est dans la fiche.
+import VisuelVehicule from '@/composants/VisuelVehicule';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Linking, PanResponder, Pressable, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Action } from '@/composants/ui';
-import LogoMarque, { BadgeSport } from '@/composants/LogoMarque';
+import { BadgeSport } from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import Icone from '@/composants/Icone';
 import CarteSuivi, { type CarteSuiviRef, type PointCarte } from '@/composants/CarteSuivi';
@@ -238,8 +239,8 @@ export default function EspaceSuivi() {
               return (
                 <Pressable key={s.v.id} onPress={() => choisir(s.v.id)} accessibilityLabel={`${plaque(s.v.immatriculation)}, ${phraseEtat(s.e)}, ${ou(s)}`}
                   style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 14, backgroundColor: pressed ? c.panneau2 : 'transparent' })}>
-                  <View style={{ width: 46, alignItems: 'center' }}>
-                    <LogoMarque marque={s.v.marque} modele={s.v.modele} taille={38} />
+                  <View style={{ width: 66, alignItems: 'center' }}>
+                    <VisuelVehicule v={s.v} taille={38} />
                     <View style={{ position: 'absolute', right: 0, bottom: -2, width: 13, height: 13, borderRadius: 7, backgroundColor: coul, borderWidth: 2.5, borderColor: c.panneau }} />
                   </View>
                   <View style={{ flex: 1, gap: 3 }}>
@@ -260,7 +261,7 @@ export default function EspaceSuivi() {
               <Text style={{ color: c.gris, fontWeight: '800', fontSize: 12.5, marginTop: 14, marginBottom: 4, paddingHorizontal: 6, letterSpacing: 0.4 }}>SANS TRACEUR · {sansTraceur.length}</Text>
               {sansTraceur.map((v) => (
                 <View key={v.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, paddingHorizontal: 6, opacity: 0.85 }}>
-                  <View style={{ width: 46, alignItems: 'center' }}><LogoMarque marque={v.marque} modele={v.modele} taille={32} /></View>
+                  <View style={{ width: 66, alignItems: 'center' }}><VisuelVehicule v={v} taille={32} /></View>
                   <View style={{ flex: 1 }}>
                     <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 15, fontWeight: '800' }}>{plaque(v.immatriculation)} <Text style={{ color: c.gris, fontWeight: '500', fontSize: 13 }}>{nomModele(v)}</Text></Text>
                     <View style={{ flexDirection: 'row' }}><BadgeSport marque={v.marque} modele={v.modele} petit /></View>
@@ -306,7 +307,7 @@ function FicheVoiture({ s, retourTexte, envoi, onCouper, trajetAffiche, trajetKm
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28, gap: 12 }}>
       <Pressable onPress={() => router.push({ pathname: '/vehicule/[id]', params: { id: s.v.id } })} accessibilityLabel="Ouvrir la fiche du véhicule"
         style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.75 : 1 })}>
-        <LogoMarque marque={s.v.marque} modele={s.v.modele} taille={44} />
+        <VisuelVehicule v={s.v} taille={44} />
         <View style={{ flex: 1, gap: 5 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Plaque immat={plaque(s.v.immatriculation)} taille={0.78} />

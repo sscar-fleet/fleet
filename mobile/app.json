@@ -2,7 +2,7 @@
   "expo": {
     "name": "SS CAR FLEET",
     "slug": "ss-car-fleet",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -79,6 +79,14 @@
       "eas": {
         "projectId": "e429f033-ea19-45f7-989f-bb4031bb043f"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e429f033-ea19-45f7-989f-bb4031bb043f",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

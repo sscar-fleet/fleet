@@ -1,14 +1,14 @@
 // Fiche d'une location : où on en est, ce qui manque (et le bouton pour le régler), la voiture en direct,
 // le client à un geste. Le gros bouton en bas lance l'étape suivante.
+import VisuelVehicule from '@/composants/VisuelVehicule';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import Icone from '@/composants/Icone';
 import { api } from '@/lib/site';
-type Voiture = { id: string; immatriculation: string; marque: string | null; modele: string | null; libre: boolean; raison: string | null };
+type Voiture = { id: string; immatriculation: string; marque: string | null; modele: string | null; annee?: number | null; couleur?: string | null; visuel?: string | null; libre: boolean; raison: string | null };
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ecran, GrosBouton, Carte, Ligne, Texte, Titre, Chargement, BandeauHorsLigne, Rangee, Etiquette, Barre, Action, BoutonRond } from '@/composants/ui';
 import { Puce, Puces } from '@/composants/champs';
-import LogoMarque from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import Frise from '@/composants/Frise';
 import MiniCarte from '@/composants/MiniCarte';
@@ -194,7 +194,7 @@ export default function FicheLocation() {
       {/* La voiture */}
       <Carte onPress={v ? () => router.push({ pathname: '/vehicule/[id]', params: { id: v.id } }) : undefined}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-          <LogoMarque marque={v?.marque} modele={v?.modele} taille={56} />
+          <VisuelVehicule v={v} taille={56} />
           <View style={{ flex: 1, gap: 6 }}>
             <Text style={{ color: c.texte, fontSize: 19, fontWeight: '800' }}>{nomVehicule(v)}</Text>
             <Plaque immat={plaque(v?.immatriculation)} taille={0.85} />
@@ -316,7 +316,7 @@ export default function FicheLocation() {
         {changement === 'charge' ? <Chargement /> : Array.isArray(changement) && (changement.length ? changement.map((x) => (
           <Pressable key={x.id} disabled={!x.libre || !!envoiChangement} onPress={() => changerPour(x)}
             style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, borderWidth: 1, borderColor: x.libre ? c.bord : c.bord, backgroundColor: x.libre ? (pressed ? c.panneau2 : c.panneau) : c.fond, opacity: x.libre ? 1 : 0.55 })}>
-            <LogoMarque marque={x.marque} modele={x.modele} taille={40} />
+            <VisuelVehicule v={x} taille={40} />
             <View style={{ flex: 1, gap: 3 }}>
               <Text numberOfLines={1} style={{ color: c.texte, fontWeight: '800', fontSize: 16 }}>{nomVehicule(x)}</Text>
               <Text style={{ color: x.libre ? c.vert : c.gris, fontSize: 13, fontWeight: '700' }}>{x.libre ? `${plaque(x.immatriculation)} · libre sur ces dates` : `${plaque(x.immatriculation)} · ${x.raison}`}</Text>

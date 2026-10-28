@@ -1,10 +1,11 @@
 // Stock : d'un coup d'œil, les véhicules disponibles, en location et en maintenance.
 // Libres : la prochaine réservation et un bouton Louer. Dehors : le client et l'heure du retour.
+import VisuelVehicule from '@/composants/VisuelVehicule';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ecran, Carte, Chargement, BandeauHorsLigne, Vide, Etiquette, Titre } from '@/composants/ui';
-import LogoMarque, { BadgeSport } from '@/composants/LogoMarque';
+import { BadgeSport } from '@/composants/LogoMarque';
 import Plaque from '@/composants/Plaque';
 import Icone from '@/composants/Icone';
 import { chargerStock, type VehiculeLigne, type LocationLigne } from '@/lib/donnees';
@@ -61,7 +62,7 @@ export default function Stock() {
     return (
       <Carte accent={retard ? c.rouge : g.couleur} onPress={() => (loc ? router.push({ pathname: '/location/[id]', params: { id: loc.id } }) : router.push({ pathname: '/vehicule/[id]', params: { id: v.id } }))}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <LogoMarque marque={v.marque} modele={v.modele} />
+          <VisuelVehicule v={v} taille={42} />
           <View style={{ flex: 1, gap: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Text numberOfLines={1} style={{ flexShrink: 1, color: c.texte, fontSize: 16.5, fontWeight: '800' }}>{nomVehicule(v)}</Text><BadgeSport marque={v.marque} modele={v.modele} petit /></View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

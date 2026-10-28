@@ -7,13 +7,13 @@ export type LocationLigne = {
   id: string; numero: number | null; debut: string; fin_prevue: string; statut: string;
   caution_statut: string; caution_montant: number | null; prix_total: number | null;
   km_depart: number | null; km_inclus: number | null; prix_km_sup: number | null; carburant_depart: number | null; signature_contrat_path: string | null;
-  vehicules: { id: string; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null; prix_jour: number | null } | null;
+  vehicules: { id: string; immatriculation: string; marque: string | null; modele: string | null; annee?: number | null; couleur?: string | null; visuel?: string | null; statut: string; km: number | null; prix_jour: number | null } | null;
   clients: { id: string; nom: string; prenom: string | null; telephone: string | null; email: string | null;
     permis_path: string | null; piece_identite_path: string | null; liste_noire: boolean } | null;
   etats_des_lieux: { type: string; statut: string; km?: number | null; carburant?: number | null }[];
 };
 
-const CHAMPS = 'id, numero, debut, fin_prevue, statut, caution_statut, caution_montant, prix_total, km_depart, km_inclus, prix_km_sup, carburant_depart, signature_contrat_path, vehicules(id, immatriculation, marque, modele, statut, km, prix_jour), clients(id, nom, prenom, telephone, email, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut, km, carburant)';
+const CHAMPS = 'id, numero, debut, fin_prevue, statut, caution_statut, caution_montant, prix_total, km_depart, km_inclus, prix_km_sup, carburant_depart, signature_contrat_path, vehicules(id, immatriculation, marque, modele, annee, couleur, visuel, statut, km, prix_jour), clients(id, nom, prenom, telephone, email, permis_path, piece_identite_path, liste_noire), etats_des_lieux(type, statut, km, carburant)';
 
 export async function avecCache<T>(cle: string, lire: () => Promise<T>): Promise<{ donnees: T; horsLigne: boolean; majLe?: string }> {
   if (DEMO) return { donnees: demo(cle) as T, horsLigne: false };
@@ -123,9 +123,9 @@ export function voyantsDepart(l: LocationLigne) {
 export const chevauche = (a1: string | Date, a2: string | Date, b1: string, b2: string) => new Date(a1) < new Date(b2) && new Date(b1) < new Date(a2);
 
 // --- Flotte
-export type VehiculeLigne = { id: string; carte_grise_path?: string | null; immatriculation: string; marque: string | null; modele: string | null; statut: string; km: number | null;
+export type VehiculeLigne = { id: string; carte_grise_path?: string | null; immatriculation: string; marque: string | null; modele: string | null; annee?: number | null; couleur?: string | null; visuel?: string | null; statut: string; km: number | null;
   prix_jour: number | null; assurance_echeance: string | null; ct_echeance: string | null };
-const CHAMPS_V = 'id, immatriculation, marque, modele, statut, km, prix_jour, assurance_echeance, ct_echeance, carte_grise_path';
+const CHAMPS_V = 'id, immatriculation, marque, modele, annee, couleur, visuel, statut, km, prix_jour, assurance_echeance, ct_echeance, carte_grise_path';
 
 export function chargerVehicules() {
   return avecCache('vehicules', async () => {

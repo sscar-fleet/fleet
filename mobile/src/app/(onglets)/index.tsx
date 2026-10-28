@@ -1,4 +1,5 @@
 // Écran d'ouverture : la prochaine chose à faire en grand, la journée en dessous. Rien à chercher.
+import VisuelVehicule from '@/composants/VisuelVehicule';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -6,7 +7,6 @@ import { Ecran, GrosBouton, Titre, Vide, Chargement, BandeauHorsLigne, Tuile, Ca
 import { useToast } from '@/composants/Toast';
 import { mettreEnFile } from '@/lib/hors-ligne';
 import CarteLocation from '@/composants/CarteLocation';
-import LogoMarque from '@/composants/LogoMarque';
 import Synchro from '@/composants/Synchro';
 import Logo from '@/composants/Logo';
 import { chargerAujourdhui, chargerStock, voyantsDepart, type LocationLigne } from '@/lib/donnees';
@@ -167,7 +167,7 @@ function Aujourdhui() {
           <Text style={{ color: coul, fontWeight: '800', fontSize: 15 }}>{retard ? `prévu ${heure(quand)} · ${duree(Date.now() - new Date(quand).getTime())} de retard` : `${heure(quand)} · ${relatif(quand)}`}</Text>
         </Ligne>
         <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }} onPress={() => ouvrir(l.id)}>
-          <LogoMarque marque={l.vehicules?.marque} modele={l.vehicules?.modele} taille={58} />
+          <VisuelVehicule v={l.vehicules} taille={58} />
           <View style={{ flex: 1 }}>
             <Text numberOfLines={1} style={{ color: c.texte, fontSize: 22, fontWeight: '800' }}>{nomClient(l.clients)}</Text>
             <Text numberOfLines={1} style={{ color: c.texte2, fontSize: 15 }}>{nomVehicule(l.vehicules)} · {plaque(l.vehicules?.immatriculation)}</Text>

@@ -24,7 +24,7 @@ export async function voituresPossibles(supabase: any, locationId: string) {
   const { data: l } = await supabase.from('locations').select('id, vehicule_id, debut, fin_prevue').eq('id', locationId).single();
   if (!l) return [];
   const [{ data: vehicules }, { data: prises }] = await Promise.all([
-    supabase.from('vehicules').select('id, immatriculation, marque, modele, statut, prix_jour, km').neq('statut', 'sorti').order('immatriculation'),
+    supabase.from('vehicules').select('id, immatriculation, marque, modele, annee, couleur, visuel, statut, prix_jour, km').neq('statut', 'sorti').order('immatriculation'),
     supabase.from('locations').select('vehicule_id, numero, debut, fin_prevue, clients(nom)').in('statut', ['reservee', 'en_cours']).lt('debut', l.fin_prevue).gt('fin_prevue', l.debut).neq('id', locationId),
   ]);
   return (vehicules ?? []).filter((v: any) => v.id !== l.vehicule_id).map((v: any) => {
