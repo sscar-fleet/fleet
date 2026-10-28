@@ -24,7 +24,7 @@ import { urlCatalogue, visuelRetenu } from './visuel';
 export const catalogueActif = () => !!process.env.CAR_IMAGE_API_KEY;
 export const reglagesCatalogue = () => (catalogueActif() ? { actif: true as const } : null);
 export const photoCatalogue = (marque?: string | null, modele?: string | null, annee?: number | null) => urlCatalogue(reglagesCatalogue(), marque, modele, annee);
-export const visuelVehicule = (v: { marque?: string | null; modele?: string | null; annee?: number | null; visuel?: string | null }) => visuelRetenu(reglagesCatalogue(), v);
+export const visuelVehicule = (v: { marque?: string | null; modele?: string | null; annee?: number | null; visuel?: string | null; couleur?: string | null }) => visuelRetenu(reglagesCatalogue(), v);
 
 export async function chercherPhotoModele(marque?: string | null, modele?: string | null) {
   if (!marque && !modele) return null;

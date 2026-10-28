@@ -2,6 +2,7 @@ import Historique, { CHAMPS_HISTORIQUE } from '../../_c/Historique';
 import LogoMarque, { BadgeSport } from '@/app/_c/LogoMarque';
 import VisuelVehicule from '@/app/_c/VisuelVehicule';
 import { visuelVehicule, catalogueActif } from '@/lib/photoModele';
+import { COULEURS, couleurValide } from '@/lib/visuel';
 import { notFound } from 'next/navigation';
 import { utilisateurCourant, liensFichiers } from '@/lib/agence';
 import {
@@ -110,6 +111,15 @@ export default async function FicheVehicule({ params }: { params: { id: string }
               <div className="ligne choix-visuel" style={{ gap: 6 }}>
                 {([['photo', 'Photo du modèle'], ['icone', 'Icône']] as const).map(([k, lib]) => (
                   <Formulaire key={k} action={A.choisirVisuel.bind(null, v.id, k)}><Envoyer className={`bouton petit ${(visuelVehicule(v) ? 'photo' : 'icone') === k ? 'principal' : ''}`}>{lib}</Envoyer></Formulaire>
+                ))}
+              </div>
+            )}
+            {!liens[v.photo_path] && catalogueActif() && visuelVehicule(v) && (
+              <div className="ligne choix-couleur" aria-label="Couleur du véhicule">
+                {COULEURS.map((c) => (
+                  <Formulaire key={c.id} action={A.choisirCouleur.bind(null, v.id, c.id)}>
+                    <button type="submit" title={c.nom} aria-label={c.nom} className={`pastille-couleur${couleurValide(v.couleur) === c.id ? ' choisie' : ''}`} style={{ background: `#${c.hex}` }} />
+                  </Formulaire>
                 ))}
               </div>
             )}

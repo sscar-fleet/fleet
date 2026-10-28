@@ -1,6 +1,7 @@
 'use server';
 // Toutes les actions qui modifient les données. Les règles d'accès de la base (RLS)
 // garantissent qu'un loueur ne touche qu'aux données de son agence.
+import { COULEURS } from '@/lib/visuel';
 import { deplacerReservation as deplacerReservationLib } from '@/lib/reservation';
 import { lireDocument } from '@/lib/lecture';
 import { revalidatePath } from 'next/cache';
@@ -179,6 +180,13 @@ async function _choisirVisuel(id: string, visuel: string) {
   champAutorise(visuel, ['auto', 'photo', 'icone']);
   const { supabase } = await utilisateurCourant();
   verifier((await supabase.from('vehicules').update({ visuel }).eq('id', id)).error, 'Visuel');
+  rafraichir();
+}
+
+async function _choisirCouleur(id: string, couleur: string) {
+  champAutorise(couleur, COULEURS.map((c) => c.id));
+  const { supabase } = await utilisateurCourant();
+  verifier((await supabase.from('vehicules').update({ couleur }).eq('id', id)).error, 'Couleur');
   rafraichir();
 }
 
@@ -1204,6 +1212,7 @@ export const delierTraceur = proteger(_delierTraceur);
 export const passerDirect = proteger(_passerDirect);
 export const importerVehicules = proteger(_importerVehicules);
 export const choisirVisuel = proteger(_choisirVisuel);
+export const choisirCouleur = proteger(_choisirCouleur);
 export const statutAmendes = proteger(_statutAmendes);
 
 // Modification directe dans les tableaux (liste blanche de champs)

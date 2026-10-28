@@ -9,7 +9,7 @@ import { compresser } from '@/lib/image';
 import { supabaseNavigateur } from '@/lib/supabase-navigateur';
 import { useDictee } from '@/lib/dictee';
 import { plaque } from '@/lib/format';
-import { visuelRetenu, type ReglagesCatalogue } from '@/lib/visuel';
+import { visuelRetenu, COULEURS, couleurValide, type ReglagesCatalogue } from '@/lib/visuel';
 import {
   lotVide, fusionner, nettoyerLot, appliquerColonnes, echantillon, tableEnTexte, etatLocation, manquesVehicule, manquesLocation,
   statutAffiche, maintenantParis, plaqueNette, type Lot, type VehiculeImport, type LocationImport, type ClientImport, type ChauffeurImport, type Colonnes,
@@ -358,6 +358,9 @@ export default function ImportFlotte({ agenceId, transport, existantes, catalogu
                     <input value={v.marque ?? ''} placeholder="Marque" aria-label="Marque" onChange={(e) => majV(v.cle, { marque: e.target.value || null })} />
                     <input value={v.modele ?? ''} placeholder="Modèle (RS3, GTI…)" aria-label="Modèle" onChange={(e) => majV(v.cle, { modele: e.target.value || null })} />
                     <input className="court" value={v.annee ?? ''} placeholder="Année" inputMode="numeric" aria-label="Année" onChange={(e) => majV(v.cle, { annee: Number(e.target.value.replace(/\D/g, '').slice(0, 4)) || null })} />
+                    {catalogue && photo && <select className="court" value={couleurValide(v.couleur)} aria-label="Couleur" onChange={(e) => majV(v.cle, { couleur: e.target.value })}>
+                      {COULEURS.map((c) => <option key={c.id} value={c.id}>{c.nom}</option>)}
+                    </select>}
                     <input className="court" value={v.km ?? ''} placeholder="Km" inputMode="numeric" aria-label="Kilométrage" onChange={(e) => majV(v.cle, { km: Number(e.target.value.replace(/\D/g, '')) || null })} />
                     <select value={statut} aria-label="Situation" onChange={(e) => majV(v.cle, { statut: e.target.value as any })}>
                       <option value="disponible">Disponible</option>

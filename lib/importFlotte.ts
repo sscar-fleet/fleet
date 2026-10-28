@@ -47,7 +47,7 @@ const json = (t: string) => {
 
 const FORMAT = `{
  "type_document": "carte_grise|contrat|liste|autre",
- "vehicules": [{"immatriculation": "AB123CD", "marque": "Renault", "modele": "Clio 5 (version exacte si elle est écrite : RS3, GTI, AMG…)", "annee": "année de première mise en circulation (carte grise champ B) ou null", "carburant": "essence|diesel|hybride|electrique|gpl|null", "km": 42000, "prix_jour": 45, "statut": "disponible|loue|garage|vendu|null", "garage": "nom du garage ou null", "retour_garage": "AAAA-MM-JJ ou null", "assurance_echeance": "AAAA-MM-JJ ou null", "ct_echeance": "AAAA-MM-JJ ou null", "note": "court, ou null"}],
+ "vehicules": [{"immatriculation": "AB123CD", "marque": "Renault", "modele": "Clio 5 (version exacte si elle est écrite : RS3, GTI, AMG…)", "annee": "année de première mise en circulation (carte grise champ B) ou null", "couleur": "couleur de la carrosserie si elle est écrite (noir, gris, blanc, bleu…) ou null", "carburant": "essence|diesel|hybride|electrique|gpl|null", "km": 42000, "prix_jour": 45, "statut": "disponible|loue|garage|vendu|null", "garage": "nom du garage ou null", "retour_garage": "AAAA-MM-JJ ou null", "assurance_echeance": "AAAA-MM-JJ ou null", "ct_echeance": "AAAA-MM-JJ ou null", "note": "court, ou null"}],
  "clients": [{"nom": "Dupont", "prenom": "Jean", "telephone": "0612345678", "email": null, "date_naissance": "AAAA-MM-JJ ou null", "numero_permis": null, "adresse": null}],
  "locations": [{"immatriculation": "AB123CD", "client_nom": "Dupont", "client_prenom": "Jean", "client_telephone": null, "debut": "AAAA-MM-JJTHH:MM ou null", "fin": "AAAA-MM-JJTHH:MM ou null", "prix_total": null, "caution": null}],
  "chauffeurs": [{"nom": "Martin", "prenom": "Karim", "telephone": null}],
@@ -97,6 +97,7 @@ ${echantillon}
 """
 Dis à quoi correspond chaque colonne utile. Champs possibles : ${CHAMPS_COLONNE.join(', ')}.
 - annee : année de mise en circulation ou date de première immatriculation.
+- couleur : couleur de la carrosserie.
 - marque_modele : une seule colonne avec marque et modèle ensemble ; client_nom_complet / chauffeur_nom_complet : prénom et nom dans la même case.
 - debut / fin : départ et retour d'une location en cours ; retour_garage : date de sortie de garage prévue.
 - statut : colonne qui dit si le véhicule est loué, disponible, au garage, vendu… Donne la traduction de chaque valeur rencontrée vers "disponible", "loue", "garage" ou "vendu".

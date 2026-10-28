@@ -1,3 +1,4 @@
+import { couleurNette } from './visuel';
 // Import de la flotte : ce qui sert à la fois au navigateur (aperçu) et au serveur (écriture).
 // Tout ce que l'IA ou un tableur renvoie passe par nettoyerLot : plaques, dates et statuts sont remis au propre,
 // rien n'est inventé, et ce qui manque est signalé « à compléter » sans jamais bloquer le reste.
@@ -7,7 +8,7 @@ export type StatutImport = 'disponible' | 'loue' | 'garage';
 export type VehiculeImport = {
   cle: string; immatriculation: string | null; marque: string | null; modele: string | null;
   carburant: string | null; km: number | null; prix_jour: number | null; statut: StatutImport | null;
-  annee: number | null; visuel: 'auto' | 'photo' | 'icone';
+  annee: number | null; visuel: 'auto' | 'photo' | 'icone'; couleur: string | null;
   garage: string | null; retour_garage: string | null; assurance_echeance: string | null; ct_echeance: string | null;
   note: string | null; carte_grise: string | null; sources: string[];
 };
@@ -170,6 +171,7 @@ export function nettoyerLot(brut: any, source: string, document?: string | null)
       cle: immatriculation ?? cleTemp('v'), immatriculation, marque: marque ? nomPropre(marque) : null, modele,
       annee: (() => { const a = nombreNet(v?.annee, 2100) ?? (dateNette(v?.annee) ? Number(dateNette(v?.annee)!.slice(0, 4)) : null); return a && a >= 1950 ? Math.round(a) : null; })(),
       visuel: v?.visuel === 'photo' || v?.visuel === 'icone' ? v.visuel : 'auto',
+      couleur: couleurNette(v?.couleur),
       carburant: carburantNet(v?.carburant), km: (() => { const n = nombreNet(v?.km, 2_000_000); return n == null ? null : Math.round(n); })(),
       prix_jour: nombreNet(v?.prix_jour, 5000), statut: s,
       garage: chaine(v?.garage, 80), retour_garage: dateNette(v?.retour_garage),
@@ -263,7 +265,7 @@ export function fusionner(base: Lot, ajout: Lot): Lot {
       if (trouverClient(c) < 0) r.clients.push({ cle: cleClient(c), ...c, date_naissance: null, numero_permis: null, adresse: null, sources: l.sources });
     }
     if (l.immatriculation && !r.vehicules.some((x) => x.immatriculation === l.immatriculation)) {
-      r.vehicules.push({ cle: l.immatriculation, immatriculation: l.immatriculation, marque: null, modele: null, carburant: null, km: null, prix_jour: null, annee: null, visuel: 'auto',
+      r.vehicules.push({ cle: l.immatriculation, immatriculation: l.immatriculation, marque: null, modele: null, carburant: null, km: null, prix_jour: null, annee: null, visuel: 'auto', couleur: null,
         statut: null, garage: null, retour_garage: null, assurance_echeance: null, ct_echeance: null, note: null, carte_grise: null, sources: l.sources });
     }
   }
@@ -316,7 +318,7 @@ export function statutAffiche(v: VehiculeImport, locations: LocationImport[], ma
 // Tableur : l'IA reconnaît les colonnes sur quelques lignes, le navigateur applique à toutes
 // ---------------------------------------------------------------------------
 export const CHAMPS_COLONNE = [
-  'immatriculation', 'marque', 'modele', 'marque_modele', 'annee', 'carburant', 'km', 'prix_jour', 'statut', 'garage', 'retour_garage',
+  'immatriculation', 'marque', 'modele', 'marque_modele', 'annee', 'couleur', 'carburant', 'km', 'prix_jour', 'statut', 'garage', 'retour_garage',
   'assurance_echeance', 'ct_echeance', 'note',
   'client_nom', 'client_prenom', 'client_nom_complet', 'client_telephone', 'client_email', 'client_naissance', 'client_permis', 'client_adresse',
   'debut', 'fin', 'prix_total', 'caution',
@@ -355,7 +357,7 @@ export function appliquerColonnes(lignes: string[][], c: Colonnes): any {
       continue;
     }
     if (val.immatriculation || val.marque || val.modele) {
-      sortie.vehicules.push({ immatriculation: val.immatriculation, marque: val.marque, modele: val.modele, annee: val.annee, carburant: val.carburant, km: val.km, prix_jour: val.prix_jour,
+      sortie.vehicules.push({ immatriculation: val.immatriculation, marque: val.marque, modele: val.modele, annee: val.annee, couleur: val.couleur, carburant: val.carburant, km: val.km, prix_jour: val.prix_jour,
         statut, garage: val.garage, retour_garage: val.retour_garage, assurance_echeance: val.assurance_echeance, ct_echeance: val.ct_echeance, note: val.note });
     }
     if (val.client_nom) {

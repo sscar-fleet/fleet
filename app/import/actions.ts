@@ -50,7 +50,7 @@ export async function importerFlotte(json: string, sources: { total: number; rat
     for (const v of lot.vehicules.slice(0, LIMITES.vehicules)) {
       if (!v.immatriculation) { bilan.sansPlaque++; continue; }
       const champs = {
-        marque: v.marque, modele: v.modele, carburant: v.carburant, km: v.km, prix_jour: v.prix_jour, annee: v.annee,
+        marque: v.marque, modele: v.modele, carburant: v.carburant, km: v.km, prix_jour: v.prix_jour, annee: v.annee, couleur: v.couleur,
         assurance_echeance: v.assurance_echeance, ct_echeance: v.ct_echeance, carte_grise_path: cartes.get(v.immatriculation) ?? null,
       };
       const e = parPlaque.get(v.immatriculation);
@@ -73,7 +73,8 @@ export async function importerFlotte(json: string, sources: { total: number; rat
       const inserer = (lignes: any[]) => supabase.from('vehicules').upsert(lignes, { onConflict: 'agence_id,immatriculation', ignoreDuplicates: true })
         .select('id, immatriculation, km, statut, carte_grise_path');
       let { data, error } = await inserer(nouveaux);
-      if (error && /annee|visuel/.test(error.message)) ({ data, error } = await inserer(nouveaux.map(({ annee, visuel, ...reste }) => reste)));
+      if (error && /couleur/.test(error.message)) ({ data, error } = await inserer(nouveaux.map(({ couleur, ...reste }) => reste)));
+      if (error && /annee|visuel/.test(error.message)) ({ data, error } = await inserer(nouveaux.map(({ annee, visuel, couleur, ...reste }) => reste)));
       if (error) return { erreur: `Import des véhicules impossible : ${error.message}` };
       for (const v of data ?? []) { parPlaque.set(v.immatriculation, v); bilan.vehicules++; if (v.carte_grise_path) bilan.cartesGrises++; }
     }
