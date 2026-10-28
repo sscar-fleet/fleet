@@ -17,7 +17,7 @@ const diags = new Map<string, string>();
 const image = (octets: Buffer) => new Response(new Uint8Array(octets), {
   headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=2592000, immutable' },
 });
-const absente = () => new Response(null, { status: 404, headers: { 'cache-control': 'public, max-age=86400' } });
+const absente = () => new Response(null, { status: 404, headers: { 'cache-control': 'no-store' } }); // un échec ne se garde jamais
 
 // Toutes les voitures regardent du même côté (l'avant à gauche). Le fournisseur se trompe parfois de côté :
 // en trois quarts avant, la roue avant, la plus proche, descend plus bas que l'arrière. Si l'avant est à droite, on retourne l'image.
@@ -63,11 +63,9 @@ export async function GET(request: Request) {
   const cle = new URL(request.url).searchParams.get('v') ?? '';
   const m = /^([a-z0-9-]{1,40})_([a-z0-9-]{1,60})_(\d{4})(?:_([a-z-]{1,20}))?$/.exec(cle);
   const teinte = COULEURS.find((x) => x.id === (m?.[4] ?? COULEUR_DEFAUT));
-  if (!m || !teinte || !process.env.CAR_IMAGE_API_KEY || !adminConfigure()) return new Response(null, { status: 404, headers: { 'x-visuel-diag': !m ? 'cle-invalide' : !process.env.CAR_IMAGE_API_KEY ? 'pas-de-cle' : 'pas-de-service-role' } });
+  if (!m || !teinte || !process.env.CAR_IMAGE_API_KEY || !adminConfigure()) return new Response(null, { status: 404, headers: { 'cache-control': 'no-store', 'x-visuel-diag': !m ? 'cle-invalide' : !process.env.CAR_IMAGE_API_KEY ? 'pas-de-cle' : 'pas-de-service-role' } });
   const db = supabaseAdmin().storage.from('documents');
-  // Essai d'angle (réglage) : ?angle=front-left|front-right, rangé à part
-  const angle = ['front-left', 'front-right'].includes(new URL(request.url).searchParams.get('angle') ?? '') ? new URL(request.url).searchParams.get('angle')! : null;
-  const nom = `${angle ? `essai-${angle}/` : ''}${m[1]}_${m[2]}_${m[3]}_${teinte.id}`;
+  const nom = `${m[1]}_${m[2]}_${m[3]}_${teinte.id}`;
   const chemin = `${DOSSIER}/${nom}.png`;
 
   const { data: garde } = await db.download(chemin);
@@ -79,7 +77,7 @@ export async function GET(request: Request) {
   if (!enCours.has(nom)) {
     enCours.set(nom, (async () => {
       try {
-        const r = await demander(m[1], m[2], m[3], teinte.hex, angle ?? undefined);
+        const r = await demander(m[1], m[2], m[3], teinte.hex);
         if (r.octets) { await db.upload(chemin, r.octets, { contentType: 'image/png', upsert: true }); return r.octets; }
         if (r.diag) diags.set(nom, r.diag);
         if (r.inconnu) await db.upload(`${DOSSIER}/${m[1]}_${m[2]}_${m[3]}.inconnu`, Buffer.from('1'), { contentType: 'text/plain', upsert: true });

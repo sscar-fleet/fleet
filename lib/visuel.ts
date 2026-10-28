@@ -41,6 +41,8 @@ export function couleurNette(t?: string | null): string | null {
 }
 
 // Sans année connue, on prend une voiture récente (la génération actuelle)
+// À changer quand le contenu des images change (vue, sens…) : sinon le navigateur ressert l'ancienne image gardée 30 jours
+export const VERSION_VISUEL = 5;
 export const anneeParDefaut = () => new Date().getFullYear() - 2;
 
 // Clé d'une image : marque, modèle (avec sa version : « rs3 » n'est pas « a3 ») et année
@@ -55,7 +57,7 @@ export function cleVisuel(marque?: string | null, modele?: string | null, annee?
 
 export function urlCatalogue(r: ReglagesCatalogue, marque?: string | null, modele?: string | null, annee?: number | null, couleur?: string | null) {
   const k = r ? cleVisuel(marque, modele, annee, couleur) : null;
-  return k ? `/api/visuel?v=${encodeURIComponent(k.cle)}` : null;
+  return k ? `/api/visuel?v=${encodeURIComponent(k.cle)}&r=${VERSION_VISUEL}` : null;
 }
 
 // null = icône classique. Par défaut (auto), un véhicule de plus de 15 ans garde l'icône.
