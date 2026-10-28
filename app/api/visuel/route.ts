@@ -18,11 +18,11 @@ const image = (octets: Buffer) => new Response(new Uint8Array(octets), {
 });
 const absente = () => new Response(null, { status: 404, headers: { 'cache-control': 'public, max-age=86400' } });
 
-async function demander(marque: string, modele: string, annee: string, couleur: string): Promise<{ octets?: Buffer; inconnu?: boolean; diag?: string }> {
+async function demander(marque: string, modele: string, annee: string, couleur: string, vue = 'front-3-4'): Promise<{ octets?: Buffer; inconnu?: boolean; diag?: string }> {
   // Le modèle complet d'abord (« rs3 », « clio-5 »), puis le premier mot seulement (« clio »)
   const essais = Array.from(new Set([modele.replace(/-/g, ' '), modele.split('-')[0]]));
   for (const mo of essais) {
-    const q = new URLSearchParams({ make: marque.replace(/-/g, ' '), model: mo, year: annee, color: couleur, view: 'front-3-4', format: 'png', size: 'medium', trim: '1' });
+    const q = new URLSearchParams({ make: marque.replace(/-/g, ' '), model: mo, year: annee, color: couleur, view: vue, format: 'png', size: 'medium', trim: '1' });
     const r = await fetch(`${URL_API()}/api/v1/images/car?${q}`, {
       headers: { Authorization: `Bearer ${process.env.CAR_IMAGE_API_KEY}` }, signal: AbortSignal.timeout(25_000), cache: 'no-store',
     });
@@ -44,7 +44,9 @@ export async function GET(request: Request) {
   const teinte = COULEURS.find((x) => x.id === (m?.[4] ?? COULEUR_DEFAUT));
   if (!m || !teinte || !process.env.CAR_IMAGE_API_KEY || !adminConfigure()) return new Response(null, { status: 404, headers: { 'x-visuel-diag': !m ? 'cle-invalide' : !process.env.CAR_IMAGE_API_KEY ? 'pas-de-cle' : 'pas-de-service-role' } });
   const db = supabaseAdmin().storage.from('documents');
-  const nom = `${m[1]}_${m[2]}_${m[3]}_${teinte.id}`;
+  // Essai d'angle (réglage) : ?angle=front-left|front-right, rangé à part
+  const angle = ['front-left', 'front-right'].includes(new URL(request.url).searchParams.get('angle') ?? '') ? new URL(request.url).searchParams.get('angle')! : null;
+  const nom = `${angle ? `essai-${angle}/` : ''}${m[1]}_${m[2]}_${m[3]}_${teinte.id}`;
   const chemin = `${DOSSIER}/${nom}.png`;
 
   const { data: garde } = await db.download(chemin);
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
   if (!enCours.has(nom)) {
     enCours.set(nom, (async () => {
       try {
-        const r = await demander(m[1], m[2], m[3], teinte.hex);
+        const r = await demander(m[1], m[2], m[3], teinte.hex, angle ?? undefined);
         if (r.octets) { await db.upload(chemin, r.octets, { contentType: 'image/png', upsert: true }); return r.octets; }
         if (r.diag) diags.set(nom, r.diag);
         if (r.inconnu) await db.upload(`${DOSSIER}/${m[1]}_${m[2]}_${m[3]}.inconnu`, Buffer.from('1'), { contentType: 'text/plain', upsert: true });
