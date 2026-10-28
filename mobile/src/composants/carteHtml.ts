@@ -43,6 +43,7 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
 .v .ic svg{width:44px;height:44px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
 .r.photo .ph.ok~.om,.r.photo .om.vu{opacity:1}
 .r.icone .ic{opacity:1}
+.r.icone .ph,.r.icone .om{opacity:0!important}
 .r.photo .pt,.r.icone .pt{display:none}
 .r.photo .lg,.r.icone .lg{display:none}
 .r.photo .et{top:12px;left:-40px}

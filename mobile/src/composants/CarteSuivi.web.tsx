@@ -1,5 +1,5 @@
-// Carte du Suivi dans le navigateur : la même page de carte, dans un iframe.
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+// Carte du Suivi dans le navigateur : la même page de carte, dans un iframe (adresse blob).
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { CARTE_HTML } from './carteHtml';
 import type { CarteSuiviProps, CarteSuiviRef } from './CarteSuivi';
@@ -8,6 +8,10 @@ export type { CarteSuiviRef, CarteSuiviProps, PointCarte } from './CarteSuivi';
 const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuivi({ points, choisi, trace, sombre, satellite, marges, onChoisir, onFond }, ref) {
   const cadre = useRef<HTMLIFrameElement | null>(null);
   const [prete, setPrete] = useState(false);
+  // Page de carte servie par une adresse blob et non par srcdoc : dans un iframe srcdoc, MapLibre ne charge jamais
+  // ses tuiles (fond vide, seulement les repères). Vérifié dans Chrome le 28/10.
+  const adresse = useMemo(() => URL.createObjectURL(new Blob([CARTE_HTML], { type: 'text/html' })), []);
+  useEffect(() => () => URL.revokeObjectURL(adresse), [adresse]);
   const envoyer = (m: object) => cadre.current?.contentWindow?.postMessage({ carteSuivi: m }, '*');
   useImperativeHandle(ref, () => ({ cadrer: () => envoyer({ type: 'cadrer' }), viser: (id) => envoyer({ type: 'viser', id }) }));
   useEffect(() => {
@@ -23,7 +27,7 @@ const CarteSuivi = forwardRef<CarteSuiviRef, CarteSuiviProps>(function CarteSuiv
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#0b0f12' }}>
-      <iframe ref={cadre} srcDoc={CARTE_HTML} title="Carte du suivi" style={{ border: 0, width: '100%', height: '100%', display: 'block' }} />
+      <iframe ref={cadre} src={adresse} title="Carte du suivi" style={{ border: 0, width: '100%', height: '100%', display: 'block' }} />
     </View>
   );
 });
