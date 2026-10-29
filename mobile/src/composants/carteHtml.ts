@@ -36,9 +36,9 @@ html,body,#c{margin:0;height:100%;width:100%;background:#0b0f12;overflow:hidden;
 .r.ch .lg{width:36px;height:36px;top:-18px;right:17px}
 .maplibregl-ctrl-attrib{font-size:9px!important}
 .v{position:absolute;left:0;top:0;width:0;height:0;transform:scale(var(--e,1));transition:transform .2s}
-.v .ph{position:absolute;left:-24px;top:-19px;width:48px;height:26px;object-fit:contain;opacity:0;transition:opacity .25s;filter:drop-shadow(0 2px 2px rgba(0,0,0,.45));pointer-events:none}
+.v .ph{position:absolute;left:-28px;top:-22px;width:56px;height:30px;object-fit:contain;opacity:0;transition:opacity .25s;filter:drop-shadow(0 0 .8px #19f7d6) drop-shadow(0 0 .8px #19f7d6) drop-shadow(0 2px 2px rgba(0,0,0,.45));pointer-events:none}
 .v .ph.ok{opacity:1}
-.v .om{position:absolute;left:-18px;top:3px;width:36px;height:7px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px);opacity:0;transition:opacity .25s}
+.v .om{position:absolute;left:-21px;top:4px;width:42px;height:8px;border-radius:50%;background:rgba(0,0,0,.45);filter:blur(3px);opacity:0;transition:opacity .25s}
 .v .ic{position:absolute;left:-18px;top:-18px;width:36px;height:36px;transition:transform .8s ease-out;opacity:0}
 .v .ic svg{width:36px;height:36px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.55))}
 .r.photo .ph.ok~.om,.r.photo .om.vu{opacity:1}
@@ -49,7 +49,7 @@ body.sobre .r .et{display:none}
 body.sobre .r.ch .et{display:flex}
 .r.photo .pt,.r.icone .pt{display:none}
 .r.photo .lg,.r.icone .lg{display:none}
-.r.photo .et{top:14px;left:-30px}
+.r.photo .et{top:15px;left:-30px}
 .v .fl{position:absolute;left:-7px;top:-7px;width:14px;height:14px;opacity:0;transition:transform .8s ease-out,opacity .25s}
 .v .fl i{position:absolute;left:3px;top:-17px;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid #3b82f6;filter:drop-shadow(0 1px 1px rgba(0,0,0,.6))}
 .r.photo.roule .fl{opacity:1}
@@ -145,7 +145,7 @@ body.sobre .r.ch .et{display:flex}
     var z=carte?carte.getZoom():12;
     document.body.classList.toggle('sobre', !etat.etiquettes && !(z>=15));
     // Les voitures rapetissent quand on dézoome, pour que la carte reste lisible
-    document.body.style.setProperty('--e', z>=15?1:z>=13.5?0.85:z>=12?0.7:z>=10.5?0.55:0.45);
+    document.body.style.setProperty('--e', z>=15?1:z>=13.5?0.9:z>=12?0.8:z>=10.5?0.7:0.6);
   }
   // Une seule boucle pour toute la carte : chaque repère glisse vers sa position estimée (lissage ≈ 0,35 s), arrêtée quand plus rien ne bouge
   var boucle=null, dernier=0, glisseLe=0;
