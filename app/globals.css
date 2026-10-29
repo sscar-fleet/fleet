@@ -1060,9 +1060,9 @@ body:has(.imp-barre) .ia-bulle-flottante { display: none; }
 /* Carte du suivi façon appli SS CAR SYSTEM : la photo du modèle pour toutes les voitures (flèche bleue de direction quand elle roule),
    icône vue de dessus seulement si la photo manque ; les voitures rapetissent quand on dézoome (--e) */
 .suivi-repere .v { position: absolute; left: 0; top: 0; width: 0; height: 0; transform: scale(var(--e, 1)); transition: transform .2s; }
-.leaflet-container .leaflet-marker-pane .suivi-repere .ph { position: absolute; left: -24px; top: -19px; width: 48px !important; height: 26px !important; max-width: none !important; object-fit: contain; opacity: 0; transition: opacity .25s; filter: drop-shadow(0 2px 2px rgba(0,0,0,.45)); pointer-events: none; }
+.leaflet-container .leaflet-marker-pane .suivi-repere .ph { position: absolute; left: -28px; top: -22px; width: 56px !important; height: 30px !important; max-width: none !important; object-fit: contain; opacity: 0; transition: opacity .25s; filter: drop-shadow(0 0 .8px #19f7d6) drop-shadow(0 0 .8px #19f7d6) drop-shadow(0 2px 2px rgba(0,0,0,.45)); pointer-events: none; }
 .leaflet-container .leaflet-marker-pane .suivi-repere .ph.ok { opacity: 1; }
-.suivi-repere .om { position: absolute; left: -18px; top: 3px; width: 36px; height: 7px; border-radius: 50%; background: rgba(0,0,0,.4); filter: blur(3px); opacity: 0; transition: opacity .25s; }
+.suivi-repere .om { position: absolute; left: -21px; top: 4px; width: 42px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.4); filter: blur(3px); opacity: 0; transition: opacity .25s; }
 .suivi-repere.m-photo .om.vu { opacity: 1; }
 .suivi-repere .ic { position: absolute; left: -18px; top: -18px; width: 36px; height: 36px; transition: transform .8s ease-out; opacity: 0; }
 .suivi-repere .ic svg { width: 36px; height: 36px; filter: drop-shadow(0 2px 3px rgba(0,0,0,.55)); }

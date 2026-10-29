@@ -149,7 +149,7 @@ export default function SuiviFlotte({ lignes, demo, compact = false, initial, tr
     const z = carte.current ? carte.current.getZoom() : 12;
     boite.current?.classList.toggle('sobre', !etiquettes && !(z >= 15));
     // Les voitures rapetissent quand on dézoome, pour que la carte reste lisible
-    boite.current?.style.setProperty('--e', String(z >= 15 ? 1 : z >= 13.5 ? 0.85 : z >= 12 ? 0.7 : z >= 10.5 ? 0.55 : 0.45));
+    boite.current?.style.setProperty('--e', String(z >= 15 ? 1 : z >= 13.5 ? 0.9 : z >= 12 ? 0.8 : z >= 10.5 ? 0.7 : 0.6));
   }
   const roule = (l: LigneSuivi) => l.etat === 'roule' && l.vitesse >= 5;
   function mettreAJour(r: any, l: LigneSuivi, ch: boolean) {
