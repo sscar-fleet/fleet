@@ -10,11 +10,12 @@ import Signature from '../_c/Signature';
 import Deconnexion from './Deconnexion';
 import * as T from '../tournees/actions';
 import ChampAdresse from '../_c/ChampAdresse';
+import PaiementsEnLigne from './PaiementsEnLigne';
 
 const ACCES: [string, string][] = [['appli', 'Appli'], ['logiciel', 'Logiciel'], ['les_deux', 'Les deux']];
 export const dynamic = 'force-dynamic';
 
-export default async function Parametres() {
+export default async function Parametres({ searchParams }: { searchParams?: { stripe?: string } }) {
   const { supabase, profil } = await utilisateurCourant();
   const [{ data: a }, { data: utilisateurs }, { data: invitations }] = await Promise.all([
     supabase.from('agences').select('*').eq('id', profil.agence_id).single(),
@@ -88,6 +89,7 @@ export default async function Parametres() {
           </div>
         </section>
       </div>
+      {(a.metier ?? 'location') === 'location' && <PaiementsEnLigne agence={a} gerant={gerant} retour={searchParams?.stripe} />}
       <section className="carte" style={{ marginTop: 16 }}>
         <h2>Accès ({utilisateurs?.length ?? 0}) <span className="gris" style={{ fontWeight: 400, fontSize: 14 }}>· illimités</span></h2>
         {utilisateurs?.map((u: any) => (

@@ -17,6 +17,7 @@ import BoutonPdf from '../../_c/BoutonPdf';
 import Copier from '../../_c/Copier';
 import { headers } from 'next/headers';
 import Onglets from '../../_c/Onglets';
+import PaiementsLocation from './PaiementsLocation';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,10 +26,11 @@ export default async function FicheLocation({ params }: { params: { id: string }
   const d = await chargerLocation(supabase, profil.agence_id, params.id);
   if (!d) notFound();
   const l = d.brut; const v = l.vehicules; const c = l.clients;
-  const [{ data: autres }, { data: historique }, { data: fpsDus }] = await Promise.all([
+  const [{ data: autres }, { data: historique }, { data: fpsDus }, { data: reglages }] = await Promise.all([
     supabase.from('vehicules').select('id, immatriculation, marque, modele').not('statut', 'in', '(hors_service,sorti)').neq('id', v.id).order('immatriculation'),
     supabase.from('historique').select(CHAMPS_HISTORIQUE).eq('location_id', l.id).order('created_at', { ascending: false }).limit(80),
     supabase.from('fps').select('montant, frais_gestion').eq('client_id', c.id).in('statut', ['a_refacturer', 'refacture']),
+    supabase.from('agences').select('paiements').eq('id', profil.agence_id).single(),
   ]);
   const detteFps = (fpsDus ?? []).reduce((t: number, f: any) => t + Number(f.montant ?? 0) + Number(f.frais_gestion ?? 0), 0);
   const retard = l.statut === 'en_cours' && new Date(l.fin_prevue) < new Date();
@@ -250,6 +252,7 @@ export default async function FicheLocation({ params }: { params: { id: string }
         { cle: 'client', titre: 'Client', contenu: client },
         { cle: 'etats', titre: 'États des lieux', badge: ouverts, contenu: etats },
         { cle: 'documents', titre: 'Contrat et facture', contenu: documents },
+        { cle: 'paiements', titre: 'Paiements', contenu: <PaiementsLocation l={l} agenceId={profil.agence_id} options={(reglages as any)?.paiements ?? {}} client={c} /> },
         { cle: 'modifier', titre: 'Modifier', contenu: plus },
       ]} />
     </Cadre>
