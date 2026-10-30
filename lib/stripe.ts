@@ -113,9 +113,9 @@ export async function creerCompteLoueur(a: { agenceId: string; nom?: string | nu
     return await stripeV2<{ id: string }>('core/accounts', {
       dashboard: 'full',
       configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
-      defaults: { currency: 'eur', responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' } },
+      defaults: { responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' } },
       metadata: { agence_id: a.agenceId, origine: 'SS CAR FLEET' },
-    }, { cle: `compte-v2c-${a.agenceId}` });
+    }, { cle: `compte-v2d-${a.agenceId}` });
   } catch (e2: any) {
     // 2) Repli : compte « Standard » classique (si l'ancienne méthode est autorisée sur la plateforme Stripe)
     try {
