@@ -36,7 +36,7 @@ export default async function PaiementsLocation({ l, agenceId, options, client }
   const ouverte = l.statut === 'reservee' || l.statut === 'en_cours';
   const dejaPaye = liste.filter((p) => p.type === 'location' && p.statut === 'paye').reduce((t, p) => t + Number(p.montant), 0);
   const resteLocation = Math.max(0, Number(l.prix_total ?? 0) - dejaPaye);
-  const cautionActive = liste.find((p) => p.type === 'caution' && ['autorise', 'carte_enregistree'].includes(p.statut));
+  const cautionActive = liste.find((p) => p.type === 'caution' && ['autorise', 'carte_enregistree', 'retenu'].includes(p.statut));
   const carte = liste.find((p) => p.statut === 'carte_enregistree');
   const longue = joursEntre(new Date().toISOString(), l.fin_prevue) > JOURS_EMPREINTE;
   const message = (p: any) => `Bonjour ${client?.prenom ?? ''}, voici le lien sécurisé pour régler : ${p.libelle} (${euros(p.montant)}). ${p.lien}`;

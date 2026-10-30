@@ -123,6 +123,8 @@ async function _demanderPaiement(locationId: string, type: 'location' | 'caution
           description: libelle, metadata: meta, application_fee_amount: frais,
           ...(mode === 'empreinte' ? { capture_method: 'manual' } : {}),
         },
+        // Une caution se bloque uniquement sur une carte (Klarna, Revolut Pay… ne savent pas « bloquer puis libérer »)
+        ...(mode === 'empreinte' ? { payment_method_types: ['card'] } : {}),
         ...(mode === 'empreinte' ? { custom_text: { submit: { message: `Ce montant est seulement bloqué sur votre carte comme caution. Il sera libéré au retour du véhicule si tout est en ordre.` } } } : {}),
         metadata: meta,
       }, { compte });
