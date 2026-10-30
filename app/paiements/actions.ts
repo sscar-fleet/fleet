@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { utilisateurCourant, verifier } from '@/lib/agence';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { texte, nombre, euros, joursEntre } from '@/lib/format';
-import { stripe, centimes, signerEtat, JOURS_EMPREINTE, type OptionsPaiement, OPTIONS } from '@/lib/stripe';
+import { stripe, centimes, signerEtat, creerCompteLoueur, lienInscription, JOURS_EMPREINTE, type OptionsPaiement, OPTIONS } from '@/lib/stripe';
 
 type Resultat = { erreur?: string; message?: string } | void;
 function proteger<A extends any[]>(fn: (...a: A) => Promise<Resultat>) {
@@ -40,21 +40,13 @@ async function _connecterStripe(): Promise<Resultat> {
   const { data: a } = await supabase.from('agences').select('nom, email, site').eq('id', profil.agence_id).single();
   let { data: sc } = await admin.from('stripe_comptes').select('compte, relie_par').eq('agence_id', profil.agence_id).maybeSingle();
   if (!sc) {
-    const compte = await stripe('accounts', {
-      type: 'standard', country: 'FR', email: a?.email || undefined,
-      business_profile: { name: a?.nom || undefined, url: a?.site || undefined, mcc: '7512' }, // 7512 : location de voitures
-      metadata: { agence_id: profil.agence_id, origine: 'SS CAR FLEET' },
-    }, { cle: `compte-${profil.agence_id}` });
+    const compte = await creerCompteLoueur({ agenceId: profil.agence_id, nom: a?.nom, email: a?.email });
     verifier((await admin.from('stripe_comptes').insert({ agence_id: profil.agence_id, compte: compte.id, relie_par: 'creation' })).error);
     sc = { compte: compte.id, relie_par: 'creation' };
   }
   if (sc.relie_par === 'existant') { redirect('https://dashboard.stripe.com'); }
-  const o = origine();
-  const lien = await stripe('account_links', {
-    account: sc.compte, type: 'account_onboarding',
-    refresh_url: `${o}/api/stripe/retour?relancer=1`, return_url: `${o}/api/stripe/retour`,
-  });
-  redirect(lien.url);
+  const url = await lienInscription(sc.compte, origine());
+  redirect(url);
 }
 
 async function _connecterExistant(): Promise<Resultat> {

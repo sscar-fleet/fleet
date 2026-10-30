@@ -88,9 +88,60 @@ export function lireEtat(etat: string | null): string | null {
   return attendu === s ? a : null;
 }
 
+// API Stripe « v2 » (JSON) : création des comptes connectés et liens d'inscription (Accounts v2)
+const VERSION_V2 = '2026-09-30.preview';
+export async function stripeV2<T = any>(chemin: string, corps?: Record<string, any>, { methode, cle }: { methode?: 'GET' | 'POST'; cle?: string } = {}): Promise<T> {
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!secret) throw new ErreurStripe('Les paiements en ligne ne sont pas encore activés sur Fleet.');
+  const m = methode ?? (corps ? 'POST' : 'GET');
+  const r = await fetch(`https://api.stripe.com/v2/${chemin}`, {
+    method: m, cache: 'no-store', signal: AbortSignal.timeout(20_000),
+    headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json', 'Stripe-Version': VERSION_V2, ...(cle ? { 'Idempotency-Key': cle } : {}) },
+    body: m === 'GET' ? undefined : JSON.stringify(corps ?? {}),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new ErreurStripe(traduire(j?.error), j?.error?.code);
+  return j as T;
+}
+
+// Compte du loueur : il encaisse lui-même (marchand), a son propre tableau de bord Stripe complet,
+// paie lui-même les frais Stripe et Stripe porte le risque (Fleet ne porte aucune perte).
+export async function creerCompteLoueur(a: { agenceId: string; nom?: string | null; email?: string | null }) {
+  return stripeV2<{ id: string }>('core/accounts', {
+    contact_email: a.email || undefined,
+    display_name: a.nom || undefined,
+    dashboard: 'full',
+    identity: { country: 'fr', entity_type: 'company', business_details: a.nom ? { registered_name: a.nom } : undefined },
+    configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
+    defaults: { currency: 'eur', locales: ['fr-FR'], responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' } },
+    metadata: { agence_id: a.agenceId, origine: 'SS CAR FLEET' },
+  }, { cle: `compte-v2-${a.agenceId}` });
+}
+
+export async function lienInscription(compte: string, origine: string) {
+  const l = await stripeV2<{ url: string }>('core/account_links', {
+    account: compte,
+    use_case: { type: 'account_onboarding', account_onboarding: {
+      collection_options: { fields: 'currently_due' },
+      return_url: `${origine}/api/stripe/retour`, refresh_url: `${origine}/api/stripe/retour?relancer=1`,
+    } },
+  });
+  return l.url;
+}
+
 // Met à jour l'état du compte Stripe d'un loueur (après inscription ou notification)
 export async function rafraichirCompte(admin: any, compte: string) {
-  const a = await stripe(`accounts/${compte}`, {}, { methode: 'GET' });
-  await admin.from('stripe_comptes').update({ pret: !!a.charges_enabled, virements: !!a.payouts_enabled, updated_at: new Date().toISOString() }).eq('compte', compte);
-  return a;
+  let pret = false; let virements = false;
+  try {
+    const a = await stripeV2(`core/accounts/${compte}?include=configuration.merchant&include=requirements`, undefined, { methode: 'GET' });
+    const cap = a?.configuration?.merchant?.capabilities ?? {};
+    pret = cap?.card_payments?.status === 'active';
+    virements = pret && !(a?.requirements?.entries ?? []).some((e: any) => ['currently_due', 'past_due'].includes(e?.minimum_deadline?.status));
+  } catch {
+    // Compte relié par l'ancienne méthode (compte Stripe existant) : lecture classique
+    const a = await stripe(`accounts/${compte}`, {}, { methode: 'GET' });
+    pret = !!a.charges_enabled; virements = !!a.payouts_enabled;
+  }
+  await admin.from('stripe_comptes').update({ pret, virements, updated_at: new Date().toISOString() }).eq('compte', compte);
+  return { charges_enabled: pret, payouts_enabled: virements };
 }

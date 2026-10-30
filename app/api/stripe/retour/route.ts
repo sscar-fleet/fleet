@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseServeur } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { rafraichirCompte, stripe } from '@/lib/stripe';
+import { rafraichirCompte, lienInscription } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,8 +20,7 @@ export async function GET(request: Request) {
   try {
     if (url.searchParams.get('relancer')) {
       const o = `${url.protocol}//${url.host}`;
-      const lien = await stripe('account_links', { account: sc.compte, type: 'account_onboarding', refresh_url: `${o}/api/stripe/retour?relancer=1`, return_url: `${o}/api/stripe/retour` });
-      return NextResponse.redirect(lien.url);
+      return NextResponse.redirect(await lienInscription(sc.compte, o));
     }
     const a = await rafraichirCompte(admin, sc.compte);
     return vers(a.charges_enabled ? 'ok' : 'incomplet');
