@@ -143,14 +143,13 @@ export async function lienInscription(compte: string, origine: string) {
 export async function rafraichirCompte(admin: any, compte: string) {
   let pret = false; let virements = false;
   try {
-    const a = await stripeV2(`core/accounts/${compte}?include=configuration.merchant&include=requirements`, undefined, { methode: 'GET' });
-    const cap = a?.configuration?.merchant?.capabilities ?? {};
-    pret = cap?.card_payments?.status === 'active';
-    virements = pret && !(a?.requirements?.entries ?? []).some((e: any) => ['currently_due', 'past_due'].includes(e?.minimum_deadline?.status));
-  } catch {
-    // Compte relié par l'ancienne méthode (compte Stripe existant) : lecture classique
+    // Lecture classique : valable pour les comptes Standard (et lisible pour la plupart des comptes v2)
     const a = await stripe(`accounts/${compte}`, {}, { methode: 'GET' });
     pret = !!a.charges_enabled; virements = !!a.payouts_enabled;
+  } catch {
+    const a = await stripeV2(`core/accounts/${compte}?include=configuration.merchant&include=requirements`, undefined, { methode: 'GET' });
+    pret = a?.configuration?.merchant?.capabilities?.card_payments?.status === 'active';
+    virements = pret && !(a?.requirements?.entries ?? []).some((e: any) => ['currently_due', 'past_due'].includes(e?.minimum_deadline?.status));
   }
   await admin.from('stripe_comptes').update({ pret, virements, updated_at: new Date().toISOString() }).eq('compte', compte);
   return { charges_enabled: pret, payouts_enabled: virements };
