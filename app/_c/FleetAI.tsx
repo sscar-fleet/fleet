@@ -25,7 +25,7 @@ function Texte({ t }: { t: string }) {
     const l = m.match(/^\[([^\]]+)\]\((\/[^)\s]*)\)$/);
     if (l) return <a key={i} className="lien" href={l[2]}>{l[1]}</a>;
     const g = m.match(/^\*\*([^*]+)\*\*$/);
-    if (g) return <b key={i}>{g[1]}</b>;
+    if (g) return <b key={i}><Texte t={g[1]} /></b>; // un lien peut être en gras
     return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{m}</span>;
   })}</>;
 }

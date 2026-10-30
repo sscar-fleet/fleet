@@ -1,6 +1,6 @@
 // Fleet AI dans l'appli : un vrai fil de discussion. On écrit ou on dicte, il répond avec les vraies données
 // et prépare les actions ; rien ne change sans un toucher sur le bouton de confirmation.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -87,11 +87,11 @@ export default function Assistant() {
   }
 
   // Texte avec liens [texte](/chemin) touchables, gras **texte** et retours à la ligne
-  const rendu = (t: string, couleur: string) => t.split(/(\[[^\]]+\]\(\/[^)\s]*\)|\*\*[^*]+\*\*)/g).map((m, i) => {
+  const rendu = (t: string, couleur: string): ReactNode[] => t.split(/(\[[^\]]+\]\(\/[^)\s]*\)|\*\*[^*]+\*\*)/g).map((m, i) => {
     const l = m.match(/^\[([^\]]+)\]\((\/[^)\s]*)\)$/);
     if (l) return <Text key={i} onPress={() => ouvrirLien(l[2])} style={{ color: c.accent, fontWeight: '800', textDecorationLine: 'underline' }}>{l[1]}</Text>;
     const g = m.match(/^\*\*([^*]+)\*\*$/);
-    if (g) return <Text key={i} style={{ color: couleur, fontWeight: '800' }}>{g[1]}</Text>;
+    if (g) return <Text key={i} style={{ color: couleur, fontWeight: '800' }}>{rendu(g[1], couleur)}</Text>; // un lien peut être en gras
     return <Text key={i} style={{ color: couleur }}>{m}</Text>;
   });
 
