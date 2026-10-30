@@ -46,8 +46,8 @@ export default async function Admin() {
   return (
     <main className="page" style={{ maxWidth: 1180, margin: '0 auto', padding: 24 }}>
       <div className="titre" style={{ marginBottom: 18 }}>
-        <div className="ligne" style={{ gap: 14 }}><Logo /><h1 style={{ margin: 0 }}>Agences</h1></div>
-        <a className="bouton petit" href="/">Retour au logiciel</a>
+        <div className="ligne" style={{ gap: 14 }}><Logo style={{ height: 36 }} /><h1 style={{ margin: 0 }}>Agences</h1></div>
+        <span className="ligne"><a className="bouton petit" href="/admin/antai">ANTAI</a><a className="bouton petit" href="/">Retour au logiciel</a></span>
       </div>
       {error && <p className="pastille retard">{error.message}</p>}
       <div className="tuiles" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 12, marginBottom: 18 }}>

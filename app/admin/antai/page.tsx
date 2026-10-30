@@ -36,7 +36,7 @@ export default async function TestsAntai() {
   return (
     <main className="page" style={{ maxWidth: 1100, margin: '0 auto', padding: 24 }}>
       <div className="titre" style={{ marginBottom: 18 }}>
-        <div className="ligne" style={{ gap: 14 }}><Logo /><h1 style={{ margin: 0 }}>Tests ANTAI (sandbox)</h1></div>
+        <div className="ligne" style={{ gap: 14 }}><Logo style={{ height: 36 }} /><h1 style={{ margin: 0 }}>Tests ANTAI (sandbox)</h1></div>
         <a className="bouton petit" href="/admin">Retour</a>
       </div>
       {!pret && <p className="carte" style={{ borderColor: 'var(--orange, #E07A00)' }}>Identifiants ANTAI sandbox à coller dans Vercel : <b>ANTAI_SANDBOX_USER</b> et <b>ANTAI_SANDBOX_PASSWORD</b>, puis redéployer.</p>}
