@@ -16,7 +16,7 @@ export const OPTIONS: { cle: keyof OptionsPaiement; titre: string; detail: strin
 // Une empreinte bancaire ne tient qu'environ 7 jours : au-delà, on enregistre la carte à la place
 export const JOURS_EMPREINTE = 6;
 
-function encoder(obj: Record<string, any>, prefixe = ''): string[] {
+export function encoder(obj: Record<string, any>, prefixe = ''): string[] {
   const out: string[] = [];
   for (const [k, v] of Object.entries(obj)) {
     if (v === undefined || v === null) continue;
