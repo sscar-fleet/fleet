@@ -21,6 +21,7 @@ export default function ChampsClient({ c = {} as any, obligatoire = true, agence
         <input type="hidden" name="piece_identite_verso_path" />
         <input type="hidden" name="justificatif_domicile_path" />
       </>}
+      <label>Civilité<select name="civilite" defaultValue={c.civilite ?? ''}><option value="">—</option><option value="M.">M.</option><option value="MME">Mme</option><option value="SOCIETE">Société</option></select></label>
       <label>Nom{obligatoire ? ' *' : ''}<input name="nom" defaultValue={c.nom ?? ''} required={obligatoire} autoComplete="off" /></label>
       <label>Prénom<input name="prenom" defaultValue={c.prenom ?? ''} autoComplete="off" /></label>
       <label>Téléphone<input name="telephone" type="tel" defaultValue={tel(c.telephone)} autoComplete="off" /></label>
@@ -28,8 +29,12 @@ export default function ChampsClient({ c = {} as any, obligatoire = true, agence
       <label>E-mail<input name="email" type="email" defaultValue={c.email ?? ''} autoComplete="off" /></label>
       <ChampAdresse defaut={c.adresse ?? ''} />
       <label>Date de naissance<input name="date_naissance" type="date" defaultValue={c.date_naissance ?? ''} /></label>
+      <label>Lieu de naissance<input name="lieu_naissance" defaultValue={c.lieu_naissance ?? ''} autoComplete="off" placeholder="Ville" /></label>
       <label>N° de permis<input name="numero_permis" defaultValue={c.numero_permis ?? ''} autoComplete="off" /></label>
       <label>Permis obtenu le<input name="date_permis" type="date" defaultValue={c.date_permis ?? ''} /></label>
+      <label>Permis délivré à<input name="permis_lieu" defaultValue={c.permis_lieu ?? ''} autoComplete="off" placeholder="Préfecture ou ville" /></label>
+      <label>Nationalité<input name="nationalite" defaultValue={c.nationalite ?? 'FRA'} maxLength={3} autoComplete="off" placeholder="FRA" /></label>
+      <label>SIRET (si le conducteur est une société)<input name="siret" defaultValue={c.siret ?? ''} inputMode="numeric" autoComplete="off" /></label>
     </>
   );
 }

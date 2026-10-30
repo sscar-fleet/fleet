@@ -7,7 +7,7 @@ import { supabaseAdmin, adminConfigure } from '@/lib/supabaseAdmin';
 import { antaiConfigure } from '@/lib/antai';
 import { ETAPES, NUMEROS_OBLIGATOIRES } from '@/lib/antaiTests';
 import { dateHeure } from '@/lib/format';
-import { lancerEtapeAntai } from './actions';
+import { lancerEtapeAntai, activerAntai, tourneeAntai } from './actions';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -25,6 +25,13 @@ export default async function TestsAntai() {
   const oblig = NUMEROS_OBLIGATOIRES.map((n) => parNumero.get(n));
   const obligOk = oblig.filter((r) => r?.ok).length;
   const total = resultats.filter((r) => r.ok).length;
+  const db = adminConfigure() ? supabaseAdmin() : null;
+  const [agencesRes, journalRes] = db ? await Promise.all([
+    db.from('agences').select('id, nom, siret, antai_actif, antai_active_le').neq('statut', 'suspendu').order('nom'),
+    db.from('antai_journal').select('created_at, action, statut, chemin').order('created_at', { ascending: false }).limit(15),
+  ]) : [{ data: [] }, { data: [] }];
+  const agences: any[] = (agencesRes as any).data ?? [];
+  const journal: any[] = (journalRes as any).data ?? [];
 
   return (
     <main className="page" style={{ maxWidth: 1100, margin: '0 auto', padding: 24 }}>
@@ -38,6 +45,29 @@ export default async function TestsAntai() {
         <div className="carte"><span className="gris">Tous les tests conformes</span><b style={{ display: 'block', fontSize: 28 }}>{total} / 62</b></div>
         <div className="carte"><span className="gris">Résultats bruts</span><a className="lien" href="/api/admin/antai/resultats" target="_blank" rel="noreferrer" style={{ display: 'block', marginTop: 8 }}>Ouvrir (JSON)</a></div>
       </div>
+      <section className="carte" style={{ marginBottom: 14 }}>
+        <h2 style={{ marginTop: 0 }}>Agences reliées à l&apos;ANTAI</h2>
+        <p className="gris" style={{ fontSize: 13, marginTop: 0 }}>Une agence activée : sa flotte est déclarée à l&apos;ANTAI et ses infractions arrivent dans Fleet. Chaque désignation reste validée par le loueur.</p>
+        {agences.map((a) => (
+          <div key={a.id} className="fichier" style={{ flexWrap: 'wrap', gap: 6 }}>
+            <span><b>{a.nom}</b> <span className="gris" style={{ fontSize: 13 }}>{a.siret ? `SIRET ${a.siret}` : 'SIRET manquant'}{a.antai_active_le ? ` · activée le ${dateHeure(a.antai_active_le)}` : ''}</span></span>
+            <Formulaire action={activerAntai.bind(null, a.id, !a.antai_actif)} succes={false} confirmer={a.antai_actif ? 'Couper la liaison ANTAI pour cette agence ?' : 'Activer la liaison ANTAI ? Sa flotte sera déclarée à l\u2019ANTAI au prochain passage.'}>
+              <Envoyer className={`bouton petit ${a.antai_actif ? '' : 'principal'}`}>{a.antai_actif ? 'Couper' : 'Activer'}</Envoyer>
+            </Formulaire>
+          </div>
+        ))}
+        {pret && <div className="ligne" style={{ marginTop: 12, flexWrap: 'wrap' }}>
+          <Formulaire action={tourneeAntai.bind(null, 'flotte')} succes={false}><Envoyer className="bouton petit">Déclarer la flotte maintenant</Envoyer></Formulaire>
+          <Formulaire action={tourneeAntai.bind(null, 'infractions')} succes={false}><Envoyer className="bouton petit">Récupérer les infractions</Envoyer></Formulaire>
+          <Formulaire action={tourneeAntai.bind(null, 'statuts')} succes={false}><Envoyer className="bouton petit">Suivre les désignations</Envoyer></Formulaire>
+        </div>}
+      </section>
+      <details className="carte" style={{ marginBottom: 14 }}>
+        <summary><b>Derniers appels à l&apos;ANTAI</b></summary>
+        {journal.map((j, i) => <div key={i} className="gris" style={{ fontSize: 13 }}>{dateHeure(j.created_at)} · {j.action} · {j.statut ?? '-'} · {j.chemin}</div>)}
+        {!journal.length && <p className="gris">Aucun appel pour l&apos;instant.</p>}
+      </details>
+      <h2>Cahier de tests</h2>
       {ETAPES.map((e, i) => (
         <section key={i} className="carte" style={{ marginBottom: 14 }}>
           <div className="titre">

@@ -11,13 +11,20 @@ import Envoyer from '../_c/Envoyer';
 import Fichier from '../_c/Fichier';
 import Copier from '../_c/Copier';
 import Scanner from '../_c/Scanner';
+import { preparerDesignation } from '@/lib/antaiAmendes';
+import { designerAntai, nonDesignerAntai } from './actionsAntai';
+
+const STATUT_ANTAI: Record<string, [string, string]> = {
+  non_traite: ['À désigner sur l\u2019ANTAI', 'a_prendre'], designation_faite: ['Envoyée, en attente de l\u2019ANTAI', 'prise'],
+  acquittement: ['Acceptée par l\u2019ANTAI', 'ok'], refuse: ['Refusée par l\u2019ANTAI', 'depasse'], expire: ['Délai ANTAI dépassé', 'depasse'], fail: ['Inconnue de l\u2019ANTAI', 'depasse'],
+};
 
 export const dynamic = 'force-dynamic';
 
 export default async function Amendes({ searchParams }: { searchParams: { filtre?: string } }) {
   const { supabase, profil, transport } = await utilisateurCourant();
   const filtre = searchParams.filtre ?? 'a_traiter';
-  let q = supabase.from('amendes').select('*, vehicules(immatriculation), clients(id, nom, prenom, telephone, date_naissance, adresse, numero_permis, date_permis), locations(id, numero)'
+  let q = supabase.from('amendes').select('*, vehicules(immatriculation), clients(id, nom, prenom, telephone, email, date_naissance, adresse, numero_permis, date_permis, civilite, lieu_naissance, permis_lieu, nationalite, siret), locations(id, numero)'
     + (transport ? ', chauffeurs(id, nom, prenom, telephone, date_naissance, lieu_naissance, adresse, numero_permis, date_permis), tournees(id, jour, debut, fin)' : ''));
   q = filtre === 'a_traiter' ? q.in('statut', ['a_designer', 'infos_manquantes', 'refusee']).order('echeance') : q.eq('statut', filtre).order('date_infraction', { ascending: false });
   const [{ data: amendesBrutes }, { data: clients }, { data: vehicules }, { data: chauffeurs }] = await Promise.all([
@@ -122,8 +129,8 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
                   <Envoyer className="bouton petit">Associer</Envoyer>
                 </Formulaire>
               )}
-              {a.personne && a.statut !== 'designee' && a.statut !== 'payee' && <Formulaire action={A.statutAmende.bind(null, a.id, 'designee')}><Envoyer className="bouton petit principal">Marquer désignée</Envoyer></Formulaire>}
-              {a.statut !== 'refusee' && a.statut !== 'payee' && <Formulaire action={A.statutAmende.bind(null, a.id, 'refusee')}><Envoyer className="bouton petit">Refusée</Envoyer></Formulaire>}
+              {a.source !== 'antai' && a.personne && a.statut !== 'designee' && a.statut !== 'payee' && <Formulaire action={A.statutAmende.bind(null, a.id, 'designee')}><Envoyer className="bouton petit principal">Marquer désignée</Envoyer></Formulaire>}
+              {a.source !== 'antai' && a.statut !== 'refusee' && a.statut !== 'payee' && <Formulaire action={A.statutAmende.bind(null, a.id, 'refusee')}><Envoyer className="bouton petit">Refusée</Envoyer></Formulaire>}
               {a.statut !== 'payee' && <Formulaire action={A.statutAmende.bind(null, a.id, 'payee')}><Envoyer className="bouton petit">Payée par l&apos;agence</Envoyer></Formulaire>}
             </div>
             {!a.personne && transport && (() => { const p = tourneeProche(a); if (!p) return null; const avant = new Date(a.date_infraction).getTime() < parisVersMs(p.x.jour, p.x.debut); return (
@@ -136,7 +143,38 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
                 <span>Infraction {avant ? `${ecartTexte(p.ecart)} avant le départ` : `${ecartTexte(p.ecart)} après le retour`} de la location <a className="lien" href={`/locations/${p.l.id}`}>N° {p.l.numero}</a> · <b>{p.l.clients?.prenom} {p.l.clients?.nom}</b>. C&apos;est probablement ce conducteur.</span>
                 <Formulaire action={A.clientAmende.bind(null, a.id)}><input type="hidden" name="client_id" value={p.l.client_id} /><Envoyer className="bouton petit principal">Associer</Envoyer></Formulaire>
               </div>); })()}
-            {a.personne && !['designee', 'payee'].includes(a.statut) && (
+            {a.source === 'antai' && (() => {
+              const [lib, cls] = STATUT_ANTAI[a.antai_statut] ?? [a.antai_statut ?? '', ''];
+              const prep = a.clients ? preparerDesignation(a, profil.agences as any, a.clients) : { corps: null, manquants: ['conducteur'] };
+              const peutDesigner = ['non_traite', 'refuse'].includes(a.antai_statut);
+              return (
+                <div className="fiche-antai" style={{ marginTop: 12 }}>
+                  <div className="ligne" style={{ flexWrap: 'wrap', gap: 8 }}>
+                    <span className="pastille">Reçue de l&apos;ANTAI</span> <span className={`pastille ${cls}`}>{lib}</span>
+                    {a.designe_le && <span className="gris" style={{ fontSize: 13 }}>Envoyée le {dateHeure(a.designe_le)}</span>}
+                  </div>
+                  {a.antai_message && <p className="retard" style={{ fontSize: 13, margin: '8px 0 0' }}>{a.antai_message}</p>}
+                  {peutDesigner && a.clients && prep.manquants.length > 0 && (
+                    <p style={{ fontSize: 13, margin: '8px 0 0' }}><b>Avant de désigner, il manque :</b> {prep.manquants.join(', ')}. <a className="lien" href={`/clients/${a.clients.id}`}>Compléter la fiche</a></p>
+                  )}
+                  {peutDesigner && (
+                    <div className="ligne" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+                      {a.clients && prep.corps && (
+                        <Formulaire action={designerAntai.bind(null, a.id)} succes={false} confirmer={`Désigner ${[a.clients.prenom, a.clients.nom].filter(Boolean).join(' ')} comme conducteur auprès de l'ANTAI ? L'envoi est définitif.`}>
+                          <Envoyer className="bouton petit principal">Désigner {a.clients.prenom ?? a.clients.nom} auprès de l&apos;ANTAI</Envoyer>
+                        </Formulaire>
+                      )}
+                      {profil.role === 'gerant' && (
+                        <Formulaire action={nonDesignerAntai.bind(null, a.id)} succes={false} confirmer="Ne pas désigner de conducteur ? L'agence restera redevable de l'amende, avec une majoration possible pour non-désignation (pour une société). L'envoi est définitif.">
+                          <Envoyer className="bouton petit">Ne pas désigner</Envoyer>
+                        </Formulaire>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            {a.source !== 'antai' && a.personne && !['designee', 'payee'].includes(a.statut) && (
               <details className="fiche-antai">
                 <summary>Préparer la désignation ANTAI</summary>
                 <p className="gris" style={{ fontSize: 13, margin: '6px 0 10px' }}>Les informations dans l&apos;ordre du formulaire, à copier une par une.</p>
@@ -157,7 +195,7 @@ export default async function Amendes({ searchParams }: { searchParams: { filtre
         );
       })}
       {!amendes?.length && <p className="vide carte">Aucune amende dans cette liste.</p>}
-      <p className="gris" style={{ fontSize: 13 }}>La désignation se fait sur le site de l&apos;ANTAI. Réception automatique des avis : plus tard, avec un partenaire.</p>
+      <p className="gris" style={{ fontSize: 13 }}>{(profil.agences as any)?.antai_actif ? 'Les infractions arrivent automatiquement de l\u2019ANTAI (8 h et 14 h). Vous validez chaque désignation d\u2019un clic.' : 'La désignation se fait sur le site de l\u2019ANTAI. Bientôt : réception automatique des avis et désignation en un clic.'}</p>
     </Cadre>
   );
 }

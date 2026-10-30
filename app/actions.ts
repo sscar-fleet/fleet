@@ -386,6 +386,14 @@ function champsClient(formData: FormData) {
     date_naissance: texte(formData.get('date_naissance')),
     date_permis: texte(formData.get('date_permis')),
     numero_permis: texte(formData.get('numero_permis')),
+    // Informations exigées par l'ANTAI pour désigner le conducteur (seulement si le formulaire les contient)
+    ...(formData.has('civilite') ? {
+      civilite: ['M.', 'MME', 'SOCIETE'].includes(String(formData.get('civilite'))) ? String(formData.get('civilite')) : null,
+      lieu_naissance: texte(formData.get('lieu_naissance')),
+      permis_lieu: texte(formData.get('permis_lieu')),
+      nationalite: (texte(formData.get('nationalite')) ?? 'FRA').toUpperCase().slice(0, 3),
+      siret: (texte(formData.get('siret')) ?? '').replace(/\s/g, '') || null,
+    } : {}),
   };
 }
 

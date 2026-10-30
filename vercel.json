@@ -1,3 +1,7 @@
 {
-  "regions": ["cdg1"]
+  "regions": ["cdg1"],
+  "crons": [
+    { "path": "/api/antai/cron", "schedule": "0 7 * * *" },
+    { "path": "/api/antai/cron", "schedule": "0 13 * * *" }
+  ]
 }
