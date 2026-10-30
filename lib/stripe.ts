@@ -106,28 +106,37 @@ export async function stripeV2<T = any>(chemin: string, corps?: Record<string, a
 
 // Compte du loueur : il encaisse lui-même (marchand), a son propre tableau de bord Stripe complet,
 // paie lui-même les frais Stripe et Stripe porte le risque (Fleet ne porte aucune perte).
-export async function creerCompteLoueur(a: { agenceId: string; nom?: string | null; email?: string | null }) {
-  return stripeV2<{ id: string }>('core/accounts', {
-    contact_email: a.email || undefined,
-    display_name: a.nom || undefined,
-    dashboard: 'full',
-    // Plateforme en France : les informations d'identité (raison sociale, type d'entreprise…) ne peuvent pas être envoyées par Fleet,
-    // c'est le loueur qui les saisit lui-même dans le formulaire d'inscription Stripe.
-    configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
-    defaults: { currency: 'eur', locales: ['fr-FR'], responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' } },
-    metadata: { agence_id: a.agenceId, origine: 'SS CAR FLEET' },
-  }, { cle: `compte-v2b-${a.agenceId}` });
+export async function creerCompteLoueur(a: { agenceId: string; nom?: string | null; email?: string | null }): Promise<{ id: string; v1?: boolean }> {
+  // 1) Nouvelle méthode (Accounts v2). Plateforme en France : aucune information d'identité ne peut être envoyée par Fleet
+  //    (nom, e-mail…), le loueur saisit tout lui-même dans le formulaire Stripe.
+  try {
+    return await stripeV2<{ id: string }>('core/accounts', {
+      dashboard: 'full',
+      configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
+      defaults: { currency: 'eur', responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' } },
+      metadata: { agence_id: a.agenceId, origine: 'SS CAR FLEET' },
+    }, { cle: `compte-v2c-${a.agenceId}` });
+  } catch (e2: any) {
+    // 2) Repli : compte « Standard » classique (si l'ancienne méthode est autorisée sur la plateforme Stripe)
+    try {
+      const c = await stripe('accounts', { type: 'standard', country: 'FR', metadata: { agence_id: a.agenceId, origine: 'SS CAR FLEET' } }, { cle: `compte-v1-${a.agenceId}` });
+      return { id: c.id, v1: true };
+    } catch { throw e2; }
+  }
 }
 
 export async function lienInscription(compte: string, origine: string) {
-  const l = await stripeV2<{ url: string }>('core/account_links', {
-    account: compte,
-    use_case: { type: 'account_onboarding', account_onboarding: {
-      collection_options: { fields: 'currently_due' },
-      return_url: `${origine}/api/stripe/retour`, refresh_url: `${origine}/api/stripe/retour?relancer=1`,
-    } },
-  });
-  return l.url;
+  const retour = `${origine}/api/stripe/retour`, relance = `${origine}/api/stripe/retour?relancer=1`;
+  try {
+    const l = await stripeV2<{ url: string }>('core/account_links', {
+      account: compte,
+      use_case: { type: 'account_onboarding', account_onboarding: { collection_options: { fields: 'currently_due' }, return_url: retour, refresh_url: relance } },
+    });
+    return l.url;
+  } catch (e2) {
+    try { return (await stripe('account_links', { account: compte, type: 'account_onboarding', return_url: retour, refresh_url: relance })).url as string; }
+    catch { throw e2; }
+  }
 }
 
 // Met à jour l'état du compte Stripe d'un loueur (après inscription ou notification)
