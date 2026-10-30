@@ -111,11 +111,12 @@ export async function creerCompteLoueur(a: { agenceId: string; nom?: string | nu
     contact_email: a.email || undefined,
     display_name: a.nom || undefined,
     dashboard: 'full',
-    identity: { country: 'fr', entity_type: 'company', business_details: a.nom ? { registered_name: a.nom } : undefined },
+    // Plateforme en France : les informations d'identité (raison sociale, type d'entreprise…) ne peuvent pas être envoyées par Fleet,
+    // c'est le loueur qui les saisit lui-même dans le formulaire d'inscription Stripe.
     configuration: { merchant: { capabilities: { card_payments: { requested: true } } } },
     defaults: { currency: 'eur', locales: ['fr-FR'], responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' } },
     metadata: { agence_id: a.agenceId, origine: 'SS CAR FLEET' },
-  }, { cle: `compte-v2-${a.agenceId}` });
+  }, { cle: `compte-v2b-${a.agenceId}` });
 }
 
 export async function lienInscription(compte: string, origine: string) {
