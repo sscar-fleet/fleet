@@ -8,10 +8,13 @@
 - Mise à jour à distance (expo-updates) : les prochaines retouches d'affichage arriveront sur les téléphones
   sans repasser par Apple (`eas update --channel production`).
 
+- Suppression du compte depuis l'appli (Mon compte > « Supprimer mon compte ») : exigence Apple (règle 5.1.1 v).
+  Employé : supprimé tout de suite. Gérant : demande signalée dans l'admin Fleet, faite sous 7 jours.
+
 ## Fichiers
 - Nouveaux : src/lib/visuel.ts, src/composants/VisuelVehicule.tsx
 - Modifiés : src/lib/donnees.ts, src/app/(onglets)/index.tsx, src/app/(onglets)/flotte.tsx, src/app/vehicules.tsx,
-  src/app/vehicule/[id].tsx, src/app/location/[id].tsx, src/app/nouvelle.tsx, src/app/stock.tsx
+  src/app/vehicule/[id].tsx, src/app/location/[id].tsx, src/app/nouvelle.tsx, src/app/stock.tsx, src/app/compte.tsx
 - Réglages : package.json (expo-updates), eas.json (channel production)
 
 ## app.json (à modifier à la main sur le Mac, ne pas écraser le fichier)

@@ -12,6 +12,7 @@ import { useCouleurs } from '@/lib/theme';
 import { enAttente, envoyerFile, dernierRefus } from '@/lib/hors-ligne';
 import { useGps } from '@/lib/gps';
 import { api, urlSite } from '@/lib/site';
+import Fenetre from '@/composants/Fenetre';
 
 export default function Compte() {
   const c = useCouleurs();
@@ -39,6 +40,18 @@ export default function Compte() {
     toast(r === 'ok' ? 'Notifications activées' : 'Notifications non activées', r === 'ok' ? 'ok' : 'alerte');
   }
   const nbSuivis = Object.keys(gps.parVehicule).length;
+  // Suppression du compte (exigence Apple) : employé supprimé tout de suite, gérant = demande traitée sous 7 jours
+  const [supprimer, setSupprimer] = useState(false);
+  const gerant = profil?.role === 'gerant';
+  async function confirmerSuppression() {
+    setSupprimer(false);
+    try {
+      const r = await api<{ immediat: boolean }>('mobile/compte', {});
+      toast(r.immediat ? 'Compte supprimé' : 'Demande envoyée : compte et données supprimés sous 7 jours', 'ok');
+      await desinscrirePush().catch(() => {});
+      if (r.immediat) await supabase.auth.signOut();
+    } catch (e: any) { toast(e?.message ?? 'Pas de réseau, réessayez', 'alerte'); }
+  }
 
   return (
     <Ecran retour titre={profil?.nom ?? session?.user.email ?? 'Mon compte'} sousTitre={`${profil?.agence ?? ''} · ${profil?.role === 'gerant' ? 'Gérant' : 'Employé'}`}>
@@ -87,7 +100,11 @@ export default function Compte() {
       </Carte>
 
       <GrosBouton secondaire icone="sortie" titre="Se déconnecter" onPress={async () => { await desinscrirePush(); supabase.auth.signOut(); }} style={{ marginTop: 18 }} />
+      <Text onPress={() => setSupprimer(true)} accessibilityRole="button" style={{ color: c.gris, textAlign: 'center', marginTop: 22, fontSize: 14, textDecorationLine: 'underline' }}>Supprimer mon compte</Text>
       <View style={{ alignItems: 'center', marginTop: 20, opacity: 0.7 }}><Logo largeur={110} /></View>
+      <Fenetre visible={supprimer} danger icone="alerte" question="Supprimer votre compte ?"
+        detail={gerant ? 'Votre compte, votre agence et ses données seront supprimés sous 7 jours. Les factures sont conservées le temps exigé par la loi. Vos employés perdront aussi leur accès.' : 'Votre accès à l’agence est supprimé tout de suite. Les fiches de l’agence (locations, clients) restent à votre employeur.'}
+        oui="Supprimer mon compte" non="Annuler" onNon={() => setSupprimer(false)} onOui={confirmerSuppression} />
     </Ecran>
   );
 }
