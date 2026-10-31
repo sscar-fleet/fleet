@@ -55,6 +55,9 @@ export default async function Admin() {
           <div key={t as string} className="carte"><span className="gris">{t}</span><b style={{ display: 'block', fontSize: 28 }}>{n}</b></div>
         ))}
       </div>
+      {liste.filter((a) => /SUPPRESSION DU COMPTE DEMANDÉE/.test(a.note_admin ?? '')).map((a) => (
+        <p key={a.id} className="carte" style={{ borderColor: '#D64545' }}><b>Suppression de compte demandée depuis l&apos;appli : {a.nom}</b> · à traiter sous 7 jours (exigence Apple). {a.note_admin}</p>
+      ))}
       {finissent.length > 0 && <p className="carte" style={{ borderColor: 'var(--orange, #E07A00)' }}><b>Essais qui se terminent bientôt :</b> {finissent.map((a) => `${a.nom} (${joursAvant(a.fin_essai)} j)`).join(', ')}</p>}
       {aAppeler.length > 0 && <p className="carte" style={{ borderColor: 'var(--orange, #E07A00)' }}><b>Imports à regarder :</b> {aAppeler.map((a) => `${a.nom} (${aideImport(a.id)})`).join(' · ')}</p>}
       {!annuaireConfigure() && <p className="gris" style={{ fontSize: 13 }}>Reconnaissance des clients SS CAR SYSTEM inactive : ajoutez AIRTABLE_TOKEN (jeton Airtable en lecture seule) dans Vercel.</p>}
